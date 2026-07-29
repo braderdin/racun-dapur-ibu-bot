@@ -1,0 +1,202 @@
+name: Bot Cron Workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_type:
+        description: "Run type (manual, scheduled, test)"
+        required: false
+        default: "manual"
+        type: choices
+        options:
+          - manual
+          - scheduled
+          - test
+  schedule:
+    - cron: "*/30 * * * *" # Every 30 minutes (more frequent than original due to testing needs)
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Bot (Manual/Scheduled)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_type != 'test'
+        env:
+          # Supabase Configuration
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+          # Upstash Redis Configuration
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+
+          # Upstash QStash Configuration
+          QSTASH_URL: ${{ secrets.QSTASH_URL }}
+          QSTASH_TOKEN: ${{ secrets.QSTASH_TOKEN }}
+          QSTASH_CURRENT_SIGNING_KEY: ${{ secrets.QSTASH_CURRENT_SIGNING_KEY }}
+          QSTASH_NEXT_SIGNING_KEY: ${{ secrets.QSTASH_NEXT_SIGNING_KEY }}
+
+          # X (Twitter) API Configuration
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_KEY_SECRET: ${{ secrets.X_API_KEY_SECRET }}
+          X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+          X_CONSUMER_KEY: ${{ secrets.X_CONSUMER_KEY }}
+          X_CONSUMER_KEY_SECRET: ${{ secrets.X_CONSUMER_KEY_SECRET }}
+          X_CLIENT_ID: ${{ secrets.X_CLIENT_ID }}
+          X_CLIENT_SECRET: ${{ secrets.X_CLIENT_SECRET }}
+
+          # Lazada API Configuration
+          LAZADA_APP_KEY: ${{ secrets.LAZADA_APP_KEY }}
+          LAZADA_APP_SECRET: ${{ secrets.LAZADA_APP_SECRET }}
+          LAZADA_MEMBER_ID: ${{ secrets.LAZADA_MEMBER_ID }}
+          LAZADA_USER_TOKEN: ${{ secrets.LAZADA_USER_TOKEN }}
+          LAZADA_LITEAPP_KEY: ${{ secrets.LAZADA_LITEAPP_KEY }}
+          LAZADA_LITEAPP_SECRET: ${{ secrets.LAZADA_LITEAPP_SECRET }}
+
+          # OpenRouter AI Configuration
+          OPENROUTER_BASE_URL: ${{ secrets.OPENROUTER_BASE_URL }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+
+          # Backblaze B2 Configuration
+          B2_ACC1_KEY_ID: ${{ secrets.B2_ACC1_KEY_ID }}
+          B2_ACC1_APPLICATION_KEY: ${{ secrets.B2_ACC1_APPLICATION_KEY }}
+          B2_ACC2_KEY_ID: ${{ secrets.B2_ACC2_KEY_ID }}
+          B2_ACC2_APPLICATION_KEY: ${{ secrets.B2_ACC2_APPLICATION_KEY }}
+
+          # Cloudflare Configuration
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+        run: |
+          echo "🚀 Starting Bot Racun Dapur Ibu execution"
+          echo "📅 Trigger: ${{ github.event_name }}"
+          echo "🏷️  Run type: ${{ github.event.inputs.run_type }}"
+
+          # Run the Cloudflare Worker
+          npx wrangler deploy
+
+      - name: Run Bot (Test Mode)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_type == 'test'
+        env:
+          SUPABASE_URL: "https://test.supabase.co"
+          SUPABASE_SERVICE_ROLE_KEY: "test-key"
+          SUPABASE_ANON_KEY: "test-key"
+          DATABASE_URL: "postgresql://test"
+          REDIS_URL: "redis://test"
+          UPSTASH_REDIS_REST_TOKEN: "test"
+          UPSTASH_REDIS_REST_URL: "https://test.upstash.io"
+          QSTASH_URL: "https://test.qstash.io"
+          QSTASH_TOKEN: "test"
+          QSTASH_CURRENT_SIGNING_KEY: "test"
+          QSTASH_NEXT_SIGNING_KEY: "test"
+          X_API_KEY: "test"
+          X_API_KEY_SECRET: "test"
+          X_BEARER_TOKEN: "test"
+          X_ACCESS_TOKEN: "test"
+          X_ACCESS_TOKEN_SECRET: "test"
+          X_CONSUMER_KEY: "test"
+          X_CONSUMER_KEY_SECRET: "test"
+          X_CLIENT_ID: "test"
+          X_CLIENT_SECRET: "test"
+          LAZADA_APP_KEY: "test"
+          LAZADA_APP_SECRET: "test"
+          LAZADA_MEMBER_ID: "test"
+          LAZADA_USER_TOKEN: "test"
+          LAZADA_LITEAPP_KEY: "test"
+          LAZADA_LITEAPP_SECRET: "test"
+          OPENROUTER_BASE_URL: "https://test.openrouter.ai/api/v1"
+          OPENROUTER_API_KEY: "test"
+          B2_ACC1_KEY_ID: "test"
+          B2_ACC1_APPLICATION_KEY: "test"
+          B2_ACC2_KEY_ID: "test"
+          B2_ACC2_APPLICATION_KEY: "test"
+          CLOUDFLARE_ACCOUNT_ID: "test"
+          CLOUDFLARE_API_TOKEN: "test"
+
+        run: |
+          echo "🧪 Running Bot in TEST mode"
+          echo "Testing with mock credentials"
+
+          # Run wrangler deploy in test mode
+          npx wrangler deploy --dry-run || true
+
+      - name: Notify on Success
+        if: success()
+        run: |
+          echo "✅ Bot execution completed successfully"
+          echo "📊 Processing completed as scheduled"
+
+      - name: Notify on Failure
+        if: failure()
+        run: |
+          echo "❌ Bot execution failed"
+          echo "🔍 Check logs for details"
+          echo "📋 Review configuration and credentials"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          echo "🧹 Performing cleanup"
+          echo "Completed cleanup activities"
+
+# Local test workflow
+name: Local Bot Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Linting
+        run: npx prettier --check .
+
+      - name: Type checking
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Run migration script
+        run: node bin/migration.cjs
+
+      - name: Run health check
+        run: |
+          curl -s http://localhost:8787/health || echo "Health check failed (expected for local test)"

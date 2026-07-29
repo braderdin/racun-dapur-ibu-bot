@@ -1,0 +1,617 @@
+/*
+ * Artisan Interface Route Module
+ * Main orchestrator for all API endpoints in the worker
+ * Provides REST API facade for the @RacunDapurIbu bot administration
+ */
+
+import { Router, Request, Response, NextFunction } from "express";
+import { RedisService } from "../services/redis";
+import { B2StorageService } from "../services/b2-storage";
+import { ShortenerService } from "../services/shortener";
+import { SupabaseService } from "../services/supabase";
+import { TwitterService } from "../services/twitter";
+import { HealthHandler } from "./health";
+import { QStashVerifier } from "../utils/qstash-verify";
+
+export class ArtisanRouter {
+  private router: Router;
+  private healthHandler: HealthHandler;
+  private qstashVerifier: QStashVerifier | null;
+
+  constructor(env: any) {
+    this.router = Router();
+    this.healthHandler = new HealthHandler();
+    this.qstashVerifier = new QStashVerifier(env.QSTASH_TOKEN || "");
+
+    this.initializeRoutes();
+  }
+
+  private initializeRoutes(): void {
+    // Health check endpoints
+    this.router.get("/health", this.handleHealthCheck.bind(this));
+    this.router.get("/health/simple", this.handleSimpleHealthCheck.bind(this));
+
+    // Status endpoints
+    this.router.get("/status", this.handleStatusRoute.bind(this));
+
+    // Product management endpoints
+    this.router.get("/products", this.handleGetProducts.bind(this));
+    this.router.post("/products", this.handleCreateProduct.bind(this));
+    this.router.get("/products/:id", this.handleGetProduct.bind(this));
+    this.router.put("/products/:id", this.handleUpdateProduct.bind(this));
+    this.router.delete("/products/:id", this.handleDeleteProduct.bind(this));
+
+    // Twitter management endpoints
+    this.router.post("/tweets", this.handleCreateTweet.bind(this));
+    this.router.get("/tweets", this.handleGetTweets.bind(this));
+    this.router.get("/tweets/:id", this.handleGetTweet.bind(this));
+
+    // Link shortener endpoints
+    this.router.post("/shorten", this.handleShortenUrl.bind(this));
+    this.router.get("/shorten/:code", this.handleGetShortUrl.bind(this));
+    this.router.get("/r/:code", this.handleRedirectToAffiliate.bind(this)); // Public redirect
+
+    // Analytics endpoints
+    this.router.get("/analytics/clicks", this.handleGetClickAnalytics.bind(this));
+    this.router.get("/analytics/conversions", this.handleGetConversionAnalytics.bind(this));
+
+    // System management endpoints
+    this.router.post("/workers/process", this.handleProcessProduct.bind(this));
+    this.router.get("/workers/status", this.handleGetWorkerStatus.bind(this));
+
+    // Configuration and settings endpoints
+    this.router.get("/config", this.handleGetConfig.bind(this));
+    this.router.put("/config", this.handleUpdateConfig.bind(this));
+
+    // QStash webhook endpoints
+    this.router.post("/qstash", this.handleQStashWebhook.bind(this));
+  }
+
+  private async handleHealthCheck(req: Request, res: Response): Promise<Response> {
+    const status = await this.healthHandler.getHealthStatus();
+    const statusCode = status.status === "unhealthy" ? 503 : 200;
+
+    return res.status(statusCode).json(status);
+  }
+
+  private async handleSimpleHealthCheck(req: Request, res: Response): Promise<Response> {
+    const status = this.healthHandler.getQuickHealth();
+    return res.status(200).json(status);
+  }
+
+  private async handleStatusRoute(req: Request, res: Response): Promise<Response> {
+    // Initialize services for status
+    const redisService = new RedisService({} as any);
+    const b2StorageService = new B2StorageService({} as any);
+    const supabaseService = new SupabaseService({} as any);
+
+    const status = {
+      worker: "racun-dapur-ibu-bot",
+      version: "1.0.0",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime ? process.uptime() : 0,
+      services: {
+        redis: await redisService.getServiceStatus(),
+        b2Storage: await b2StorageService.getServiceStatus(),
+        supabase: await supabaseService.getServiceStatus(),
+      },
+      quotas: {
+        maxRequestsPerMinute: 5,
+        storageCapGB: 9,
+        redisTTLSeconds: 432000,
+      },
+    };
+
+    return res.status(200).json(status);
+  }
+
+  // Product management handlers
+  private async handleGetProducts(req: Request, res: Response): Promise<Response> {
+    try {
+      const { limit = 50, offset = 0, search } = req.query;
+
+      const supabaseService = new SupabaseService({} as any);
+      let products;
+
+      if (search) {
+        products = await supabaseService.searchProducts(search as string);
+      } else {
+        products = await supabaseService.getRecentProducts(parseInt(limit as string) || 50);
+      }
+
+      return res.status(200).json({
+        products,
+        total: products.length,
+        limit: parseInt(limit as string) || 50,
+        offset: parseInt(offset as string) || 0,
+      });
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      return res.status(500).json({
+        error: "Failed to fetch products",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  private async handleCreateProduct(req: Request, res: Response): Promise<Response> {
+    try {
+      const productData = req.body;
+
+      const supabaseService = new SupabaseService({} as any);
+      const result = await supabaseService.logPostedProduct(productData);
+
+      return res.status(201).json({
+        message: "Product created successfully",
+        product: result,
+      });
+    } catch (error) {
+      console.error("Error creating product:", error);
+      return res.status(500).json({
+        error: "Failed to create product",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  private async handleGetProduct(req: Request, res: Response): Promise<Response> {
+    try {
+      const { id } = req.params;
+
+      const supabaseService = new SupabaseService({} as any);
+      const product = await supabaseService.getRecentProducts(50);
+
+      const foundProduct = product.find((p) => p.product_id === id || p.id === id);
+
+      if (!foundProduct) {
+        return res.status(404).json({
+          error: "Product not found",
+          message: `Product with ID ${id} not found`,
+        });
+      }
+
+      return res.status(200).json(foundProduct);
+    } catch (error) {
+      console.error("Error fetching product:", error);
+      return res.status(500).json({
+        error: "Failed to fetch product",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  private async handleUpdateProduct(req: Request, res: Response): Promise<Response> {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+
+      const supabaseService = new SupabaseService({} as any);
+      const result = await supabaseService.updatePostedProduct(id, updateData);
+
+      return res.status(200).json({
+        message: "Product updated successfully",
+        product: result,
+      });
+    } catch (error) {
+      console.error("Error updating product:", error);
+      return res.status(500).json({
+        error: "Failed to update product",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  private async handleDeleteProduct(req: Request, res: Response): Promise<Response> {
+    try {
+      const { id } = req.params;
+
+      const supabaseService = new SupabaseService({} as any);
+      await supabaseService.deletePostedProduct(id);
+
+      return res.status(200).json({
+        message: "Product deleted successfully",
+      });
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      return res.status(500).json({
+        error: "Failed to delete product",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  // Twitter handlers
+  private async handleCreateTweet(req: Request, res: Response): Promise<Response> {
+    try {
+      const tweetData = req.body;
+
+      const twitterService = new TwitterService({} as any);
+      const result = await twitterService.postAffiliateThread(
+        tweetData.text,
+        tweetData.mediaUrl
+      );
+
+      return res.status(201).json({
+        message: "Tweet created successfully",
+        tweet: result,
+      });
+    } catch (error) {
+      console.error("Error creating tweet:", error);
+      return res.status(500).json({
+        error: "Failed to create tweet",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  private async handleGetTweets(req: Request, res: Response): Promise<Response> {
+    try {
+      const { limit = 50 } = req.query;
+
+      const twitterService = new TwitterService({} as any);
+      const tweets = await twitterService.getRecentTweets(parseInt(limit as string) || 50);
+
+      return res.status(200).json({
+        tweets,
+        total: tweets.length,
+        limit: parseInt(limit as string) || 50,
+      });
+    } catch (error) {
+      console.error("Error fetching tweets:", error);
+      return res.status(500).json({
+        error: "Failed to fetch tweets",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  private async handleGetTweet(req: Request, res: Response): Promise<Response> {
+    try {
+      const { id } = req.params;
+
+      const twitterService = new TwitterService({} as any);
+      const tweets = await twitterService.getRecentTweets(100);
+
+      const foundTweet = tweets.find((t) => t.id === id || t.tweet_id === id);
+
+      if (!foundTweet) {
+        return res.status(404).json({
+          error: "Tweet not found",
+          message: `Tweet with ID ${id} not found`,
+        });
+      }
+
+      return res.status(200).json(foundTweet);
+    } catch (error) {
+      console.error("Error fetching tweet:", error);
+      return res.status(500).json({
+        error: "Failed to fetch tweet",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  // Link shortener handlers
+  private async handleShortenUrl(req: Request, res: Response): Promise<Response> {
+    try {
+      const { url, productId } = req.body;
+
+      if (!url) {
+        return res.status(400).json({
+          error: "URL is required",
+          message: "Affiliate URL must be provided",
+        });
+      }
+
+      const shortenerService = new ShortenerService(
+        new RedisService({} as any),
+        new SupabaseService({} as any)
+      );
+
+      const result = await shortenerService.generateShortCode(url, productId);
+
+      return res.status(201).json({
+        message: "URL shortened successfully",
+        shortCode: result.shortCode,
+        shortUrl: result.shortUrl,
+        affiliateUrl: result.affiliateUrl,
+        expiresAt: result.expiresAt,
+      });
+    } catch (error) {
+      console.error("Error shortening URL:", error);
+      return res.status(500).json({
+        error: "Failed to shorten URL",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  private async handleGetShortUrl(req: Request, res: Response): Promise<Response> {
+    try {
+      const { code } = req.params;
+
+      const shortenerService = new ShortenerService(
+        new RedisService({} as any),
+        new SupabaseService({} as any)
+      );
+
+      const affiliateUrl = await shortenerService.getAffiliateUrl(code);
+
+      if (!affiliateUrl) {
+        return res.status(404).json({
+          error: "Short code not found",
+          message: `Short code ${code} not found or expired`,
+        });
+      }
+
+      return res.status(200).json({
+        shortCode: code,
+        affiliateUrl,
+      });
+    } catch (error) {
+      console.error("Error fetching short URL:", error);
+      return res.status(500).json({
+        error: "Failed to fetch short URL",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  private async handleRedirectToAffiliate(req: Request, res: Response): Promise<Response> {
+    try {
+      const { code } = req.params;
+
+      const shortenerService = new ShortenerService(
+        new RedisService({} as any),
+        new SupabaseService({} as any)
+      );
+
+      const affiliateUrl = await shortenerService.getAffiliateUrl(code);
+
+      if (!affiliateUrl) {
+        return res.status(404).json({
+          error: "Short code not found",
+          message: `Short code ${code} not found or expired`,
+        });
+      }
+
+      // Increment click count
+      await shortenerService.incrementClickCount(code);
+
+      // Return the affiliate URL for the client to navigate
+      return res.status(200).json({
+        shortCode: code,
+        affiliateUrl,
+        message: "Redirect URL retrieved successfully",
+      });
+    } catch (error) {
+      console.error("Error redirecting to affiliate URL:", error);
+      return res.status(500).json({
+        error: "Failed to redirect to affiliate URL",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  // Analytics handlers
+  private async handleGetClickAnalytics(req: Request, res: Response): Promise<Response> {
+    try {
+      const { startDate, endDate, shortCode } = req.query;
+
+      const supabaseService = new SupabaseService({} as any);
+      const analytics = await supabaseService.getLinkClickAnalytics(
+        startDate as string,
+        endDate as string,
+        shortCode as string
+      );
+
+      return res.status(200).json({
+        analytics,
+        totalClicks: analytics.reduce((sum, item) => sum + item.clicks, 0),
+        period: { startDate, endDate },
+      });
+    } catch (error) {
+      console.error("Error fetching click analytics:", error);
+      return res.status(500).json({
+        error: "Failed to fetch click analytics",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  private async handleGetConversionAnalytics(req: Request, res: Response): Promise<Response> {
+    try {
+      const { startDate, endDate, shortCode } = req.query;
+
+      const supabaseService = new SupabaseService({} as any);
+      const conversions = await supabaseService.getConversionAnalytics(
+        startDate as string,
+        endDate as string,
+        shortCode as string
+      );
+
+      return res.status(200).json({
+        conversions,
+        totalConversions: conversions.reduce((sum, item) => sum + item.conversions, 0),
+        period: { startDate, endDate },
+      });
+    } catch (error) {
+      console.error("Error fetching conversion analytics:", error);
+      return res.status(500).json({
+        error: "Failed to fetch conversion analytics",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  // System management handlers
+  private async handleProcessProduct(req: Request, res: Response): Promise<Response> {
+    try {
+      const payload = req.body;
+
+      // Initialize services and process product
+      const redisService = new RedisService({} as any);
+      const b2StorageService = new B2StorageService({} as any);
+      const lazadaService = new (await import("../services/lazada")).LazadaService({} as any);
+      const openrouterService = new (await import("../services/openrouter")).OpenRouterAIService({} as any);
+      const twitterService = new (await import("../services/twitter")).TwitterService({} as any);
+      const supabaseService = new SupabaseService({} as any);
+
+      // Process the product through the full pipeline
+      await supabaseService.processProduct(
+        payload,
+        redisService,
+        b2StorageService,
+        lazadaService,
+        openrouterService,
+        twitterService
+      );
+
+      return res.status(200).json({
+        message: "Product processed successfully",
+        payload,
+      });
+    } catch (error) {
+      console.error("Error processing product:", error);
+      return res.status(500).json({
+        error: "Failed to process product",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  private async handleGetWorkerStatus(req: Request, res: Response): Promise<Response> {
+    try {
+      const status = {
+        worker: "racun-dapur-ibu-bot",
+        version: "1.0.0",
+        status: "running",
+        timestamp: new Date().toISOString(),
+        memory: process.memoryUsage ? process.memoryUsage() : null,
+        uptime: process.uptime ? process.uptime() : 0,
+      };
+
+      return res.status(200).json(status);
+    } catch (error) {
+      console.error("Error fetching worker status:", error);
+      return res.status(500).json({
+        error: "Failed to fetch worker status",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  // Configuration handlers
+  private async handleGetConfig(req: Request, res: Response): Promise<Response> {
+    try {
+      const config = {
+        workerId: process.env.WORKER_ID || "worker-1",
+        environment: process.env.NODE_ENV || "production",
+        redisUrl: process.env.REDIS_URL || "",
+        supabaseUrl: process.env.SUPABASE_URL || "",
+        b2StorageConfig: {
+          accountId: process.env.B2_ACC1_KEY_ID || "",
+          bucketName: process.env.B2_ACC1_BUCKET_NAME || "",
+        },
+        qstashConfig: {
+          url: process.env.QSTASH_URL || "",
+          token: process.env.QSTASH_TOKEN ? "***" : "",
+        },
+        twitterConfig: {
+          apiKey: process.env.X_API_KEY ? "***" : "",
+          secret: process.env.X_API_KEY_SECRET ? "***" : "",
+        },
+        lazadaConfig: {
+          appKey: process.env.LAZADA_APP_KEY || "",
+          appSecret: process.env.LAZADA_APP_SECRET ? "***" : "",
+        },
+      };
+
+      return res.status(200).json(config);
+    } catch (error) {
+      console.error("Error fetching config:", error);
+      return res.status(500).json({
+        error: "Failed to fetch config",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  private async handleUpdateConfig(req: Request, res: Response): Promise<Response> {
+    try {
+      const updatedConfig = req.body;
+
+      // Update configuration (this would typically update a database or config service)
+      console.log("Configuration updated:", updatedConfig);
+
+      return res.status(200).json({
+        message: "Configuration updated successfully",
+        config: updatedConfig,
+      });
+    } catch (error) {
+      console.error("Error updating config:", error);
+      return res.status(500).json({
+        error: "Failed to update config",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  // QStash webhook handler
+  private async handleQStashWebhook(req: Request, res: Response): Promise<Response> {
+    try {
+      // Verify QStash signature if verifier is available
+      if (this.qstashVerifier) {
+        const payload = JSON.stringify(req.body);
+        const headers = {
+          'Upstash-Signature': req.headers['upstash-signature'] || req.headers['Upstash-Signature'] || '',
+          'Upstash-Timestamp': req.headers['upstash-timestamp'] || req.headers['Upstash-Timestamp'] || '',
+        };
+
+        if (!this.qstashVerifier.verifySignature(payload, headers)) {
+          console.error("QStash signature verification failed for webhook");
+          return res.status(401).json({
+            error: "Invalid QStash signature",
+          });
+        }
+      }
+
+      // Process the webhook payload
+      const webhookData = req.body;
+
+      // Log the webhook for auditing
+      console.log("QStash webhook received:", webhookData);
+
+      // Process the webhook payload
+      if (webhookData.type === "workflow.triggered") {
+        // Process the scheduled workflow
+        const payload = webhookData.data || {};
+        await this.handleProcessProduct({ ...req, body: payload } as any, res as any);
+      } else if (webhookData.type === "workflow.completed") {
+        // Handle workflow completion
+        console.log("Workflow completed:", webhookData.data);
+        return res.status(200).json({
+          message: "Webhook processed successfully",
+          type: webhookData.type,
+        });
+      } else {
+        return res.status(200).json({
+          message: "Webhook received and acknowledged",
+          type: webhookData.type,
+        });
+      }
+    } catch (error) {
+      console.error("Error processing QStash webhook:", error);
+      return res.status(500).json({
+        error: "Failed to process QStash webhook",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  public getRouter(): Router {
+    return this.router;
+  }
+}
+
+export default ArtisanRouter;
