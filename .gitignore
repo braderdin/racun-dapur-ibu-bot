@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Environment & Secret Keys (Penting!)
+.env
+.env.local
+.env.*.local
+.dev.vars
+kunci.md
+*.pem
+.env.example
+
+# Cloudflare Wrangler Build
+.wrangler/
+
+# Next.js & Vercel Build
+.next/
+out/
+build/
+dist/
+
+# System Junk
+.DS_Store
+Thumbs.db
+
+# Folder Untuk Rujukan
+.Master_Plan/
+.agents/
+.memory_hidden/
+.clinerules
+.vscode/
