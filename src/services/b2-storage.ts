@@ -1,4 +1,6 @@
 import { Env } from "../types/env";
+import { CONSTANTS } from "../config/constants";
+import { logger } from "../utils/logger";
 
 interface B2Credentials {
   bucketName: string;
@@ -36,22 +38,35 @@ export class B2StorageService {
     }
   }
 
-  /**
-   * Authorize B2 Account & Get Upload URL
-   */
-  private async authorizeAccount(acc: B2Credentials) {
-    const authHeader = "Basic " + btoa(`${acc.keyId}:${acc.applicationKey}`);
-    const res = await fetch("https://api.backblazeb2.com/b2api/v2/b2_authorize_account", {
-      headers: { Authorization: authHeader },
-    });
-    if (!res.ok) throw new Error("B2 Auth failed");
-    return res.json() as Promise<{ apiUrl: string; authorizationToken: string; downloadUrl: string }>;
+  async healthCheck(): Promise<{ status: string; timestamp: string }> {
+    return {
+      status: this.accounts.length > 0 ? "connected" : "disconnected",
+      timestamp: new Date().toISOString(),
+    };
   }
 
-  /**
-   * Upload Gambar ke Backblaze B2 dengan Logik Auto-Switching
-   */
-  async uploadProductImage(imageBuffer: ArrayBuffer, fileName: string): Promise<string> {
+  async getServiceStatus(): Promise<{
+    name: string;
+    status: string;
+    timestamp: string;
+  }> {
+    const health = await this.healthCheck();
+    return {
+      name: "Backblaze B2",
+      status: health.status,
+      timestamp: health.timestamp,
+    };
+  }
+
+  async uploadProductImage(
+    imageBuffer: ArrayBuffer,
+    fileName: string,
+  ): Promise<{
+    imageUrl: string;
+    account: number;
+    bucket: string;
+    object: string;
+  }> {
     if (this.accounts.length === 0) {
       throw new Error("Tiada akaun Backblaze B2 dikonfigurasi.");
     }
@@ -64,13 +79,38 @@ export class B2StorageService {
 
         // Muat naik fail menggunakan B2 API
         const publicUrl = `${authData.downloadUrl}/file/${acc.bucketName}/${fileName}`;
-        console.log(`[B2 Storage] Berjaya dimuat naik ke Akaun ${i + 1}: ${publicUrl}`);
-        return publicUrl;
+        console.log(
+          `[B2 Storage] Berjaya dimuat naik ke Akaun ${i + 1}: ${publicUrl}`,
+        );
+        return {
+          imageUrl: publicUrl,
+          account: i + 1,
+          bucket: acc.bucketName,
+          object: fileName,
+        };
       } catch (err) {
-        console.warn(`[B2 Storage] Gagal upload ke Akaun ${i + 1}, bertukar ke akaun seterusnya...`);
+        console.warn(
+          `[B2 Storage] Gagal upload ke Akaun ${i + 1}, bertukar ke akaun seterusnya...`,
+        );
       }
     }
 
     throw new Error("Kesemua akaun Backblaze B2 gagal dimuat naik.");
+  }
+
+  private async authorizeAccount(acc: B2Credentials) {
+    const authHeader = "Basic " + btoa(`${acc.keyId}:${acc.applicationKey}`);
+    const res = await fetch(
+      "https://api.backblazeb2.com/b2api/v2/b2_authorize_account",
+      {
+        headers: { Authorization: authHeader },
+      },
+    );
+    if (!res.ok) throw new Error("B2 Auth failed");
+    return res.json() as Promise<{
+      apiUrl: string;
+      authorizationToken: string;
+      downloadUrl: string;
+    }>;
   }
 }

@@ -3,15 +3,26 @@
   "version": "1.0.0",
   "description": "Bot Automasi E-Commerce & Affiliate @RacunDapurIbu",
   "main": "src/index.ts",
+  "files": [
+    "src/**/*"
+  ],
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build": "npm run format && npm run typecheck",
+    "format": "npx prettier --write .",
+    "clean": "rm -rf .wrangler dist",
+    "prepublishOnly": "npm run build"
   },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240725.0",
+    "prettier": "^3.3.3",
+    "@types/node": "^20.11.0",
     "typescript": "^5.5.4",
     "wrangler": "^3.67.0"
-  },
-  "dependencies": {}
+  }
 }
