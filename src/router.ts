@@ -1,14 +1,14 @@
 /*
  * Worker Router Module
- * Refactors HTTP request routing for `/run-bot`, `/health`, `/r/:code`, and `/qstash-trigger`
- * Integrates all service handlers into a unified routing system
+ * Handles HTTP endpoints for bot operations and dual-channel posting (X + Facebook)
  */
 
-import { Router, Request, Response, NextFunction } from "express";
+import { Router, Request, Response } from "express";
 import { healthHandler } from "./routes/health";
 import { ShortenerService } from "./services/shortener";
 import { RedisService } from "./services/redis";
 import { SupabaseService } from "./services/supabase";
+import { createFacebookService } from "./services/facebook";
 
 export class WorkerRouter {
   private router: Router;
@@ -29,6 +29,12 @@ export class WorkerRouter {
 
     // URL shortener endpoints
     this.router.get("/r/:code", this.handleRedirectToAffiliate.bind(this));
+
+    // Facebook posting endpoint
+    this.router.post("/api/post/facebook", this.handleFacebookPost.bind(this));
+
+    // Dual-channel posting endpoint (X + Facebook)
+    this.router.post("/api/post/dual", this.handleDualPost.bind(this));
 
     // QStash webhook endpoint
     this.router.post("/qstash-trigger", this.handleQStashWebhook.bind(this));
@@ -51,11 +57,9 @@ export class WorkerRouter {
 
   private async handleRunBot(req: Request, res: Response): Promise<Response> {
     try {
-      // Initialize services with environment variables
       const redisService = new RedisService(env);
       const supabaseService = new SupabaseService(env);
 
-      // Process the bot's main workflow
       const startTime = Date.now();
       await this.processBotWorkflow(env, redisService, supabaseService);
 
@@ -81,7 +85,6 @@ export class WorkerRouter {
       const redisService = new RedisService(env);
       const supabaseService = new SupabaseService(env);
 
-      // Get current statistics
       const totalProducts = await supabaseService.getRecentProductsCount();
       const redisStats = await redisService.getServiceStatus();
       const workerStatus = await this.getWorkerServiceStatus(env);
@@ -120,7 +123,6 @@ export class WorkerRouter {
         });
       }
 
-      // Increment click count for analytics
       await shortenerService.incrementClickCount(code);
 
       return res.status(302).redirect(affiliateUrl);
@@ -135,18 +137,13 @@ export class WorkerRouter {
 
   private async handleQStashWebhook(req: Request, res: Response): Promise<Response> {
     try {
-      // Process QStash webhook payload
       const webhookData = req.body;
 
-      // Log webhook for auditing
       console.log("QStash webhook received:", webhookData);
 
-      // Process based on webhook type
       if (webhookData.type === "workflow.triggered") {
-        // Trigger bot processing
         await this.handleRunBot(req, res);
       } else if (webhookData.type === "workflow.completed") {
-        // Handle workflow completion
         console.log("QStash workflow completed:", webhookData.data);
         return res.status(200).json({
           message: "QStash webhook processed successfully",
@@ -163,6 +160,187 @@ export class WorkerRouter {
       return res.status(500).json({
         error: "Failed to process QStash webhook",
         message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  private async handleFacebookPost(req: Request, res: Response): Promise<Response> {
+    try {
+      const { productId, platform, title, price, description, imageUrl, affiliateLink } = req.body;
+
+      const env = req.app.get("env");
+      const facebookService = createFacebookService(env);
+      const supabaseService = new SupabaseService(env);
+
+      const isFacebook = req.query.platform === "facebook" || !req.query.platform;
+
+      console.log(`Handling Facebook posting request for product: ${productId}`);
+
+      if (isFacebook) {
+        const result = await facebookService.publishPhotoWithStory(
+          productId,
+          platform || "lazada",
+          title,
+          description,
+          price,
+          imageUrl,
+          platform || "kitchen",
+          4.5,
+          affiliateLink,
+          new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          env.FACEBOOK_PAGE_ACCESS_TOKEN,
+          env.FACEBOOK_PAGE_ID
+        );
+
+        await supabaseService.logFacebookPost({
+          productId,
+          platform: platform || "lazada",
+          postId: result.postId || result.id,
+          commentId: undefined,
+          status: result.success ? "published" : "failed",
+          errorMessage: result.error?.message,
+          timestamp: new Date().toISOString(),
+          source: "facebook_graph_api"
+        });
+
+        return res.status(200).json({
+          success: result.success,
+          postId: result.postId || result.id,
+          commentId: undefined,
+          platform: "facebook",
+          timestamp: new Date().toISOString(),
+          message: result.success ? "Facebook posting successful" : `Facebook posting failed: ${result.error?.message}`
+        });
+      }
+
+      return res.status(400).json({
+        error: "Invalid platform",
+        message: "Platform must be 'facebook' for this endpoint"
+      });
+
+    } catch (error) {
+      console.error("Error handling Facebook post request:", error);
+      return res.status(500).json({
+        error: "Failed to handle Facebook post request",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  }
+
+  private async handleDualPost(req: Request, res: Response): Promise<Response> {
+    try {
+      const dealData = req.body;
+      const env = req.app.get("env");
+
+      console.log(`Handling dual-channel posting request for deal: ${dealData.id || dealData.productId}`);
+
+      const redisService = new RedisService(env);
+      const supabaseService = new SupabaseService(env);
+      const b2StorageService = new B2StorageService(env);
+      const imageProcessor = new ImageProcessor();
+
+      const dualPosterService = new DualPosterService(
+        redisService,
+        supabaseService,
+        b2StorageService,
+        imageProcessor,
+        {
+          enableFacebookPosting: true,
+          enableTwitterPosting: true,
+          maxPostAttempts: 3,
+          retryDelayMs: 2000,
+          timeoutMs: 30000,
+          requireBothPlatforms: false
+        }
+      );
+
+      const processedDeal: any = {
+        id: dealData.id || dealData.productId,
+        title: dealData.title,
+        description: dealData.description || "",
+        price: parseFloat(dealData.price) || 0,
+        imageUrl: dealData.imageUrl,
+        category: dealData.category || "general",
+        rating: parseFloat(dealData.rating) || 4.5,
+        platform: dealData.platform || "lazada",
+        sourceUrl: dealData.sourceUrl || "",
+        affiliateLink: dealData.affiliateLink,
+        commissionRate: parseFloat(dealData.commissionRate) || 0.1,
+        expirationDate: dealData.expirationDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        seller: dealData.seller || "Online Seller",
+        stock: parseInt(dealData.stock) || 100,
+        createdAt: new Date(),
+        body: dealData.body || [],
+        cta: dealData.cta || "Shop Now",
+        hashtags: dealData.hashtags || []
+      };
+
+      const dualPostResult = await dualPosterService.executeDualPost(
+        processedDeal,
+        env
+      );
+
+      const response: any = {
+        success: dualPostResult.overallSuccess,
+        platform: "dual",
+        timestamp: new Date().toISOString(),
+        processingTimeMs: Date.now() - new Date(dualPostResult.processedAt).getTime(),
+        results: {
+          twitter: dualPostResult.twitter,
+          facebook: dualPostResult.facebook
+        },
+        message: dualPostResult.overallSuccess 
+          ? "Dual-channel posting successful" 
+          : "Dual-channel posting partially failed"
+      };
+
+      await supabaseService.logFacebookPost({
+        productId: processedDeal.id,
+        platform: processedDeal.platform,
+        fb_post_id: dualPostResult.facebook?.postId,
+        fb_comment_id: dualPostResult.facebook?.commentId,
+        status: dualPostResult.overallSuccess ? "published" : "failed",
+        error_message: dualPostResult.facebook?.error || dualPostResult.twitter?.error,
+        timestamp: new Date().toISOString(),
+        source: "dual_poster_orchestrator"
+      });
+
+      return res.status(200).json(response);
+
+    } catch (error) {
+      console.error("Error handling dual-post request:", error);
+      return res.status(500).json({
+        error: "Failed to handle dual-post request",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  }
+
+  private async handleQStashWebhookWithDualPoster(req: Request, res: Response): Promise<Response> {
+    try {
+      const webhookData = req.body;
+
+      console.log("QStash webhook received (dual-poster version):", webhookData);
+
+      if (webhookData.type === "workflow.triggered") {
+        await this.handleRunBot(req, res);
+      } else if (webhookData.type === "workflow.completed") {
+        console.log("QStash dual-poster workflow completed:", webhookData.data);
+        return res.status(200).json({
+          message: "QStash dual-poster webhook processed successfully",
+          type: webhookData.type,
+        });
+      } else {
+        return res.status(200).json({
+          message: "QStash dual-poster webhook acknowledged",
+          type: webhookData.type,
+        });
+      }
+    } catch (error) {
+      console.error("Error processing QStash dual-poster webhook:", error);
+      return res.status(500).json({
+        error: "Failed to process QStash dual-poster webhook",
+        message: error instanceof Error ? error.message : "Unknown error"
       });
     }
   }
@@ -249,16 +427,10 @@ export class WorkerRouter {
     redisService: RedisService,
     supabaseService: SupabaseService
   ): Promise<void> {
-    // This function contains the core bot workflow logic
-    // For now, we'll implement a simplified version
-
     console.log("Starting bot workflow processing...");
 
     try {
-      // Step 1: Fetch trending products from Lazada (simulated)
       const rawProducts = await this.fetchTrendingProducts(env);
-
-      // Step 2: Filter anti-repeat products using Redis
       const filteredProducts = await redisService.filterRepeatProducts(rawProducts);
 
       if (filteredProducts.length === 0) {
@@ -266,7 +438,6 @@ export class WorkerRouter {
         return;
       }
 
-      // Step 3: Process each product
       for (const product of filteredProducts) {
         await this.processProduct(env, product, redisService, supabaseService);
       }
@@ -279,11 +450,8 @@ export class WorkerRouter {
   }
 
   private async fetchTrendingProducts(env: any): Promise<any[]> {
-    // Simulate fetching trending products
-    // In a real implementation, this would call the Lazada service
     console.log("Fetching trending products from Lazada API...");
 
-    // Mock data for demonstration
     return [
       {
         id: `product_${Date.now()}_1`,
@@ -321,22 +489,15 @@ export class WorkerRouter {
     redisService: RedisService,
     supabaseService: SupabaseService
   ): Promise<void> {
-    // Process individual product through the bot workflow
     const productId = product.id;
 
     console.log(`Processing product: ${productId}`);
 
     try {
-      // Step 1: Generate AI copywriting (simulated)
       const generatedCopy = await this.generateCopywriting(product);
-
-      // Step 2: Upload image to storage (simulated)
       const imageUrl = await this.uploadProductImage(product.imageUrl, productId);
-
-      // Step 3: Create tweet thread (simulated)
       const tweetResults = await this.createTweetThread(generatedCopy, imageUrl);
 
-      // Step 4: Log to database
       await supabaseService.logPostedProduct({
         product_id: productId,
         title: product.title,
@@ -360,7 +521,6 @@ export class WorkerRouter {
         }),
       });
 
-      // Step 5: Add to Redis anti-repeat store
       await redisService.addRepeatProduct(
         productId,
         env.REDIS_ANTI_REPEAT_TTL_SECONDS || 432000,
@@ -374,13 +534,11 @@ export class WorkerRouter {
   }
 
   private async generateCopywriting(product: any): Promise<any> {
-    // Simulate AI copywriting generation
     console.log("Generating AI copy for product...")
 
-    // Mock AI-generated copy
     return {
-      problem: `Looking for ${product.title.toLowerCase()}?",
-      solution: `Get ${product.title} at ${product.price}% off - Limited time offer!",
+      problem: `Looking for ${product.title.toLowerCase()}?`,
+      solution: `Get ${product.title} at ${product.price}% off - Limited time offer!`,
       price: product.price,
       discount: "50%",
       socialProof: "Rated 4.8/5 stars by 1000+ customers",
@@ -388,18 +546,14 @@ export class WorkerRouter {
   }
 
   private async uploadProductImage(imageUrl: string, productId: string): Promise<string> {
-    // Simulate image upload to storage
     console.log(`Uploading product image for ${productId}...`);
 
-    // Mock image upload result
     return `https://storage.example.com/products/${productId}.jpg`;
   }
 
   private async createTweetThread(copywriting: any, imageUrl: string): Promise<any> {
-    // Simulate tweet creation
     console.log("Creating 2-tweet thread on X...`);
 
-    // Mock tweet results
     return {
       tweetId: `tweet_${Date.now()}`,
       replyTweetId: `reply_${Date.now()}`,
@@ -407,7 +561,6 @@ export class WorkerRouter {
   }
 
   private async getWorkerServiceStatus(env: any): Promise<any> {
-    // Get worker service status
     const redisService = new RedisService(env);
     const supabaseService = new SupabaseService(env);
 

@@ -1,50 +1,21 @@
-//
- * Facebook Graph API Integration Service
- * Handles Facebook Page posting, photo upload with storytelling, and affiliate comment posting
- * Implements 3-tier error handling with OpenRouter AI fallback
- * Follows 15-second timeout safeguards and RM0 cost strategy
- */
+import { Env } from "../types/env";
+import { logger } from "../utils/logger";
+import { delay } from "../utils/delay";
 
-import { CONSTANTS } from "../config/constants";
-import { AIFallbackEngine } from "./ai-fallback";
-import { RedisService } from "./redis";
-import { SupabaseService } from "./supabase";
-import { B2StorageService } from "./b2-storage";
-import { ImageProcessor } from "../utils/image-processor";
+// Facebook Graph API Response Schemas with Zod
+import { z } from "zod";
 
-// Facebook Graph API Types
+// Re-export important types from product.ts
 export interface FacebookPostPayload {
   message: string;
   url?: string;
   picture?: string;
   link?: string;
-  temporary_uploaded_media_id?: string;
-}
-
-export interface FacebookPostResponse {
-  id: string;
-  success: boolean;
-  postId?: string;
-  error?: {
-    message: string;
-    type: string;
-    code: number;
-  };
 }
 
 export interface FacebookCommentPayload {
   message: string;
   parent_comment_id?: string;
-}
-
-export interface FacebookCommentResponse {
-  id: string;
-  success: boolean;
-  error?: {
-    message: string;
-    type: string;
-    code: number;
-  };
 }
 
 export interface DualPostResult {
@@ -56,527 +27,477 @@ export interface DualPostResult {
   error?: string;
 }
 
-// Main Facebook Service Class
-export class FacebookService {
-  private redisService: RedisService;
-  private supabaseService: SupabaseService;
-  private b2StorageService: B2StorageService;
-  private imageProcessor: ImageProcessor;
-  private openrouterService: any; // Will be initialized with dependency injection
+// Facebook API Response Interface
+export interface FacebookPostResponse {
+  id: string;
+  success: boolean;
+  postId?: string;
+  error?: {
+    message: string;
+    type: string;
+    code: number;
+  };
+}
 
-  constructor(
-    redisService: RedisService,
-    supabaseService: SupabaseService,
-    b2StorageService: B2StorageService,
-    imageProcessor: ImageProcessor,
-    openrouterService?: any
-  ) {
-    this.redisService = redisService;
-    this.supabaseService = supabaseService;
-    this.b2StorageService = b2StorageService;
-    this.imageProcessor = imageProcessor;
-    this.openrouterService = openrouterService || this.createFallbackOpenRouter();
+// Zod validation schemas
+const FacebookPostResponseSchema = z.object({
+  id: z.string(),
+  success: z.boolean(),
+  postId: z.string().optional(),
+  error: z
+    .object({
+      message: z.string(),
+      type: z.string(),
+      code: z.number(),
+    })
+    .optional(),
+});
+
+const FacebookCommentResponseSchema = z.object({
+  id: z.string(),
+  success: z.boolean(),
+  error: z
+    .object({
+      message: z.string(),
+      type: z.string(),
+      code: z.number(),
+    })
+    .optional(),
+});
+
+export class FacebookService {
+  private env: Env;
+  private readonly graphApiBaseUrl = "https://graph.facebook.com/v19.0";
+  private readonly timeoutMs = 15000;
+
+  constructor(env: Env) {
+    this.env = env;
+    logger.info(
+      "Facebook Service initialized",
+      {
+        hasPageId: !!env.FACEBOOK_PAGE_ID,
+        hasAppId: !!env.FACEBOOK_APP_ID,
+        hasAccessToken: !!env.FACEBOOK_PAGE_ACCESS_TOKEN,
+      },
+      "FacebookService",
+    );
   }
 
-  // Main method to publish photo with story (Facebook Page)
-  async publishPhotoWithStory(
-    productId: string,
-    platform: "lazada" | "shopee",
-    title: string,
-    description: string,
-    price: number,
-    imageUrl: string,
-    category: string,
-    rating: number,
-    affiliateLink: string,
-    expirationDate: string,
-    facebookPageAccessToken: string,
-    facebookPageId: string
+  // Main method to post to Facebook Page
+  async postToFacebookPage(
+    postData: FacebookPostPayload,
   ): Promise<FacebookPostResponse> {
-    const startTime = Date.now();
-    const timeoutMs = CONSTANTS.FACEBOOK_API_TIMEOUT_MS || 15000;
-
     try {
-      // 1. Generate Facebook copywriting using OpenRouter AI with 3-tier fallback
-      const facebookCopy = await this.generateFacebookCopywriting(
-        title,
-        description,
-        price,
-        category,
-        rating,
-        platform,
-        expirationDate
+      // Rate limiting with 3-second delay wrapper
+      await delay(3000);
+
+      const startTime = Date.now();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
+
+      // Prepare form data for Facebook Graph API
+      const formData = new URLSearchParams();
+      formData.append("message", postData.message);
+
+      if (postData.url) formData.append("url", postData.url);
+      if (postData.picture) formData.append("picture", postData.picture);
+      if (postData.link) formData.append("link", postData.link);
+
+      const response = await fetch(
+        `${this.graphApiBaseUrl}/${this.env.FACEBOOK_PAGE_ID}/feed`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${this.env.FACEBOOK_PAGE_ACCESS_TOKEN}`,
+          },
+          body: formData.toString(),
+          signal: controller.signal,
+        },
       );
 
-      // 2. Process and upload image to B2 Storage
-      const processedImage = await this.processImageForFacebook(
-        imageUrl,
-        productId,
-        platform,
-        category
-      );
+      clearTimeout(timeoutId);
+      const elapsed = Date.now() - startTime;
 
-      // 3. Upload to Facebook Graph API
-      const facebookPostResponse = await this.uploadToFacebookGraph(
-        facebookPageAccessToken,
-        facebookPageId,
-        facebookCopy.story,
-        processedImage.webpUrl,
-        affiliateLink,
-        timeoutMs - (Date.now() - startTime)
-      );
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        const error = {
+          message:
+            errorData?.error?.message ||
+            `Facebook API error: ${response.status} ${response.statusText}`,
+          type: errorData?.error?.type || "API_ERROR",
+          code: errorData?.error?.code || response.status,
+        };
 
-      // 4. Log to Supabase for analytics and tracking
-      await this.logFacebookPost(
-        productId,
-        platform,
-        facebookPostResponse.id,
-        "published"
-      );
-
-      // 5. Add Redis anti-repeat protection (5 days TTL)
-      await this.setFacebookPostCache(productId, facebookPostResponse.id);
-
-      return facebookPostResponse;
-
-    } catch (error) {
-      console.error(`❌ Facebook photo with story failed for product ${productId}:`, error);
-      
-      // Log failure to Supabase
-      await this.logFacebookPost(
-        productId,
-        platform,
-        undefined,
-        "failed",
-        error.message
-      );
-
-      // Implement 3-tier error handling
-      if (this.isTemporaryError(error)) {
-        // Tier 1: Temporary error - retry with exponential backoff
-        console.log("🔄 Temporary error encountered, will retry with delay");
-        await new Promise(resolve => setTimeout(resolve, 5000)); // 5-second delay
-        return await this.publishPhotoWithStory(
-          productId,
-          platform,
-          title,
-          description,
-          price,
-          imageUrl,
-          category,
-          rating,
-          affiliateLink,
-          expirationDate,
-          facebookPageAccessToken,
-          facebookPageId
+        logger.error(
+          "Facebook page post failed",
+          {
+            status: response.status,
+            error: error.message,
+            elapsed,
+          },
+          "FacebookService",
         );
-      } else if (this.isConfigurationError(error)) {
-        // Tier 2: Configuration error - use fallback to simplified posting
-        console.log("⚠️ Configuration error, using fallback posting strategy");
-        return await this.fallbackPublishPhoto(
-          productId,
-          facebookCopy?.story || `${title} - Special offer: $${price}",
-          processedImage?.webpUrl,
-          facebookPageAccessToken,
-          facebookPageId
-        );
-      } else {
-        // Tier 3: Permanent error - return error response
+
         return {
           id: "",
           success: false,
-          error: {
-            message: error.message || "Unknown error occurred",
-            type: "PERMANENT_ERROR",
-            code: 500
-          }
+          postId: undefined,
+          error,
         };
-      }
-    }
-  }
-
-  // Add affiliate comment to Facebook post
-  async addAffiliateComment(
-    facebookPostId: string,
-    commentMessage: string,
-    facebookPageAccessToken: string
-  ): Promise<FacebookCommentResponse> {
-    const timeoutMs = CONSTANTS.FACEBOOK_API_TIMEOUT_MS || 15000;
-
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-      const response = await fetch(
-        `https://graph.facebook.com/v19.0/${facebookPostId}/comments`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${facebookPageAccessToken}`
-          },
-          body: JSON.stringify({
-            message: commentMessage,
-            parent_comment_id: null
-          }),
-          signal: controller.signal
-        }
-      );
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`Facebook API error: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
 
-      return {
-        id: data.id,
-        success: true
-      };
+      // Validate response with Zod
+      const validatedResponse = FacebookPostResponseSchema.parse({
+        id: data.id || `post_${Date.now()}`,
+        success: true,
+        postId: data.id,
+      });
 
+      logger.info(
+        "Facebook page post successful",
+        {
+          postId: data.id,
+          messageId: data.id,
+          elapsed,
+        },
+        "FacebookService",
+      );
+
+      return validatedResponse;
     } catch (error) {
-      console.error(`❌ Failed to add affiliate comment to post ${facebookPostId}:`, error);
+      logger.error(
+        "Unexpected error posting to Facebook page",
+        {
+          error: error instanceof Error ? error.message : String(error),
+        },
+        "FacebookService",
+      );
+
       return {
         id: "",
         success: false,
-        error: {
-          message: error.message || "Failed to add comment",
-          type: "COMMENT_ERROR",
-          code: 400
-        }
+        error:
+          error instanceof Error
+            ? {
+                message: error.message,
+                type: "NETWORK_ERROR",
+                code: 500,
+              }
+            : {
+                message: "Unknown error occurred",
+                type: "UNKNOWN_ERROR",
+                code: 500,
+              },
       };
     }
   }
 
-  // Generate Facebook copywriting using OpenRouter AI
-  private async generateFacebookCopywriting(
-    title: string,
-    description: string,
-    price: number,
-    category: string,
-    rating: number,
-    platform: "lazada" | "shopee",
-    expirationDate: string
-  ): Promise<{ story: string; cta: string }> {
+  // Post comment to Facebook post
+  async postCommentToFacebook(
+    postId: string,
+    commentData: FacebookCommentPayload,
+  ): Promise<any> {
     try {
-      // Use OpenRouter AI service to generate Facebook-specific copywriting
-      const aiCopy = await this.openrouterService.generateCopy({
-        id: `fb_${Date.now()}`, // Temporary ID for Facebook-specific copy
-        name: title,
-        description: description,
-        price: price,
-        imageUrl: `https://racun.ibu.my/placeholder/${category}.webp`,
-        category: category,
-        rating: rating,
-        platform: platform,
-        facebookSpecific: true
-      } as any);
+      // Rate limiting with 3-second delay wrapper
+      await delay(3000);
 
-      return {
-        story: aiCopy.facebookCopy || aiCopy.body?.[0] || `${title} - Special offer: $${price}`,
-        cta: aiCopy.cta || `Get yours now: https://racun.ibu.my/deal/${title.toLowerCase().replace(/\s+/g, '-')}`
-      };
+      const startTime = Date.now();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
 
-    } catch (error) {
-      console.warn("⚠️ OpenRouter AI failed to generate Facebook copywriting, using fallback:", error);
-      
-      // Fallback copywriting
-      return {
-        story: `${title} - Special offer! Limited time deal at $${price}. Perfect ${category} with ${rating}/5 rating. ${expirationDate} Expiration soon! Special discount for Racun Dapur Ibu members only.",
-        cta: `Get yours now: https://racun.ibu.my/deal/${title.toLowerCase().replace(/\s+/g, '-')}`
-      };
-    }
-  }
-
-  // Process image for Facebook posting
-  private async processImageForFacebook(
-    imageUrl: string,
-    productId: string,
-    platform: "lazada" | "shopee",
-    category: string
-  ): Promise<{ webpUrl: string; buffer?: Buffer }> {
-    try {
-      // Fetch image from source URL
-      const response = await fetch(imageUrl);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
-      }
-      
-      const arrayBuffer = await response.arrayBuffer();
-      
-      // Process image with ImageProcessor
-      const processedImage = await this.imageProcessor.processImage(
-        arrayBuffer,
-        {
-          convertToWebP: true,
-          quality: 0.85,
-          maxSizeMB: 10
-        }
-      );
-
-      // Upload to B2 Storage
-      const storageKey = this.imageProcessor.formatB2StorageKey(
-        productId,
-        platform,
-        category,
-        "facebook_post.jpg"
-      );
-
-      const uploadResult = await this.b2StorageService.uploadFile(
-        storageKey,
-        processedImage.buffer,
-        "image/webp"
-      );
-
-      return {
-        webpUrl: `https://racun.ibu.my/${storageKey}`, // CDN URL via Cloudflare Worker
-        buffer: processedImage.buffer
-      };
-
-    } catch (error) {
-      console.warn("⚠️ Image processing failed, using original URL:", error);
-      // Return original URL as fallback
-      return {
-        webpUrl: imageUrl,
-        buffer: undefined
-      };
-    }
-  }
-
-  // Upload to Facebook Graph API
-  private async uploadToFacebookGraph(
-    accessToken: string,
-    pageId: string,
-    story: string,
-    imageUrl: string,
-    affiliateLink: string,
-    timeoutMs: number
-  ): Promise<FacebookPostResponse> {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-    try {
-      // First, upload the image to Facebook's media library
-      const mediaUploadResponse = await fetch(
-        `https://graph.facebook.com/v19.0/${pageId}/photos`,
+      const response = await fetch(
+        `${this.graphApiBaseUrl}/${postId}/comments`,
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${accessToken}`
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${this.env.FACEBOOK_PAGE_ACCESS_TOKEN}`,
+          },
+          body: JSON.stringify(commentData),
+          signal: controller.signal,
+        },
+      );
+
+      clearTimeout(timeoutId);
+      const elapsed = Date.now() - startTime;
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        const error = {
+          message:
+            errorData?.error?.message ||
+            `Facebook API error: ${response.status} ${response.statusText}`,
+          type: errorData?.error?.type || "API_ERROR",
+          code: errorData?.error?.code || response.status,
+        };
+
+        logger.error(
+          "Facebook comment posting failed",
+          {
+            status: response.status,
+            error: error.message,
+            elapsed,
+            postId,
+          },
+          "FacebookService",
+        );
+
+        return {
+          id: "",
+          success: false,
+          error,
+        };
+      }
+
+      const data = await response.json();
+
+      // Validate response with Zod
+      const validatedResponse = FacebookCommentResponseSchema.parse({
+        id: data.id || `comment_${Date.now()}`,
+        success: true,
+      });
+
+      logger.info(
+        "Facebook comment posted successfully",
+        {
+          commentId: data.id,
+          postId,
+          elapsed,
+        },
+        "FacebookService",
+      );
+
+      return validatedResponse;
+    } catch (error) {
+      logger.error(
+        "Unexpected error posting comment to Facebook",
+        {
+          error: error instanceof Error ? error.message : String(error),
+          postId,
+        },
+        "FacebookService",
+      );
+
+      return {
+        id: "",
+        success: false,
+        error:
+          error instanceof Error
+            ? {
+                message: error.message,
+                type: "NETWORK_ERROR",
+                code: 500,
+              }
+            : {
+                message: "Unknown error occurred",
+                type: "UNKNOWN_ERROR",
+                code: 500,
+              },
+      };
+    }
+  }
+
+  // Get Facebook Page Access Token
+  async getFacebookPageAccessToken(): Promise<string> {
+    try {
+      logger.info("Fetching Facebook Page Access Token", {}, "FacebookService");
+
+      await delay(3000);
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
+
+      const response = await fetch(
+        `https://graph.facebook.com/v19.0/oauth/access_token`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
           },
           body: new URLSearchParams({
-            url: imageUrl,
-            message: story,
-            link: affiliateLink
-          }),
-          signal: controller.signal
-        }
+            grant_type: "client_credentials",
+            client_id: this.env.FACEBOOK_APP_ID,
+            client_secret: this.env.FACEBOOK_APP_SECRET,
+          }).toString(),
+          signal: controller.signal,
+        },
       );
 
       clearTimeout(timeoutId);
-
-      if (!mediaUploadResponse.ok) {
-        const errorData = await mediaUploadResponse.json();
-        throw new Error(errorData.error?.message || `Facebook upload failed: ${mediaUploadResponse.status}`);
-      }
-
-      const mediaData = await mediaUploadResponse.json();
-
-      return {
-        id: mediaData.id || `facebook_post_${Date.now()}`,
-        success: true,
-        postId: mediaData.id
-      };
-
-    } catch (error) {
-      clearTimeout(timeoutId);
-      throw error;
-    }
-  }
-
-  // Fallback publish photo method
-  private async fallbackPublishPhoto(
-    productId: string,
-    story: string,
-    imageUrl: string | undefined,
-    accessToken: string,
-    pageId: string
-  ): Promise<FacebookPostResponse> {
-    try {
-      // Simplified posting without image processing
-      const response = await fetch(
-        `https://graph.facebook.com/v19.0/${pageId}/feed`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`
-          },
-          body: JSON.stringify({
-            message: story,
-            link: `https://racun.ibu.my/deal/${productId}`,
-            picture: imageUrl || "https://racun.ibu.my/placeholder.jpg"
-          })
-        }
-      );
 
       if (!response.ok) {
-        throw new Error(`Facebook fallback publish failed: ${response.status}`);
+        const errorData = await response.json().catch(() => null);
+        const error = {
+          message:
+            errorData?.error?.message ||
+            `Facebook OAuth error: ${response.status} ${response.statusText}`,
+          type: errorData?.error?.type || "OAUTH_ERROR",
+          code: errorData?.error?.code || response.status,
+        };
+
+        logger.error(
+          "Failed to get Facebook Page Access Token",
+          {
+            status: response.status,
+            error: error.message,
+          },
+          "FacebookService",
+        );
+
+        throw new Error(`Failed to get access token: ${error.message}`);
       }
 
       const data = await response.json();
 
-      return {
-        id: data.id || `fallback_${Date.now()}`,
-        success: true,
-        postId: data.id
-      };
+      logger.info(
+        "Successfully fetched Facebook Page Access Token",
+        {
+          tokenLength: data.access_token?.length || 0,
+        },
+        "FacebookService",
+      );
 
+      return data.access_token;
     } catch (error) {
-      return {
-        id: "",
-        success: false,
-        error: {
-          message: error.message || "Fallback publish failed",
-          type: "FALLBACK_ERROR",
-          code: 400
-        }
-      };
+      logger.error(
+        "Unexpected error getting Facebook Page Access Token",
+        {
+          error: error instanceof Error ? error.message : String(error),
+        },
+        "FacebookService",
+      );
+
+      throw error instanceof Error
+        ? error
+        : new Error("Unknown error occurred");
     }
   }
 
-  // Log Facebook post to database
-  private async logFacebookPost(
-    productId: string,
-    platform: "lazada" | "shopee",
-    postId: string | undefined,
-    status: "published" | "failed",
-    errorMessage?: string
-  ): Promise<void> {
+  // Validate Facebook credentials
+  async validateFacebookCredentials(): Promise<boolean> {
     try {
-      const logData = {
-        productId,
-        platform,
-        postId,
-        status,
-        errorMessage,
-        timestamp: new Date().toISOString(),
-        source: "facebook_graph_api"
-      };
+      logger.info("Validating Facebook credentials", {}, "FacebookService");
 
-      await this.supabaseService.logFacebookPost(logData);
+      await delay(3000);
 
-    } catch (error) {
-      console.error("❌ Failed to log Facebook post:", error);
-      // Don't throw - logging failure shouldn't break the main flow
-    }
-  }
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
 
-  // Set Redis cache for anti-repeat protection
-  private async setFacebookPostCache(
-    productId: string,
-    facebookPostId: string,
-    ttlSeconds: number = 432000 // 5 days (432,000 seconds)
-  ): Promise<void> {
-    try {
-      const cacheKey = `facebook_post:${productId}`;
-      await this.redisService.setEx(cacheKey, ttlSeconds, JSON.stringify({
-        postId: facebookPostId,
-        timestamp: Date.now()
-      }));
-    } catch (error) {
-      console.warn("⚠️ Failed to set Redis cache:", error);
-      // Cache failure shouldn't break the flow
-    }
-  }
+      const response = await fetch(`${this.graphApiBaseUrl}/me`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${this.env.FACEBOOK_PAGE_ACCESS_TOKEN}`,
+        },
+        signal: controller.signal,
+      });
 
-  // Check if error is temporary (retryable)
-  private isTemporaryError(error: any): boolean {
-    const message = error.message?.toLowerCase() || "";
-    const status = error.status || error.response?.status || 0;
+      clearTimeout(timeoutId);
 
-    return (
-      message.includes("timeout") ||
-      message.includes("network") ||
-      message.includes("connection") ||
-      message.includes("rate limit") ||
-      status >= 500 && status < 600 ||
-      status === 429 ||
-      status === 503 ||
-      status === 502 ||
-      status === 504
-    );
-  }
+      const isValid = response.ok;
 
-  // Check if error is configuration-related (non-retryable)
-  private isConfigurationError(error: any): boolean {
-    const message = error.message?.toLowerCase() || "";
-    const status = error.status || error.response?.status || 0;
+      if (isValid) {
+        const data = await response.json();
+        logger.info(
+          "Facebook credentials validated successfully",
+          {
+            userId: data.id,
+            name: data.name,
+          },
+          "FacebookService",
+        );
+      } else {
+        const errorData = await response.json().catch(() => null);
+        const errorMessage =
+          errorData?.error?.message ||
+          `Facebook validation failed: ${response.status} ${response.statusText}`;
 
-    return (
-      message.includes("invalid_token") ||
-      message.includes("unauthorized") ||
-      message.includes("forbidden") ||
-      message.includes("permission denied") ||
-      status === 401 ||
-      status === 403
-    );
-  }
-
-  // Create fallback OpenRouter service for dependency injection
-  private createFallbackOpenRouter(): any {
-    // This would be a simplified fallback that can be used when OpenRouter service is not available
-    return {
-      async generateCopy(product: any): Promise<any> {
-        return {
-          hook: `🤩 ${product.name} Special Deal from ${product.platform}`,
-          body: [
-            `${product.name} - Now available at just $${product.price}! Perfect choice for ${product.category}.`,
-            `Limited offer - ${product.description}`
-          ],
-          cta: `Get yours now: https://racun.ibu.my/deal/${product.id}`,
-          hashtags: ['#RacunDapurIbu', '#FacebookDeals', '#SpecialOffer'],
-          threadTarget: 'single-tweet',
-          platform: product.platform || 'lazada',
-          confidence: 0.5,
-          fallbackChainUsed: 'tier-3'
-        };
+        logger.warn(
+          "Facebook credentials validation failed",
+          {
+            status: response.status,
+            error: errorMessage,
+          },
+          "FacebookService",
+        );
       }
-    };
-  }
 
-  // Get Facebook post status from cache
-  async getFacebookPostStatus(productId: string): Promise<boolean> {
-    try {
-      const cacheKey = `facebook_post:${productId}`;
-      const cached = await this.redisService.get(cacheKey);
-      return !!cached;
+      return isValid;
     } catch (error) {
-      console.warn("⚠️ Failed to check Facebook post status:", error);
+      logger.error(
+        "Unexpected error validating Facebook credentials",
+        {
+          error: error instanceof Error ? error.message : String(error),
+        },
+        "FacebookService",
+      );
+
       return false;
     }
   }
 
   // Health check for Facebook service
-  async healthCheck(): Promise<{ status: 'healthy' | 'unhealthy'; details: string }> {
+  async healthCheck(): Promise<{
+    status: "healthy" | "unhealthy";
+    details: string;
+  }> {
     try {
-      // Test Redis connection
-      await this.redisService.ping();
-      
-      // Test Supabase connection  
-      await this.supabaseService.healthCheck();
-      
-      return {
-        status: 'healthy',
-        details: "Facebook service is operational"
-      };
+      // Test basic connectivity
+      await delay(3000);
+
+      const isCredentialsValid = await this.validateFacebookCredentials();
+
+      if (isCredentialsValid) {
+        const accessToken = await this.getFacebookPageAccessToken();
+        // Verify token works with a simple API call
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
+
+        const response = await fetch(`${this.graphApiBaseUrl}/me/accounts`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          logger.info(
+            "Facebook service health check passed",
+            {},
+            "FacebookService",
+          );
+          return {
+            status: "healthy",
+            details: "Facebook Graph API is operational",
+          };
+        } else {
+          throw new Error(`Health check failed: ${response.status}`);
+        }
+      } else {
+        throw new Error("Facebook credentials validation failed");
+      }
     } catch (error) {
+      logger.error(
+        "Facebook service health check failed",
+        {
+          error: error instanceof Error ? error.message : String(error),
+        },
+        "FacebookService",
+      );
+
       return {
-        status: 'unhealthy',
-        details: `Facebook service error: ${error.message}`
+        status: "unhealthy",
+        details: `Facebook service error: ${error instanceof Error ? error.message : "Unknown error"}`,
       };
     }
   }
+}
+
+// Factory function to create FacebookService instance
+export function createFacebookService(env: Env): FacebookService {
+  return new FacebookService(env);
 }

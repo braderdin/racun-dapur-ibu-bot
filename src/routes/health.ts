@@ -135,13 +135,12 @@ export class HealthHandler {
   > {
     try {
       // Import here to avoid circular dependencies
-      const { B2StorageService } = await import("./../services/b2-storage");
+      const { B2StorageService } = await import("./services/b2-storage");
 
       const startTime = Date.now();
       const b2Service = new B2StorageService({} as any); // Mock env for status check
 
       // Try a simple operation to test connectivity
-      // We'll use a test upload with a dummy file to verify storage works
       const testData = new ArrayBuffer(100); // 100 bytes test data
       await b2Service.uploadProductImage(testData, "health_check_test.txt");
 
@@ -158,6 +157,36 @@ export class HealthHandler {
         error: error instanceof Error ? error.message : "Unknown error",
       };
     }
+  }
+
+  private async checkFacebookService(): Promise<
+    HealthStatus["services"]["facebook"]
+  > {
+    try {
+      // Import here to avoid circular dependencies
+      const { FacebookService } = await import("./services/facebook");
+
+      const startTime = Date.now();
+      const facebookService = new FacebookService({} as any); // Mock env for status check
+
+      // Test Facebook Graph API connectivity
+      const healthResult = await facebookService.healthCheck();
+
+      const responseTime = Date.now() - startTime;
+
+      return {
+        status: healthResult.status,
+        responseTime,
+        error: healthResult.status === "unhealthy" ? healthResult.details : undefined,
+      };
+    } catch (error) {
+      console.error("Facebook service health check failed:", error);
+      return {
+        status: "down",
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
   }
 
   private determineOverallStatus(
