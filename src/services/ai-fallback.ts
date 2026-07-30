@@ -1,9 +1,7 @@
-//
- * 3-Tier AI Fallback Copywriting Engine
- * Resilient AI generator: Tier 1 (OpenRouter Free) -> Tier 2 (Google Gemini / Groq) -> Tier 3 (Local Heuristic Rule Engine)
- * Includes 3-second delay wrapper between requests, rate limiting, and automatic fallback strategies
- * Maintains consistent output format for X thread payloads
- */
+// 3-Tier AI Fallback Copywriting Engine
+// Resilient AI generator: Tier 1 (OpenRouter Free) -> Tier 2 (Google Gemini / Groq) -> Tier 3 (Local Heuristic Rule Engine)
+// Includes 3-second delay wrapper between requests, rate limiting, and automatic fallback strategies
+// Maintains consistent output format for X thread payloads
 
 import { CONSTANTS } from "../config/constants";
 import { ProductItem } from "../types/product";
@@ -49,8 +47,6 @@ export class AIFallbackEngine {
       emergencyFallback: true,
       ...config
     };
-    
-    console.log("🧠 AIFallbackEngine initialized with 3-tier fallback system");
   }
 
   async generateCopy(product: ProductItem, agentId?: string): Promise<GeneratedCopy> {
@@ -217,8 +213,8 @@ class MockOpenRouterService implements OpenRouterService {
     
     const bodies = [
       `Get this ${product.category} for only RM${product.price}! Quality guaranteed, fast shipping. ${product.price > 100 ? 'Perfect for' : 'Ideal for'} ${product.category} needs.`,
-      `Special offer on ${product.name}. Originally RM${(product.price * 1.5).toFixed(2)}, now just RM${product.price}. Hurry, stock running out! ${product.category === 'beauty' ? 'Get glowing skin today!' : 'Perfect for your home!'}\`,
-      `Why settle for ordinary when you can get extraordinary? This ${product.category} is exactly what you need. Only RM${product.price} today. ${product.rating > 4 ? 'Rated 5 stars, loved by everyone!' : 'Rated ' + product.rating + ' stars, making it our customers\' favorite!'}\`
+      `Special offer on ${product.name}. Originally RM${(product.price * 1.5).toFixed(2)}, now just RM${product.price}. Hurry, stock running out! ${product.category === 'beauty' ? 'Get glowing skin today!' : 'Perfect for your home!'}`,
+      `Why settle for ordinary when you can get extraordinary? This ${product.category} is exactly what you need. Only RM${product.price} today. ${product.rating > 4 ? 'Rated 5 stars, loved by everyone!' : 'Rated ' + product.rating + ' stars, making it our customers\' favorite!'}`
     ];
     
     const ctas = [
@@ -271,14 +267,14 @@ class MockGeminiService implements GeminiService {
 Price: RM${product.price} (Original: RM${(product.price * 1.3).toFixed(2)})
 Special Offer: ${product.category} category
 ${product.category === 'electronics' ? 'Built with quality components' : 'Perfect for your needs'}
-${product.category === 'beauty' ? 'Transform your appearance today' : product.category === 'home' ? 'Make your home beautiful' : 'Enhance your lifestyle'}\`,
+${product.category === 'beauty' ? 'Transform your appearance today' : product.category === 'home' ? 'Make your home beautiful' : 'Enhance your lifestyle'}`,
       `Quick Summary:
 Name: ${product.name}
 Price: RM${product.price}
 Rating: ${product.rating} stars
 ${product.description}
 ${product.stock ? 'Stock: ' + product.stock + ' units' : ''}`,
-      `Call to Action: Ready to purchase? Just click the link and complete your order! ${product.explanation || 'Your satisfaction is guaranteed!'}\`
+      `Call to Action: Ready to purchase? Just click the link and complete your order! ${product.explanation || 'Your satisfaction is guaranteed!'}`
     ];
     
     const ctas = [
@@ -331,14 +327,14 @@ class HeuristicRuleEngine implements HeuristicRuleEngine {
 Price: RM${product.price} (Original: RM${(product.price * 1.2).toFixed(2)})
 Special Offer: ${product.category} category
 ${product.category === 'electronics' ? 'Built with quality components' : 'Perfect for your needs'}
-${product.category === 'beauty' ? 'Transform your appearance today' : product.category === 'home' ? 'Make your home beautiful' : 'Enhance your lifestyle'}\`,
+${product.category === 'beauty' ? 'Transform your appearance today' : product.category === 'home' ? 'Make your home beautiful' : 'Enhance your lifestyle'}`,
       `Quick Summary:
 Name: ${product.name}
 Price: RM${product.price}
 Rating: ${product.rating} stars
 ${product.description}
 ${product.stock ? 'Stock: ' + product.stock + ' units' : ''}`,
-      `Call to Action: Ready to purchase? Just click the link and complete your order! ${product.explanation || 'Your satisfaction is guaranteed!'}\`
+      `Call to Action: Ready to purchase? Just click the link and complete your order! ${product.explanation || 'Your satisfaction is guaranteed!'}`
     ];
     
     const ctas = [
@@ -382,4 +378,4 @@ export type {
   OpenRouterService,
   GeminiService,
   HeuristicRuleEngine
-} from this;
+};

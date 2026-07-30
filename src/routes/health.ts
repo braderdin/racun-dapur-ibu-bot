@@ -187,7 +187,6 @@ export class HealthHandler {
       };
     }
   }
-  }
 
   private determineOverallStatus(
     services: HealthStatus["services"],

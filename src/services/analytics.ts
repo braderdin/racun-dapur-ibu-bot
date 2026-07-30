@@ -1,4 +1,4 @@
-//
+/*
  * Edge Analytics & Click Recording Service
  * Implements click logger capturing referral metadata, user agent, short code, and persisting async metrics to Supabase
  * Real-time analytics processing for @RacunDapurIbu Bot
@@ -79,9 +79,9 @@ export interface AnalyticsStats {
   uniqueVisitors: number;
   clickRate: number;
   conversionRate: number;
-  topSources: Array<{ source: string; clicks: number; }>>;
-  topCountries: Array<{ country: string; clicks: number; }>>;
-  hourlyDistribution: Array<{ hour: number; clicks: number; }>>;
+  topSources: Array<{ source: string; clicks: number; }>;
+  topCountries: Array<{ country: string; clicks: number; }>;
+  hourlyDistribution: Array<{ hour: number; clicks: number; }>;
   deviceBreakdown: {
     desktop: number;
     mobile: number;
@@ -117,7 +117,8 @@ export interface RealTimeAnalytics {
 export interface CampaignReport {
   campaignId: string;
   source: string;
-  medium: string;\  totalClicks: number;
+  medium: string;
+  totalClicks: number;
   totalConversions: number;
   conversionRate: number;
   costPerClick?: number;
@@ -331,7 +332,8 @@ export class EdgeAnalyticsService {
       
       console.log("✅ Old data cleanup completed");
       
-    } catch (error) {\n      console.error("❌ Failed to cleanup old data:", error.message);
+    } catch (error) {
+      console.error("❌ Failed to cleanup old data:", error.message);
       throw error;
     }
   }

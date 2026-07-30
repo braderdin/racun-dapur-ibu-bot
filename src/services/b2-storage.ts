@@ -1,4 +1,4 @@
-//
+/*
  * Backblaze B2 Storage Service
  * Handles hierarchical WebP storage with auto-switching between 9GB accounts
  * Integrates with ImageProcessor for WebP optimization

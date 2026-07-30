@@ -1,4 +1,4 @@
-//
+/*
  * OpenRouter AI Copywriting Service
  * Integrates OpenRouter AI with 3-tier fallback strategy
  * Generates copywriting for X (Twitter) and Facebook posts
@@ -22,14 +22,14 @@ export interface OpenRouterResponse {
   object: string;
   created: number;
   model: string;
-  choices: Array<{{
+  choices: Array<{
     index: number;
     message: {
       role: string;
       content: string;
     };
     finish_reason: string;
-  }"}];
+  }>;
   usage: {
     prompt_tokens: number;
     completion_tokens: number;
@@ -416,7 +416,7 @@ Write engaging, conversion-focused copy that resonates with ${platform} shoppers
       
       return {
         status: "healthy",
-        details: `OpenRouter service operational (${this.requestCount} requests made)"
+        details: `OpenRouter service operational (${this.requestCount} requests made)`
       };
     } catch (error) {
       return {

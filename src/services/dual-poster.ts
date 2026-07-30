@@ -1,4 +1,4 @@
-//
+/*
  * Dual-Poster Service
  * Main orchestrator for dual-channel posting (X + Facebook)
  * Integrates Facebook Graph API with X API v2
@@ -426,7 +426,7 @@ export class DualPosterService {
     try {
       // Test all dependent services
       const [redisStatus, supabaseStatus, b2Status] = await Promise.all([
-        this.redisService.ping().then(() => 'connected').catch(() => 'disconnected'),
+        this.redisService.healthCheck().then(() => 'connected').catch(() => 'disconnected'),
         this.supabaseService.healthCheck().then(() => 'connected').catch(() => 'disconnected'),
         this.b2StorageService.healthCheck().then(() => 'connected').catch(() => 'disconnected')
       ]);
@@ -436,7 +436,7 @@ export class DualPosterService {
       if (allConnected) {
         return {
           status: 'healthy',
-          details: `All services connected (Redis: ${redisStatus}, Supabase: ${supabaseStatus}, B2 Storage: ${b2Status})"
+          details: `All services connected (Redis: ${redisStatus}, Supabase: ${supabaseStatus}, B2 Storage: ${b2Status})`
         };
       } else {
         return {

@@ -201,11 +201,11 @@ async function executeDailyCuration(): Promise<void> {
       console.log(`✅ Deal processed and stored: ${deal.title}`);
       
     } catch (error) {
-      console.error(`❌ Failed to process deal ${deal.id}", error.message);
+      console.error(`❌ Failed to process deal ${deal.id}: ${error.message}`);
     }
   }
   
-  console.log(`✅ Daily curation completed: ${deals.length} deals processed");
+  console.log(`✅ Daily curation completed: ${deals.length} deals processed`);
 }
 
 async function executeDealCuration(): Promise<any[]> {

@@ -528,13 +528,13 @@ export class WorkerRouter {
 
       console.log(`Product ${productId} processed successfully`);
     } catch (error) {
-      console.error(`Failed to process product ${productId}:", error);
+      console.error(`Failed to process product ${productId}:`, error);
       throw error;
     }
   }
 
   private async generateCopywriting(product: any): Promise<any> {
-    console.log("Generating AI copy for product...")
+    console.log("Generating AI copy for product...");
 
     return {
       problem: `Looking for ${product.title.toLowerCase()}?`,
@@ -552,7 +552,7 @@ export class WorkerRouter {
   }
 
   private async createTweetThread(copywriting: any, imageUrl: string): Promise<any> {
-    console.log("Creating 2-tweet thread on X...`);
+    console.log("Creating 2-tweet thread on X...");
 
     return {
       tweetId: `tweet_${Date.now()}`,

@@ -1,4 +1,4 @@
-//
+/*
  * Dual-Engine Rotation Manager
  * Coordinates 50/50 balance between Lazada and Shopee deals based on execution slot timestamp
  * Implements rotation logic and API fallback strategies

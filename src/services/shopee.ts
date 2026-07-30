@@ -1,4 +1,4 @@
-//
+/*
  * Shopee API Integration Service Interface (Dual-Engine Ready)
  * Implements Shopee Open API client module with product fetcher, link generator, and fallback mocks
  * Ready for pending Shopee API approval
