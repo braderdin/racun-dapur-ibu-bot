@@ -1,8 +1,6 @@
-//
- * Image Processing & WebP Auto-Compression Utility
- * Handles image buffer validation, WebP conversion, and dimension checks
- * Enforces max 2MB cap and proper MIME type handling for B2 storage
- */
+// Image Processing & WebP Auto-Compression Utility
+// Handles image buffer validation, WebP conversion, and dimension checks
+// Enforces max 2MB cap and proper MIME type handling for B2 storage
 
 import { CONSTANTS } from "../config/constants";
 

@@ -52,6 +52,12 @@ export interface Env {
   OPENROUTER_BASE_URL: string;
   OPENROUTER_API_KEY: string;
 
+  // **NEW: Meta Facebook Page API Configuration**
+  FACEBOOK_PAGE_ID: string;
+  FACEBOOK_APP_ID: string;
+  FACEBOOK_APP_SECRET: string;
+  FACEBOOK_PAGE_ACCESS_TOKEN: string;
+
   // QStash Queue Configuration
   QSTASH_QUEUE_URL: string;
   QSTASH_QUEUE_TOKEN: string;
@@ -122,6 +128,11 @@ export function validateEnv(env: Env): Env {
     "REDIS_ANTI_REPEAT_TTL_SECONDS",
     "MAX_REQUESTS_PER_MINUTE",
     "REDIS_CACHE_TTL_SECONDS",
+    // **NEW: Facebook API credentials included in validation**
+    "FACEBOOK_PAGE_ID",
+    "FACEBOOK_APP_ID",
+    "FACEBOOK_APP_SECRET",
+    "FACEBOOK_PAGE_ACCESS_TOKEN",
   ];
 
   const missingVars = requiredVars.filter((varName) => !env[varName]);
@@ -129,7 +140,7 @@ export function validateEnv(env: Env): Env {
   if (missingVars.length > 0) {
     throw new Error(
       `Missing required environment variables: ${missingVars.join(", ")}\n` +
-        `Please check your .env.local or .dev.vars configuration.`,
+        `Please check your .env.local or .dev.vars configuration.`
     );
   }
 

@@ -389,7 +389,7 @@ export class WorkerRouter {
 
   private async uploadProductImage(imageUrl: string, productId: string): Promise<string> {
     // Simulate image upload to storage
-    console.log(`Uploading product image for ${productId}...`)
+    console.log(`Uploading product image for ${productId}...`);
 
     // Mock image upload result
     return `https://storage.example.com/products/${productId}.jpg`;
@@ -397,7 +397,7 @@ export class WorkerRouter {
 
   private async createTweetThread(copywriting: any, imageUrl: string): Promise<any> {
     // Simulate tweet creation
-    console.log("Creating 2-tweet thread on X...`)
+    console.log("Creating 2-tweet thread on X...`);
 
     // Mock tweet results
     return {

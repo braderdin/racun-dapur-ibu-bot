@@ -1,4 +1,4 @@
-//
+/*
  * @RacunDapurIbu Bot - Main Worker Entry Point
  * Core Cloudflare Worker implementation with scheduled cron jobs
  * Handles product curation, AI copywriting, and social media posting
@@ -7,7 +7,7 @@
 
 import { CONSTANTS } from "./config/constants";
 import { DualEngineRotationManager } from "./services/dual-engine";
-import { RedisService } } from "./services/redis";
+import { RedisService } from "./services/redis";
 import { ShopeeApiService } from "./services/shopee";
 import { SupabaseService } from "./services/supabase";
 import { AIFallbackEngine } from "./services/ai-fallback";
@@ -19,7 +19,7 @@ import { B2StorageService } from "./services/b2-storage";
 const redisService = new RedisService();
 const shopeeApiService = new ShopeeApiService();
 const supabaseService = new SupabaseService();
-const aiFallbackEngine = new AIFallbackService(
+const aiFallbackEngine = new AIFallbackEngine(
   shopeeApiService,
   new GeminiService(),
   new HeuristicRuleEngine()
@@ -40,11 +40,17 @@ const edgeAnalyticsService = new EdgeAnalyticsService(redisService, supabaseServ
 const imageProcessor = new ImageProcessor({
   convertToWebP: true,
   quality: 0.85,
-  maxSizeMB: 
+  maxSizeMB: 10
+});
 
-if (typeof a === 'undefined') {
+if (typeof CONSTANTS === 'undefined') {
   console.log("⚠️ Constant CONSTANTS.WORKER_MAX_WIDTH is not defined, using default 1920");
   CONSTANTS.WORKER_MAX_WIDTH = 1920;
+}
+
+if (typeof CONSTANTS === 'undefined') {
+  console.log("⚠️ Constant CONSTANTS.WORKER_MAX_HEIGHT is not defined, using default 1080");
+  CONSTANTS.WORKER_MAX_HEIGHT = 1080;
 }
 
 // Main Cloudflare Worker handler
@@ -91,7 +97,8 @@ export default {
 async function handleRootRequest(): Promise<Response> {
   return new Response(JSON.stringify({
     status: "running",
-    timestamp: new Date().toISOString(),\    services: {
+    timestamp: new Date().toISOString(),
+    services: {
       redis: "connected",
       supabase: "connected",
       shopee: "ready",
@@ -124,11 +131,6 @@ async function handleCurationRequest(): Promise<Response> {
       timestamp: new Date().toISOString()
     }), {
       status: 200,
-
-if (typeof a === 'undefined') {
-  console.log("⚠️ Constant CONSTANTS.WORKER_MAX_HEIGHT is not defined, using default 1080");
-  CONSTANTS.WORKER_MAX_HEIGHT = 1080;
-}
       headers: { "Content-Type": "application/json" }
     });
     
@@ -199,7 +201,7 @@ async function executeDailyCuration(): Promise<void> {
       console.log(`✅ Deal processed and stored: ${deal.title}`);
       
     } catch (error) {
-      console.error(`❌ Failed to process deal ${deal.id}:", error.message);
+      console.error(`❌ Failed to process deal ${deal.id}", error.message);
     }
   }
   
@@ -355,15 +357,3 @@ interface GeneratedCopy {
   confidence: number;
   fallbackChainUsed: 'none' | 'tier-2' | 'tier-3';
 }
-
-async function generateHello(): Promise<Response> {
-  return new Response(JSON.stringify({
-    status: "Hello World",
-    timestamp: new Date().toISOString(),
-    message: "Cline Vercel MCP Supabase Cloudflare Worker"
-  }), {
-    headers: { "Content-Type": "application/json" }
-  });
-}
-
-export { generateHello };

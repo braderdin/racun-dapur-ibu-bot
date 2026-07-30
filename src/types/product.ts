@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-// ProductItem interface sudah didefinisikan di src/types/env.ts
-
 // Zod validation schemas
 export const ProductItemSchema = z.object({
   id: z.string(),
@@ -19,6 +17,39 @@ export const GeneratedCopySchema = z.object({
   tweetHook: z.string(),
   tweetReply: z.string(),
 });
+
+// Facebook Graph API interfaces for dual-channel posting
+export interface FacebookPostPayload {
+  message: string;
+  url?: string;
+  picture?: string;
+  link?: string;
+}
+
+export interface FacebookPostResponse {
+  id: string;
+  success: boolean;
+  postId?: string;
+  error?: {
+    message: string;
+    type: string;
+    code: number;
+  };
+}
+
+export interface FacebookCommentPayload {
+  message: string;
+  parent_comment_id?: string;
+}
+
+export interface DualPostResult {
+  twitterPostId?: string;
+  facebookPostId?: string;
+  facebookCommentId?: string;
+  twitterStatus: "published" | "failed" | "pending";
+  facebookStatus: "published" | "failed" | "pending";
+  error?: string;
+}
 
 export type PostResult = {
   success: boolean;

@@ -138,4 +138,113 @@ export class SupabaseService {
       logger.error("Error logging to Supabase:", { error }, "SupabaseService");
     }
   }
+
+  // Facebook-specific logging methods
+  async logFacebookPost(data: {
+    productId: string,
+    platform: "lazada" | "shopee",
+    postId?: string,
+    commentId?: string,
+    status: "published" | "failed" | "pending",
+    errorMessage?: string,
+    timestamp?: string,
+    source?: string,
+  }): Promise<void> {
+    try {
+      if (!this.url || !this.serviceKey) return;
+
+      const payload = {
+        product_id: data.productId,
+        platform: data.platform,
+        fb_post_id: data.postId || null,
+        fb_comment_id: data.commentId || null,
+        status: data.status,
+        error_message: data.errorMessage || null,
+        timestamp: data.timestamp || new Date().toISOString(),
+        source: data.source || "facebook_graph_api",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        // Include related product info for reference
+        lazada_product_id: data.platform === "lazada" ? `ref_${data.productId}` : null,
+        lazada_item_id: data.platform === "lazada" ? `ref_${data.productId}` : null,
+        tweet_id: null, // Not applicable for Facebook posts
+        reply_tweet_id: null,
+        posted_at: new Date().toISOString(),
+        x_user_id: null,
+        x_username: null,
+        x_display_name: null,
+        copy_used: JSON.stringify({
+          facebookPost: data.postId || null,
+          facebookComment: data.commentId || null,
+          status: data.status,
+          error: data.errorMessage || null,
+        }),
+        tags_used: [],
+        sentiment_score: null,
+        image_storage_used: JSON.stringify({
+          account: 1, // Default Backblaze B2 account for Facebook posts
+          bucket: "facebook-posts",
+          object: `${data.productId}_${data.platform}.jpg`,
+        }),
+      };
+
+      const response = await fetch(`${this.url}/rest/v1/posted_products`, {
+        method: "POST",
+        headers: {
+          apikey: this.serviceKey,
+          Authorization: `Bearer ${this.serviceKey}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+          "on-conflict": "merge",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        console.error("Supabase Facebook POST error:", await response.text());
+      }
+
+      logger.debug(
+        "Supabase Facebook log success",
+        { productId: data.productId, postId: data.postId, status: data.status },
+        "SupabaseService",
+      );
+    } catch (error) {
+      logger.error("Error logging Facebook post to Supabase:", { error }, "SupabaseService");
+    }
+  }
+
+  async getFacebookPostLogs(productId?: string): Promise<any[]> {
+    try {
+      if (!this.url) return [];
+
+      let query = "/rest/v1/posted_products?select=*&source=eq.facebook_graph_api";
+      if (productId) {
+        query += `&product_id=eq.${productId}`;
+      }
+      query += "&order=created_at.desc";
+
+      const response = await fetch(`${this.url}${query}`, {
+        method: "GET",
+        headers: {
+          apikey: this.serviceKey,
+          Authorization: `Bearer ${this.serviceKey}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Supabase API error: ${response.statusText}`);
+      }
+
+      const data = (await response.json()) as any[];
+      return data;
+    } catch (error) {
+      logger.error(
+        "Error fetching Facebook post logs from Supabase:",
+        { error },
+        "SupabaseService",
+      );
+      return [];
+    }
+  }
 }
