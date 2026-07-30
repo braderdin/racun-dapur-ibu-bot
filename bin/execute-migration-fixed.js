@@ -1,80 +1,87 @@
 /*
- * Fixed Database Migration Helper Script
- * Reads DIRECT_URL from .dev.vars file and executes SQL schema files
+ * Fixed Database Migration Script
+ * Reads DIRECT_URL from .dev.vars file to execute SQL schema files
  * Executes SQL schema files directly against Supabase unpooled direct connection
  * Follows WSL Network Protocol with ?pgbouncer=false parameter
  * Provides timeout wrappers to guarantee process auto-exits on failure
  */n
+import pg from "pg";"";
+import fs from "fs";"";
+import path from "path";"";
 
-const fs = require("fs");
-const path = require("path");
+// Helper function to read DIRECT_URL from .dev.vars file
+function getDirectUrlFromDevVars(): string {
+    try {
+        const content = fs.readFileSync(path.join(process.cwd(), ".dev.vars"), "utf8");
+        const lines = content.split("\n");
+        for (const line of lines) {
+            const trimmed = line.trim();
+            // Skip empty lines and comments
+            if (trimmed && !trimmed.startsWith("#")) {
+                // Match DIRECT_URL=...
+                const match = trimmed.match(/^DIRECT_URL=(.*)$/);
+                if (match) {
+                    // Remove quotes and trim any trailing comments
+                    return match[1].replace(/\"/g, "").trim();
+                }
+            }
+        }
+        throw new Error("DIRECT_URL not found in .dev.vars file");
+    } catch (error) {
+        console.error("❌ Failed to read .dev.vars file:", error.message);
+        throw error;
+    }
+}
 
 // Environment variables - read-only access to .env.local/.dev.vars
 let DIRECT_URL = process.env.DIRECT_URL;
 let SUPABASE_URL = process.env.SUPABASE_URL;
 let SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// Helper function to read environment variables from .dev.vars file
 function loadEnvFromDevVars() {
     try {
-        const devVarsPath = path.join(process.cwd(), ".dev.vars");
-        if (!fs.existsSync(devVarsPath)) {
-            console.log("📄 .dev.vars file not found, checking .env.local...");
-            if (!fs.existsSync(path.join(process.cwd(), ".env.local"))) {
-                console.error("❌ Neither .dev.vars nor .env.local file found!");
-                process.exit(1);
-            }
-            devVarsPath = path.join(process.cwd(), ".env.local");
-        }
-
-        const content = fs.readFileSync(devVarsPath, "utf8");
-        const lines = content.split("\n");
-        
-        console.log("📄 Loading environment variables from " + path.basename(devVarsPath) + "...");
-        
-        let envVarsLoaded = false;
-        
-        for (const line of lines) {
-            const trimmed = line.trim();
-            if (trimmed && !trimmed.startsWith("#")) {
-                // Match VAR_NAME=value (where value may be quoted)
-                const match = trimmed.match(/^([A-Z_][A-Z_]*)=(.*)$/);
-                if (match) {
-                    const varName = match[1];
-                    let varValue = match[2].trim();
-                    
-                    // Remove surrounding quotes
-                    if ((varValue.startsWith('"') && varValue.endsWith('"')) || 
-                        (varValue.startsWith("'") && varValue.endsWith("'"))) {
-                        varValue = varValue.slice(1, -1);
+        // Try to load from .dev.vars if environment variables are not set
+        if (!DIRECT_URL || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+            console.log("📄 Loading environment variables from .dev.vars file...");
+            // Extract values from .dev.vars
+            const devVarsContent = fs.readFileSync(path.join(process.cwd(), ".dev.vars"), "utf8");
+            const lines = devVarsContent.split("\n");
+            
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (trimmed && !trimmed.startsWith("#")) {
+                    // Match VAR_NAME=value (where value may be quoted)
+                    const match = trimmed.match(/^([A-Z_][A-Z_]*)=(.*)$/);
+                    if (match) {
+                        const varName = match[1];
+                        let varValue = match[2].trim();
+                        
+                        // Remove surrounding quotes
+                        if ((varValue.startsWith('"') && varValue.endsWith('"')) || 
+                            (varValue.startsWith("'") && varValue.endsWith("'"))) {
+                            varValue = varValue.slice(1, -1);
+                        }
+                        
+                        // Set environment variable
+                        if (!process.env[varName]) {
+                            process.env[varName] = varValue;
+                        }
+                        
+                        // Set local variables for the script
+                        switch (varName) {
+                            case "DIRECT_URL":
+                                DIRECT_URL = varValue;
+                                break;
+                            case "SUPABASE_URL":
+                                SUPABASE_URL = varValue;
+                                break;
+                            case "SUPABASE_SERVICE_ROLE_KEY":
+                                SUPABASE_SERVICE_ROLE_KEY = varValue;
+                                break;
+                        }
                     }
-                    
-                    // Set environment variable
-                    if (!process.env[varName]) {
-                        process.env[varName] = varValue;
-                    }
-                    
-                    // Set local variables for the script
-                    switch (varName) {
-                        case "DIRECT_URL":
-                            DIRECT_URL = varValue;
-                            break;
-                        case "SUPABASE_URL":
-                            SUPABASE_URL = varValue;
-                            break;
-                        case "SUPABASE_SERVICE_ROLE_KEY":
-                            SUPABASE_SERVICE_ROLE_KEY = varValue;
-                            break;
-                    }
-                    
-                    envVarsLoaded = true;
                 }
             }
-        }
-        
-        if (!envVarsLoaded) {
-            console.error("❌ No valid environment variables found in " + path.basename(devVarsPath));
-            process.exit(1);
         }
         
         // Validate required environment variables
@@ -87,7 +94,7 @@ function loadEnvFromDevVars() {
         
     } catch (error) {
         console.error("❌ Failed to load environment variables:", error.message);
-        process.exit(1);
+        throw error;
     }
 }
 
@@ -99,7 +106,7 @@ const connectionConfig = {
     max: 20, // Maximum pool size for concurrent operations
 };
 
-function executeSqlFile(filePath) {
+async function executeSqlFile(filePath: string): Promise<void> {
     try {
         console.log(`📄 Executing SQL file: ${filePath}`);
 
@@ -116,8 +123,7 @@ function executeSqlFile(filePath) {
             return;
         }
 
-        const { Client } = require("pg");
-        const client = new Client(connectionConfig);
+        const client = new pg.Pool(connectionConfig);
 
         // Execute each statement with timeout
         for (let i = 0; i < statements.length; i++) {
@@ -138,7 +144,7 @@ function executeSqlFile(filePath) {
 }
 
 async function main() {
-    await loadEnvFromDevVars();
+    loadEnvFromDevVars();
     
     const migrationsDir = path.join(process.cwd(), "supabase", "migrations");
 
@@ -186,9 +192,3 @@ Promise.race([main(), timeoutPromise])
         console.error("💥 Fatal error:", error.message);
         process.exit(1);
     });
-
-console.log("Running migration script...");
-main().catch(error => {
-    console.error("Migration failed:", error);
-    process.exit(1);
-});

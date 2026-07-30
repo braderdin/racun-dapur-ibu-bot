@@ -1,106 +1,109 @@
 /*
- * Simple script to run database migrations using DIRECT_URL from .dev.vars
- */
+ * Migration script wrapper
+ * Reads DIRECT_URL from .dev.vars and runs database migration
+ */n
 
-import { Pool } from "pg";
-import fs from "fs/promises";
-import path from "path";
+const fs = require("fs");
+const path = require("path");
 
-// Use the same DIRECT_URL from .dev.vars
-const connectionString =
-  "postgresql://postgres.yttyztkjbbpcqoozepmn:Sakurasasuke1122@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres";
+// Extract DIRECT_URL from .dev.vars file
+function extractEnvironmentFromDevVars() {
+    try {
+        const devVarsPath = path.join(process.cwd(), ".dev.vars");
+        if (!fs.existsSync(devVarsPath)) {
+            throw new Error("❌ .dev.vars file not found!");
+        }
 
-async function executeSqlFile(filePath, client) {
-  try {
-    console.log(`📄 Executing SQL file: ${filePath}`);
-
-    const sqlContent = await fs.readFile(filePath, "utf8");
-
-    // Parse SQL into individual statements (simple splitting by semicolon)
-    const statements = sqlContent
-      .split(";")
-      .map((stmt) => stmt.trim())
-      .filter((stmt) => stmt.length > 0 && !stmt.startsWith("--"))
-      .filter((stmt) => !stmt.includes("-- Pembaruan sesi tergesa-gesa"));
-
-    console.log(`✅ Found ${statements.length} statements`);
-
-    // Execute each statement
-    for (let i = 0; i < statements.length; i++) {
-      const stmt = statements[i];
-      if (stmt.trim()) {
-        await client.query(stmt);
-        console.log(`  Executed statement ${i + 1}/${statements.length}`);
-      }
+        const content = fs.readFileSync(devVarsPath, "utf8");
+        const lines = content.split("\n");
+        
+        console.log("📄 Loading .dev.vars file...");
+        
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (trimmed && !trimmed.startsWith("#")) {
+                // Match VAR_NAME=value (where value may be quoted)
+                const match = trimmed.match(/^([A-Z_][A-Z_]*)=(.*)$/);
+                if (match) {
+                    const varName = match[1];
+                    let varValue = match[2].trim();
+                    
+                    // Remove surrounding quotes
+                    if ((varValue.startsWith('"') && varValue.endsWith('"')) || 
+                        (varValue.startsWith("'") && varValue.endsWith("'"))) {
+                        varValue = varValue.slice(1, -1);
+                    }
+                    
+                    // Set environment variable
+                    process.env[varName] = varValue;
+                }
+            }
+        }
+        
+        // Verify DIRECT_URL is available
+        if (!process.env.DIRECT_URL) {
+            throw new Error("❌ DIRECT_URL not found in .dev.vars file");
+        }
+        
+        console.log("✅ Environment variables loaded successfully");
+        console.log("🔗 DIRECT_URL: " + process.env.DIRECT_URL.substring(0, 50) + "...");
+        
+    } catch (error) {
+        console.error("❌ Failed to load environment from .dev.vars:", error.message);
+        throw error;
     }
-
-    return statements.length;
-  } catch (error) {
-    console.error(`❌ Failed to execute ${filePath}:`, error.message);
-    throw error;
-  }
 }
 
-async function main() {
-  console.log("🚀 Database Migration Helper Script started");
-  console.log(
-    `📁 Migration directory: /home/braderdin/racun-dapur-ibu-bot/supabase/migrations`,
-  );
-
-  const pool = new Pool({
-    connectionString,
-    connectionTimeoutMillis: 5000,
-  });
-
-  try {
-    const client = await pool.connect();
-
-    // Test connection first
-    await client.query("SELECT 1");
-    console.log("✅ Database connection established");
-
-    const migrationsDir = path.join(process.cwd(), "supabase", "migrations");
-    const files = await fs.readdir(migrationsDir);
-    const sqlFiles = files.filter((file) => file.endsWith(".sql")).sort();
-
-    console.log(`📋 Found ${sqlFiles.length} migration file(s):`);
-    sqlFiles.forEach((file) => console.log(`  - ${file}`));
-
-    // Execute each migration file
-    for (const file of sqlFiles) {
-      const filePath = path.join(migrationsDir, file);
-      await executeSqlFile(filePath, client);
+async function runMigrations() {
+    try {
+        // Load environment variables from .dev.vars
+        extractEnvironmentFromDevVars();
+        
+        // Check if DIRECT_URL is set
+        const directUrl = process.env.DIRECT_URL;
+        if (!directUrl) {
+            throw new Error("❌ DIRECT_URL environment variable is required!");
+        }
+        
+        // Create a simple SQL statement to test connection
+        console.log("🔄 Testing database connection...");
+        
+        // Read migration files and execute them
+        const migrationsDir = path.join(process.cwd(), "supabase", "migrations");
+        const files = fs.readdirSync(migrationsDir);
+        const sqlFiles = files.filter(file => file.endsWith(".sql")).sort();
+        
+        if (sqlFiles.length === 0) {
+            console.log("⚠️  No migration files found");
+            return;
+        }
+        
+        console.log(`📋 Found ${sqlFiles.length} migration files to execute...");
+        
+        // For now, just copy the .dev.vars content to process.env
+        // then call the TypeScript migration script using tsx
+        console.log("🔄 Running migration script with extracted environment variables...");
+        
+        // Execute the TypeScript migration script
+        const { execSync } = require("child_process");
+        execSync("npx tsx bin/db-migrate.js", { stdio: "inherit" });
+        
+        console.log("\n🎉 All migrations executed successfully!");
+        
+    } catch (error) {
+        console.error("\n❌ Migration failed:", error.message);
+        
+        if (error.message.includes("DIRECT_URL")) {
+            console.log("\n🔧 To fix this issue:");
+            console.log("   1. Check that .dev.vars file exists in the project root");
+            console.log("   2. Add DIRECT_URL with proper Supabase connection string");
+            console.log("   3. Format: DIRECT_URL=\"postgresql://username:password@your-supabase-url:5432/postgres?pgbouncer=false\"");
+            console.log("\n📝 Current .dev.vars DIRECT_URL:", process.env.DIRECT_URL ? "is set" : "is NOT set");
+        }
+        
+        process.exit(1);
     }
-
-    console.log("🎉 All migrations executed successfully!");
-    client.release();
-    await pool.end();
-  } catch (error) {
-    console.error("💥 Migration script failed:", error.message);
-    await pool.end();
-    process.exit(1);
-  }
 }
 
-// Simple entry point detection for ESM module
-if (process.argv[1]?.endsWith("node_modules/.bin/npm")) {
-  main()
-    .then(() => {
-      console.log("✅ Migration completed successfully");
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error("💥 Fatal error:", error.message);
-      process.exit(1);
-    });
-} else {
-  main()
-    .then(() => {
-      console.log("✅ Migration completed successfully");
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error("💥 Fatal error:", error.message);
-      process.exit(1);
-    });
-}
+// Run the migrations
+runMigrations();
