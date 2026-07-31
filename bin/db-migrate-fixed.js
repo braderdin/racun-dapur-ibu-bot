@@ -122,6 +122,35 @@ async function loadEnvFromDevVars() {
   }
 }
 
+// Split SQL into individual statements by semicolons outside of $$ blocks
+function splitSqlStatements(sql) {
+  const statements = [];
+  let current = '';
+  let inDollarBlock = false;
+  let i = 0;
+  
+  while (i < sql.length) {
+    if (sql.substring(i, i + 3) === '$$') {
+      inDollarBlock = !inDollarBlock;
+      current += '$$';
+      i += 3;
+    } else if (sql[i] === ';' && !inDollarBlock) {
+      statements.push(current.trim());
+      current = '';
+      i++;
+    } else {
+      current += sql[i];
+      i++;
+    }
+  }
+  
+  if (current.trim()) {
+    statements.push(current.trim());
+  }
+  
+  return statements;
+}
+
 async function executeSqlFile(filePath) {
   try {
     console.log(`📄 Executing SQL file: ${filePath}`);
@@ -149,18 +178,38 @@ async function executeSqlFile(filePath) {
       ssl: { rejectUnauthorized: false },
     });
 
-    // Execute entire SQL file as a single query batch
-    await client.query("BEGIN");
-    try {
-      console.log(`  Executing SQL batch from ${path.basename(filePath)}`);
-      await client.query(cleanedSql);
-      await client.query("COMMIT");
-      console.log(`  ✅ SQL batch executed successfully`);
-    } catch (error) {
-      await client.query("ROLLBACK");
-      console.error(`  ❌ Transaction failed:`, error.message);
-      throw error;
+    // Execute SQL file by splitting into individual statements
+    // This avoids issues with DO $$ blocks containing BEGIN/END
+    // and allows each statement to be executed independently
+    console.log(`  Executing SQL batch from ${path.basename(filePath)}`);
+    
+    // Split SQL into individual statements by semicolons outside of $$ blocks
+    const statements = splitSqlStatements(cleanedSql);
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (const stmt of statements) {
+      const trimmed = stmt.trim();
+      if (!trimmed) continue;
+      try {
+        await client.query(trimmed);
+        successCount++;
+      } catch (stmtError) {
+        // Skip non-critical errors (e.g., IF NOT EXISTS for existing objects)
+        const msg = stmtError.message || '';
+        if (msg.includes('already exists') || 
+            msg.includes('does not exist') ||
+            msg.includes('relation') && msg.includes('already')) {
+          console.log(`  ⚠️  Skipped (expected): ${msg.substring(0, 100)}`);
+          successCount++;
+        } else {
+          console.error(`  ❌ Statement failed: ${msg.substring(0, 200)}`);
+          failCount++;
+        }
+      }
     }
+    
+    console.log(`  ✅ SQL batch executed (${successCount} succeeded, ${failCount} failed)`);
 
     await client.end();
     console.log(

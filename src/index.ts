@@ -14,31 +14,60 @@ import { AIFallbackEngine } from "./services/ai-fallback";
 import { EdgeAnalyticsService } from "./services/analytics";
 import { B2StorageService } from "./services/b2-storage";
 
-// Initialize services
-const redisService = new RedisService();
-const shopeeApiService = new ShopeeApiService();
-const supabaseService = new SupabaseService();
-const aiFallbackEngine = new AIFallbackEngine(
-  shopeeApiService,
-  new GeminiService(),
-  new HeuristicRuleEngine(),
-);
-const dualEngineRotationManager = new DualEngineRotationManager(
-  shopeeApiService,
-  redisService,
-  {
-    rotationIntervalHours: 24,
-    ensure_50_50_balance: true,
-    prefer_platform: "balanced",
-    api_timeout_seconds: 30,
-    max_retry_attempts: 3,
-    enable_circuit_breaker: true,
-  },
-);
-const edgeAnalyticsService = new EdgeAnalyticsService(
-  redisService,
-  supabaseService,
-);
+// Lazy service initialization - services are created per-request with env
+let redisService: RedisService | null = null;
+let shopeeApiService: ShopeeApiService | null = null;
+let supabaseService: SupabaseService | null = null;
+let aiFallbackEngine: AIFallbackEngine | null = null;
+let dualEngineRotationManager: DualEngineRotationManager | null = null;
+let edgeAnalyticsService: EdgeAnalyticsService | null = null;
+
+function getServices(env: any) {
+  if (!redisService) {
+    redisService = new RedisService(env);
+  }
+  if (!shopeeApiService) {
+    shopeeApiService = new ShopeeApiService(env);
+  }
+  if (!supabaseService) {
+    supabaseService = new SupabaseService(env);
+  }
+  if (!aiFallbackEngine) {
+    aiFallbackEngine = new AIFallbackEngine(
+      shopeeApiService,
+      new GeminiService(),
+      new HeuristicRuleEngine(),
+    );
+  }
+  if (!dualEngineRotationManager) {
+    dualEngineRotationManager = new DualEngineRotationManager(
+      shopeeApiService,
+      redisService,
+      {
+        rotationIntervalHours: 24,
+        ensure_50_50_balance: true,
+        prefer_platform: "balanced",
+        api_timeout_seconds: 30,
+        max_retry_attempts: 3,
+        enable_circuit_breaker: true,
+      },
+    );
+  }
+  if (!edgeAnalyticsService) {
+    edgeAnalyticsService = new EdgeAnalyticsService(
+      redisService,
+      supabaseService,
+    );
+  }
+  return {
+    redisService,
+    shopeeApiService,
+    supabaseService,
+    aiFallbackEngine,
+    dualEngineRotationManager,
+    edgeAnalyticsService,
+  };
+}
 
 // Lazy-load ImageProcessor only when image processing is needed
 let imageProcessor: any = null;
@@ -72,6 +101,7 @@ if (typeof CONSTANTS === "undefined") {
 export default {
   async fetch(request: Request, env: any, ctx: any): Promise<Response> {
     const url = new URL(request.url);
+    const { redisService, shopeeApiService, supabaseService, aiFallbackEngine, dualEngineRotationManager, edgeAnalyticsService } = getServices(env);
 
     if (url.pathname === "/health") {
       return new Response(
@@ -102,8 +132,9 @@ export default {
     console.log("⏰ Scheduled cron job started");
 
     try {
+      const { dualEngineRotationManager, shopeeApiService, aiFallbackEngine, supabaseService } = getServices(env);
       // Execute daily product curation
-      await executeDailyCuration();
+      await executeDailyCuration(dualEngineRotationManager, shopeeApiService, aiFallbackEngine, supabaseService);
       console.log("✅ Daily curation completed successfully");
     } catch (error) {
       console.error("❌ Daily curation failed:", error);
@@ -174,7 +205,12 @@ async function handleCurationRequest(): Promise<Response> {
   }
 }
 
-async function executeDailyCuration(): Promise<void> {
+async function executeDailyCuration(
+  dualEngineRotationManager: DualEngineRotationManager,
+  shopeeApiService: ShopeeApiService,
+  aiFallbackEngine: AIFallbackEngine,
+  supabaseService: SupabaseService,
+): Promise<void> {
   console.log(
     "🔄 Executing daily product curation with dual-engine rotation...",
   );
