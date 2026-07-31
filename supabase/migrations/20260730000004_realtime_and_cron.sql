@@ -9,7 +9,16 @@ CREATE EXTENSION IF NOT EXISTS pg_cron;
 
 -- 1. Add posted_products table to supabase_realtime publication
 -- This enables real-time synchronization for catalog changes
-ALTER PUBLICATION supabase_realtime ADD TABLE posted_products;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'posted_products'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE posted_products;
+    END IF;
+END;
+$$;
 
 -- 2. Create trigger function for auto-incrementing total_clicks
 -- This is triggered automatically whenever a new click is inserted
@@ -25,6 +34,7 @@ $$ LANGUAGE plpgsql;
 
 -- 3. Create trigger on link_clicks table
 -- Fires after each click insertion to update product click counts
+DROP TRIGGER IF EXISTS trigger_increment_total_clicks ON link_clicks;
 CREATE TRIGGER trigger_increment_total_clicks
 AFTER INSERT ON link_clicks
 FOR EACH ROW
@@ -50,6 +60,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_update_posted_products_updated_at ON posted_products;
 CREATE TRIGGER trigger_update_posted_products_updated_at
 BEFORE UPDATE ON posted_products
 FOR EACH ROW
@@ -172,8 +183,7 @@ AS $$
 BEGIN
     RETURN QUERY
     EXECUTE format(
-        '%%%
-        SELECT
+        'SELECT
             p.id,
             p.product_name,
             p.product_description,
@@ -192,12 +202,12 @@ BEGIN
             p.lazada_peak_hour_end,
             p.shopee_peak_hour_end,
             ts_rank(
-                to_tsvector('public', COALESCE(p.product_name, '') || '' || COALESCE(p.product_description, '')),
-                plainto_tsquery('public', %L)
+                to_tsvector(''public'', COALESCE(p.product_name, '''') || '' '' || COALESCE(p.product_description, '''')),
+                plainto_tsquery(''public'', %L)
             ) as search_rank
         FROM posted_products p
         WHERE (
-            to_tsvector('public', COALESCE(p.product_name, '''') || '' || COALESCE(p.product_description, '''')) @@ plainto_tsquery('public', %L)
+            to_tsvector(''public'', COALESCE(p.product_name, '''') || '' '' || COALESCE(p.product_description, '''')) @@ plainto_tsquery(''public'', %L)
             OR p.product_name ILIKE %L
             OR p.product_description ILIKE %L
         )
@@ -279,17 +289,18 @@ GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO service_role;
 ALTER TABLE posted_products ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policy: Public can read available products
+DROP POLICY IF EXISTS public_read_available_products ON posted_products;
 CREATE POLICY public_read_available_products ON posted_products
 FOR SELECT TO public
 USING (lazada_availability = 'available' OR shopee_availability = 'available');
 
 -- RLS Policy: Service role can perform all operations
+DROP POLICY IF EXISTS service_all_operations ON posted_products;
 CREATE POLICY service_all_operations ON posted_products
 FOR ALL TO service_role
 USING (true)
 WITH CHECK (true);
 
 -- Comments for documentation
-COMMENT ON TABLE posted_products IS 'Main catalog products table with dual-platform support';
 COMMENT ON TABLE posted_products IS 'Main catalog products table with dual-platform support';
 COMMENT ON COLUMN posted_products.total_clicks IS 'Total number of clicks tracked for this product';

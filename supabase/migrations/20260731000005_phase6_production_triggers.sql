@@ -99,14 +99,11 @@ BEGIN
     END IF;
     
     -- Tambah job pg_cron untuk pembersihan periodik (setiap hari pada 2:00 AM)
-    IF NOT EXISTS (SELECT 1 FROM pg_cron_job WHERE jobname = 'clean_old_click_analytics') THEN
-        INSERT INTO pg_cron_job (jobname, command, schedule, active, created_at)
-        VALUES (
+    IF NOT EXISTS (SELECT 1 FROM cron.job WHERE name = 'clean_old_click_analytics') THEN
+        PERFORM cron.schedule(
             'clean_old_click_analytics',
-            'SELECT cleanup_old_click_analytics();',
-            '0 2 * * *', -- Setiap hari pada 2:00 AM
-            true,
-            CURRENT_TIMESTAMP
+            '0 2 * * *',
+            'SELECT cleanup_old_click_analytics();'
         );
     END IF;
 END;
@@ -120,8 +117,7 @@ ALTER TABLE click_analytics
 ADD CONSTRAINT fk_click_analytics_product_id
 FOREIGN KEY (product_id)
 REFERENCES posted_products(product_id)
-ON DELETE SET NULL
-WITH (pgbouncer = false); -- Bypass transaction pooling for migration safety
+ON DELETE SET NULL;
 
 -- Tambah kekangan unik untuk domain data
 CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_daily_product_entry ON posted_products (product_id, date(posted_at));
@@ -152,15 +148,3 @@ COMMENT ON COLUMN click_analytics.platform IS 'Product platform (lazada or shope
 COMMENT ON TRIGGER trigger_update_total_clicks ON click_analytics IS 'Triggers total_clicks counting and TRENDING status updates';
 COMMENT ON TRIGGER trigger_update_posted_products_updated_at ON posted_products IS 'Updates updated_at timestamp on record modification';
 COMMENT ON TRIGGER trigger_update_click_analytics_updated_at ON click_analytics IS 'Updates updated_at timestamp on record modification';
-
--- Memberi diri pandu arah untuk pengurus
-\echo 'Migration 20260731000005_phase6_production_triggers.sql Executed Successfully';
-\echo '--- Summary of Changes ---';
-\echo '1. Added trigger: update_total_clicks_count (click_analytics inserts)';
-\echo '2. Added trigger: update_updated_at_column (posted_products & click_analytics)';
-\echo '3. Added pg_cron job: clean_old_click_analytics (harian)';
-\echo '4. Added production-ready foreign key constraints with pgbouncer bypass';
-\echo '5. Added comprehensive indexes for performance';
-\echo '6. Added data validation constraints';
-\echo '7. Enabled row-level security for both tables';
-\echo '--- Ready for Phase 6 E2E Live Testing ---';

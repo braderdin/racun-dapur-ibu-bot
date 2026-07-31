@@ -89,3 +89,57 @@ COMMENT ON COLUMN posted_products.platform IS 'Platform asal produk: laz (Lazada
 COMMENT ON COLUMN posted_products.image_webp_url IS 'URL WebP yang dimampat; dinaik naik oleh worker B2';
 COMMENT ON COLUMN posted_products.shopee_product_id IS 'Product ID Shopee (berbeza daripada lazada_product_id)';
 COMMENT ON COLUMN posted_products.shopee_item_id IS 'Item ID Shopee (berbeza daripada lazada_item_id)';
+
+-- ============================================================================
+-- Tambah jadual `dual_engine_posts` untuk menguruskan postingan dual-platform
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS dual_engine_posts (
+  id bigserial PRIMARY KEY,
+  product_id VARCHAR(255) NOT NULL REFERENCES posted_products(product_id) ON DELETE CASCADE,
+  platform platform NOT NULL,
+  post_id VARCHAR(255) UNIQUE,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'published', 'failed')),
+  error_message TEXT,
+  posted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_dual_engine_posts_product_id ON dual_engine_posts (product_id);
+CREATE INDEX IF NOT EXISTS idx_dual_engine_posts_platform ON dual_engine_posts (platform);
+CREATE INDEX IF NOT EXISTS idx_dual_engine_posts_status ON dual_engine_posts (status);
+
+ALTER TABLE dual_engine_posts ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS select_dual_engine_posts ON dual_engine_posts;
+CREATE POLICY select_dual_engine_posts ON dual_engine_posts FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS insert_dual_engine_posts ON dual_engine_posts;
+CREATE POLICY insert_dual_engine_posts ON dual_engine_posts FOR INSERT TO authenticated WITH CHECK (true);
+DROP POLICY IF EXISTS update_dual_engine_posts ON dual_engine_posts;
+CREATE POLICY update_dual_engine_posts ON dual_engine_posts FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+
+COMMENT ON TABLE dual_engine_posts IS 'Dual-platform post management for Lazada and Shopee products';
+
+-- Tambah missing columns ke posted_products yang dirujuk oleh migration 5
+ALTER TABLE posted_products
+ADD COLUMN IF NOT EXISTS total_clicks INT DEFAULT 0,
+ADD COLUMN IF NOT EXISTS lazada_peak_hour_end TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS shopee_peak_hour_end TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS lazada_availability TEXT DEFAULT 'available',
+ADD COLUMN IF NOT EXISTS shopee_availability TEXT DEFAULT 'available',
+ADD COLUMN IF NOT EXISTS category TEXT,
+ADD COLUMN IF NOT EXISTS lazada_price DECIMAL(10,2),
+ADD COLUMN IF NOT EXISTS shopee_price DECIMAL(10,2),
+ADD COLUMN IF NOT EXISTS lazada_discount DECIMAL(5,2),
+ADD COLUMN IF NOT EXISTS shopee_discount DECIMAL(5,2),
+ADD COLUMN IF NOT EXISTS lazada_image TEXT,
+ADD COLUMN IF NOT EXISTS shopee_image TEXT,
+ADD COLUMN IF NOT EXISTS lazada_peak_hour_percent DECIMAL(5,2),
+ADD COLUMN IF NOT EXISTS shopee_peak_hour_percent DECIMAL(5,2),
+ADD COLUMN IF NOT EXISTS product_name TEXT,
+ADD COLUMN IF NOT EXISTS product_description TEXT,
+ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
+
+CREATE INDEX IF NOT EXISTS idx_posted_products_total_clicks ON posted_products (total_clicks DESC);
+CREATE INDEX IF NOT EXISTS idx_posted_products_category ON posted_products (category);
+CREATE INDEX IF NOT EXISTS idx_posted_products_lazada_price ON posted_products (lazada_price);
+CREATE INDEX IF NOT EXISTS idx_posted_products_shopee_price ON posted_products (shopee_price);
