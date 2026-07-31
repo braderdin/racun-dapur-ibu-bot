@@ -64,7 +64,7 @@ export class OpenRouterService {
     "meta-llama/llama-2-70b-chat",
     "google/gemini-pro",
     "anthropic/claude-2",
-    "openai/gpt-4"
+    "openai/gpt-4",
   ];
   private rateLimitBuffer: number = 0;
 
@@ -87,24 +87,30 @@ export class OpenRouterService {
   // Generate AI copy with 3-tier fallback strategy
   async generateCopy(product: any): Promise<GeneratedCopy> {
     const startTime = Date.now();
-    
+
     try {
       // Tier 1: OpenRouter AI (primary)
       const result = await this.makeOpenRouterRequest(product);
       return this.formatOpenRouterResponse(result, "tier-1", product);
     } catch (error) {
-      console.warn("⚠️ OpenRouter AI failed, attempting Tier 2 fallback:", error.message);
-      
+      console.warn(
+        "⚠️ OpenRouter AI failed, attempting Tier 2 fallback:",
+        error.message,
+      );
+
       // Tier 2: Local AI fallback
       try {
         const fallbackResult = await this.generateLocalCopy(product);
         return {
           ...fallbackResult,
-          fallbackChainUsed: "tier-2"
+          fallbackChainUsed: "tier-2",
         };
       } catch (fallbackError) {
-        console.warn("⚠️ Tier 2 fallback failed, attempting Tier 3 fallback:", fallbackError.message);
-        
+        console.warn(
+          "⚠️ Tier 2 fallback failed, attempting Tier 3 fallback:",
+          fallbackError.message,
+        );
+
         // Tier 3: Rule-based fallback
         return this.generateRuleBasedCopy(product);
       }
@@ -112,50 +118,60 @@ export class OpenRouterService {
   }
 
   // Main OpenRouter API request handler
-  private async makeOpenRouterRequest(product: any): Promise<OpenRouterResponse> {
+  private async makeOpenRouterRequest(
+    product: any,
+  ): Promise<OpenRouterResponse> {
     // Rate limiting check
     this.checkRateLimit();
-    
+
     // Prepare prompt
     const prompt = this.buildPrompt(product);
-    
+
     // Make API request
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        "HTTP-Referer": "https://racun.ibu.my",
-        "X-Title": "RacunDapurIbu Bot"
+    const response = await fetch(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          "HTTP-Referer": "https://racun.ibu.my",
+          "X-Title": "RacunDapurIbu Bot",
+        },
+        body: JSON.stringify({
+          model: this.config.model,
+          messages: [
+            {
+              role: "system",
+              content: this.buildSystemPrompt(product.platform),
+            },
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+          temperature: this.config.temperature,
+          max_tokens: this.config.maxTokens,
+          top_p: this.config.topP,
+          top_k: this.config.topK,
+          presence_penalty: this.config.presencePenalty,
+          frequency_penalty: this.config.frequencyPenalty,
+        }),
       },
-      body: JSON.stringify({
-        model: this.config.model,
-        messages: [{
-          role: "system",
-          content: this.buildSystemPrompt(product.platform)
-        }, {
-          role: "user",
-          content: prompt
-        }],
-        temperature: this.config.temperature,
-        max_tokens: this.config.maxTokens,
-        top_p: this.config.topP,
-        top_k: this.config.topK,
-        presence_penalty: this.config.presencePenalty,
-        frequency_penalty: this.config.frequencyPenalty
-      })
-    });
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`OpenRouter API error: ${response.status} ${response.statusText} - ${errorText}`);
+      throw new Error(
+        `OpenRouter API error: ${response.status} ${response.statusText} - ${errorText}`,
+      );
     }
 
     const result: OpenRouterResponse = await response.json();
-    
+
     // Update rate limit stats
     this.requestCount++;
-    
+
     return result;
   }
 
@@ -165,7 +181,7 @@ export class OpenRouterService {
     const price = product.price || 0;
     const category = product.category || "general";
     const rating = product.rating || 0;
-    
+
     return `Create engaging social media copy for a ${platform} marketplace product.
 
 Product Details:
@@ -196,11 +212,14 @@ HASHTAGS: #hashtag1 #hashtag2 #hashtag3`;
   // Build system prompt based on platform
   private buildSystemPrompt(platform: string): string {
     const platformSpecificInstructions = {
-      lazada: "Focus on value proposition, discounts, and limited-time offers. Use clear pricing and emphasize free shipping.",
-      shopee: "Emphasize gaming deals, bundle offers, and flash sales. Use energetic tone and highlight special member prices.",
-      facebook: "Create storytelling copy with emotional appeal. Focus on family-friendly deals and lifestyle benefits. Use warm, engaging tone."
+      lazada:
+        "Focus on value proposition, discounts, and limited-time offers. Use clear pricing and emphasize free shipping.",
+      shopee:
+        "Emphasize gaming deals, bundle offers, and flash sales. Use energetic tone and highlight special member prices.",
+      facebook:
+        "Create storytelling copy with emotional appeal. Focus on family-friendly deals and lifestyle benefits. Use warm, engaging tone.",
     };
-    
+
     return `You are an expert social media copywriter specializing in e-commerce marketing for ${platform} marketplace.
 
 ${platformSpecificInstructions[platform as keyof typeof platformSpecificInstructions] || platformSpecificInstructions.lazada}
@@ -212,29 +231,34 @@ Write engaging, conversion-focused copy that resonates with ${platform} shoppers
   private formatOpenRouterResponse(
     response: OpenRouterResponse,
     fallbackChain: "none" | "tier-1" | "tier-2" | "tier-3",
-    product: any
+    product: any,
   ): GeneratedCopy {
     const content = response.choices[0]?.message?.content || "";
     const parsed = this.parseContent(content);
-    
+
     return {
-      hook: parsed.hook || `🤩 ${product.name} Special Deal from ${product.platform}`,
+      hook:
+        parsed.hook ||
+        `🤩 ${product.name} Special Deal from ${product.platform}`,
       body: parsed.body || [
         `${product.name} - Now available at just $${product.price}!`,
-        `Perfect choice for ${product.category} with ${product.rating}/5 rating.`
+        `Perfect choice for ${product.category} with ${product.rating}/5 rating.`,
       ],
-      cta: parsed.cta || `Get yours now: https://racun.ibu.my/deal/${product.id}`,
+      cta:
+        parsed.cta || `Get yours now: https://racun.ibu.my/deal/${product.id}`,
       hashtags: parsed.hashtags || [
-        `#RacunDapurIbu`, 
-        `#${product.platform}Deals`, 
-        `#SpecialOffer`
+        `#RacunDapurIbu`,
+        `#${product.platform}Deals`,
+        `#SpecialOffer`,
       ],
       threadTarget: "single-tweet",
       platform: product.platform || "lazada",
       confidence: 0.8,
       fallbackChainUsed: fallbackChain,
       facebookCopy: this.extractFacebookCopy(content),
-      facebookCta: parsed.cta ? parsed.cta.replace("Get yours", "Like & Share") : undefined
+      facebookCta: parsed.cta
+        ? parsed.cta.replace("Get yours", "Like & Share")
+        : undefined,
     };
   }
 
@@ -242,7 +266,7 @@ Write engaging, conversion-focused copy that resonates with ${platform} shoppers
   private parseContent(content: string): any {
     const lines = content.split("\n");
     const result: any = {};
-    
+
     for (const line of lines) {
       if (line.startsWith("HOOK:")) {
         result.hook = line.replace("HOOK:", "").trim();
@@ -255,11 +279,11 @@ Write engaging, conversion-focused copy that resonates with ${platform} shoppers
         result.hashtags = line
           .replace("HASHTAGS:", "")
           .split("#")
-          .filter(tag => tag)
+          .filter((tag) => tag)
           .map((tag: string) => `#${tag}`);
       }
     }
-    
+
     return result;
   }
 
@@ -275,33 +299,32 @@ Write engaging, conversion-focused copy that resonates with ${platform} shoppers
         }
       }
     }
-    
+
     // Fallback: create Facebook-specific copy from body
-    return content.split("\n")[0] || `${content} - Special offer for Racun Dapur Ibu members!`;
+    return (
+      content.split("\n")[0] ||
+      `${content} - Special offer for Racun Dapur Ibu members!`
+    );
   }
 
   // Local AI fallback generation
   private async generateLocalCopy(product: any): Promise<GeneratedCopy> {
     // Simulate local AI generation with improved fallback
     await this.delayRequest(); // Apply same rate limiting
-    
+
     return {
       hook: `📱 ${product.name} Mobile Deal Alert! (${product.platform})`,
       body: [
         `${product.name} - Exclusive mobile offer: $${product.price}`,
         `Perfect ${product.category} choice for mobile shoppers`,
-        `Limited time discount - save ${Math.round(product.price * 0.15)}% today!`
+        `Limited time discount - save ${Math.round(product.price * 0.15)}% today!`,
       ],
       cta: `Shop Now: https://m.racun.ibu.my/deal/${product.id}`,
-      hashtags: [
-        `#MobileDeals`, 
-        `#${product.platform}App`, 
-        `#ExclusiveOffer`
-      ],
+      hashtags: [`#MobileDeals`, `#${product.platform}App`, `#ExclusiveOffer`],
       threadTarget: "single-tweet",
       platform: product.platform || "lazada",
       confidence: 0.6,
-      fallbackChainUsed: "tier-2"
+      fallbackChainUsed: "tier-2",
     };
   }
 
@@ -310,26 +333,29 @@ Write engaging, conversion-focused copy that resonates with ${platform} shoppers
     const templates = [
       {
         hook: `✨ ${product.name} - Special ${product.category} deal`,
-        body: [`Save $${product.price} on ${product.name}`, `Limited stock available`],
+        body: [
+          `Save $${product.price} on ${product.name}`,
+          `Limited stock available`,
+        ],
         cta: `Grab Deal Now!`,
-        hashtags: [`#${product.category}Deals`, `#${product.platform}Special`]
+        hashtags: [`#${product.category}Deals`, `#${product.platform}Special`],
       },
       {
-        hook: `🔥 Flash Sale: ${product.name}`, 
+        hook: `🔥 Flash Sale: ${product.name}`,
         body: [`Only $${product.price} today`, `Quality assured`],
         cta: `Buy Now!`,
-        hashtags: [`#FlashSale`, `#${product.platform}Deals`]
+        hashtags: [`#FlashSale`, `#${product.platform}Deals`],
       },
       {
-        hook: `💰 Best Price: $${product.price}`, 
+        hook: `💰 Best Price: $${product.price}`,
         body: [`${product.name}`, `Perfect for ${product.category}`],
         cta: `Get Yours!`,
-        hashtags: [`#BestPrice`, `#${product.platform}Savings`]
-      }
+        hashtags: [`#BestPrice`, `#${product.platform}Savings`],
+      },
     ];
-    
+
     const template = templates[Math.floor(Math.random() * templates.length)];
-    
+
     return {
       hook: template.hook,
       body: template.body,
@@ -338,7 +364,7 @@ Write engaging, conversion-focused copy that resonates with ${platform} shoppers
       threadTarget: "single-tweet",
       platform: product.platform || "lazada",
       confidence: 0.4,
-      fallbackChainUsed: "tier-3"
+      fallbackChainUsed: "tier-3",
     };
   }
 
@@ -346,21 +372,26 @@ Write engaging, conversion-focused copy that resonates with ${platform} shoppers
   private checkRateLimit(): void {
     const now = Date.now();
     const timeSinceLastRequest = now - this.lastRequestTime;
-    const timeSinceFirstRequest = now - (this.requestCount > 0 ? now - (this.lastRequestTime + (this.requestCount - 1) * this.requestDelayMs) : now);
-    
+    const timeSinceFirstRequest =
+      now -
+      (this.requestCount > 0
+        ? now -
+          (this.lastRequestTime + (this.requestCount - 1) * this.requestDelayMs)
+        : now);
+
     // Check if we need to wait for rate limit
     if (timeSinceLastRequest < this.requestDelayMs) {
       const waitTime = this.requestDelayMs - timeSinceLastRequest;
       console.log(`⏱️ Rate limit delay: waiting ${waitTime}ms`);
       this.delayRequest(waitTime);
     }
-    
+
     // Reset request counter every minute
     if (timeSinceFirstRequest >= 60000) {
       this.requestCount = 0;
       console.log("🔄 Rate limit counter reset");
     }
-    
+
     // Check if we would exceed max requests per minute
     const requestsInCurrentMinute = this.getRequestsInCurrentMinute();
     if (requestsInCurrentMinute >= this.maxRequestsPerMinute) {
@@ -368,13 +399,13 @@ Write engaging, conversion-focused copy that resonates with ${platform} shoppers
       console.log(`⏱️ Rate limit reached: waiting ${waitTime}ms`);
       this.delayRequest(waitTime);
     }
-    
+
     this.lastRequestTime = Date.now();
   }
 
   // Delay request with optional custom timeout
   private delayRequest(customTimeout?: number): Promise<void> {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       setTimeout(resolve, customTimeout || this.requestDelayMs);
     });
   }
@@ -382,46 +413,51 @@ Write engaging, conversion-focused copy that resonates with ${platform} shoppers
   // Get number of requests in current minute
   private getRequestsInCurrentMinute(): number {
     const now = Date.now();
-    const timeSinceFirstRequest = now - (this.requestCount > 0 ? this.lastRequestTime : now);
-    
+    const timeSinceFirstRequest =
+      now - (this.requestCount > 0 ? this.lastRequestTime : now);
+
     if (timeSinceFirstRequest >= 60000) {
       return 0;
     }
-    
+
     // Estimate: average requests per second * elapsed time
     const avgRequestsPerSecond = this.maxRequestsPerMinute / 60;
     return Math.min(
-      Math.floor((timeSinceFirstRequest / 1000) * avgRequestsPerSecond) + this.requestCount,
-      this.maxRequestsPerMinute
+      Math.floor((timeSinceFirstRequest / 1000) * avgRequestsPerSecond) +
+        this.requestCount,
+      this.maxRequestsPerMinute,
     );
   }
 
   // Health check for OpenRouter service
-  async healthCheck(): Promise<{ status: "healthy" | "unhealthy"; details: string }> {
+  async healthCheck(): Promise<{
+    status: "healthy" | "unhealthy";
+    details: string;
+  }> {
     try {
       // Test with a simple request
       await this.delayRequest(100); // Short delay
-      
+
       const testProduct = {
         id: "health_test",
         name: "Health Test Product",
         description: "Test product for health check",
-        price: 1.00,
+        price: 1.0,
         category: "test",
         rating: 5,
-        platform: "lazada"
+        platform: "lazada",
       };
-      
+
       await this.generateCopy(testProduct);
-      
+
       return {
         status: "healthy",
-        details: `OpenRouter service operational (${this.requestCount} requests made)`
+        details: `OpenRouter service operational (${this.requestCount} requests made)`,
       };
     } catch (error) {
       return {
         status: "unhealthy",
-        details: `OpenRouter service error: ${error.message}`
+        details: `OpenRouter service error: ${error.message}`,
       };
     }
   }
@@ -440,47 +476,50 @@ Write engaging, conversion-focused copy that resonates with ${platform} shoppers
       maxTokens: this.config.maxTokens,
       requestDelayMs: this.requestDelayMs,
       maxRequestsPerMinute: this.maxRequestsPerMinute,
-      requestCount: this.requestCount
+      requestCount: this.requestCount,
     };
   }
 
   // Generate dual-platform copy (X and Facebook)
-  async generateDualCopy(product: any): Promise<{ twitterCopy: GeneratedCopy; facebookCopy: GeneratedCopy }> {
+  async generateDualCopy(
+    product: any,
+  ): Promise<{ twitterCopy: GeneratedCopy; facebookCopy: GeneratedCopy }> {
     try {
       // Generate primary copy
       const primaryCopy = await this.generateCopy(product);
-      
+
       // Adjust for X (Twitter)
       const twitterCopy: GeneratedCopy = {
         ...primaryCopy,
         platform: product.platform || "lazada",
-        body: primaryCopy.body.map(line => line.slice(0, 280)),
+        body: primaryCopy.body.map((line) => line.slice(0, 280)),
         cta: primaryCopy.cta,
-        hashtags: primaryCopy.hashtags.slice(0, 5) // Limit hashtags for X
+        hashtags: primaryCopy.hashtags.slice(0, 5), // Limit hashtags for X
       };
-      
+
       // Create Facebook-specific copy
       const facebookCopy: GeneratedCopy = {
-        hook: primaryCopy.hook.includes("special") || primaryCopy.hook.includes("deal") 
-          ? primaryCopy.hook 
-          : `🌟 ${product.name} ${primaryCopy.hook.split(":")[1] || "Special Offer"}`,
+        hook:
+          primaryCopy.hook.includes("special") ||
+          primaryCopy.hook.includes("deal")
+            ? primaryCopy.hook
+            : `🌟 ${product.name} ${primaryCopy.hook.split(":")[1] || "Special Offer"}`,
         body: primaryCopy.body,
         cta: primaryCopy.cta.replace("Get yours", "Like & Share"),
         hashtags: [
-          ...primaryCopy.hashtags.filter(tag => !tag.includes("Mobile")),
+          ...primaryCopy.hashtags.filter((tag) => !tag.includes("Mobile")),
           "#FacebookPage",
-          "#Instagram"
+          "#Instagram",
         ],
         threadTarget: "thread-2",
         platform: "facebook",
         confidence: primaryCopy.confidence,
         fallbackChainUsed: primaryCopy.fallbackChainUsed,
         facebookCopy: primaryCopy.body.join(" "),
-        facebookCta: primaryCopy.cta
+        facebookCta: primaryCopy.cta,
       };
-      
+
       return { twitterCopy, facebookCopy };
-      
     } catch (error) {
       console.error("❌ Failed to generate dual copy:", error);
       throw error;

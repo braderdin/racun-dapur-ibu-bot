@@ -40,8 +40,14 @@ export class WorkerRouter {
     this.router.post("/qstash-trigger", this.handleQStashWebhook.bind(this));
 
     // Analytics endpoints
-    this.router.get("/analytics/clicks", this.handleGetClickAnalytics.bind(this));
-    this.router.get("/analytics/conversions", this.handleGetConversionAnalytics.bind(this));
+    this.router.get(
+      "/analytics/clicks",
+      this.handleGetClickAnalytics.bind(this),
+    );
+    this.router.get(
+      "/analytics/conversions",
+      this.handleGetConversionAnalytics.bind(this),
+    );
 
     // Worker information endpoint
     this.router.get("/worker/info", this.handleGetWorkerInfo.bind(this));
@@ -51,7 +57,10 @@ export class WorkerRouter {
     return await healthHandler(req, {} as any);
   }
 
-  private async handleSimpleHealth(req: Request, res: Response): Promise<Response> {
+  private async handleSimpleHealth(
+    req: Request,
+    res: Response,
+  ): Promise<Response> {
     return await healthHandler(req, {} as any);
   }
 
@@ -80,7 +89,10 @@ export class WorkerRouter {
     }
   }
 
-  private async handleGetBotStatus(req: Request, res: Response): Promise<Response> {
+  private async handleGetBotStatus(
+    req: Request,
+    res: Response,
+  ): Promise<Response> {
     try {
       const redisService = new RedisService(env);
       const supabaseService = new SupabaseService(env);
@@ -105,13 +117,16 @@ export class WorkerRouter {
     }
   }
 
-  private async handleRedirectToAffiliate(req: Request, res: Response): Promise<Response> {
+  private async handleRedirectToAffiliate(
+    req: Request,
+    res: Response,
+  ): Promise<Response> {
     try {
       const { code } = req.params;
 
       const shortenerService = new ShortenerService(
         new RedisService(env),
-        new SupabaseService(env)
+        new SupabaseService(env),
       );
 
       const affiliateUrl = await shortenerService.getAffiliateUrl(code);
@@ -135,7 +150,10 @@ export class WorkerRouter {
     }
   }
 
-  private async handleQStashWebhook(req: Request, res: Response): Promise<Response> {
+  private async handleQStashWebhook(
+    req: Request,
+    res: Response,
+  ): Promise<Response> {
     try {
       const webhookData = req.body;
 
@@ -164,17 +182,31 @@ export class WorkerRouter {
     }
   }
 
-  private async handleFacebookPost(req: Request, res: Response): Promise<Response> {
+  private async handleFacebookPost(
+    req: Request,
+    res: Response,
+  ): Promise<Response> {
     try {
-      const { productId, platform, title, price, description, imageUrl, affiliateLink } = req.body;
+      const {
+        productId,
+        platform,
+        title,
+        price,
+        description,
+        imageUrl,
+        affiliateLink,
+      } = req.body;
 
       const env = req.app.get("env");
       const facebookService = createFacebookService(env);
       const supabaseService = new SupabaseService(env);
 
-      const isFacebook = req.query.platform === "facebook" || !req.query.platform;
+      const isFacebook =
+        req.query.platform === "facebook" || !req.query.platform;
 
-      console.log(`Handling Facebook posting request for product: ${productId}`);
+      console.log(
+        `Handling Facebook posting request for product: ${productId}`,
+      );
 
       if (isFacebook) {
         const result = await facebookService.publishPhotoWithStory(
@@ -189,7 +221,7 @@ export class WorkerRouter {
           affiliateLink,
           new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
           env.FACEBOOK_PAGE_ACCESS_TOKEN,
-          env.FACEBOOK_PAGE_ID
+          env.FACEBOOK_PAGE_ID,
         );
 
         await supabaseService.logFacebookPost({
@@ -200,7 +232,7 @@ export class WorkerRouter {
           status: result.success ? "published" : "failed",
           errorMessage: result.error?.message,
           timestamp: new Date().toISOString(),
-          source: "facebook_graph_api"
+          source: "facebook_graph_api",
         });
 
         return res.status(200).json({
@@ -209,20 +241,21 @@ export class WorkerRouter {
           commentId: undefined,
           platform: "facebook",
           timestamp: new Date().toISOString(),
-          message: result.success ? "Facebook posting successful" : `Facebook posting failed: ${result.error?.message}`
+          message: result.success
+            ? "Facebook posting successful"
+            : `Facebook posting failed: ${result.error?.message}`,
         });
       }
 
       return res.status(400).json({
         error: "Invalid platform",
-        message: "Platform must be 'facebook' for this endpoint"
+        message: "Platform must be 'facebook' for this endpoint",
       });
-
     } catch (error) {
       console.error("Error handling Facebook post request:", error);
       return res.status(500).json({
         error: "Failed to handle Facebook post request",
-        message: error instanceof Error ? error.message : "Unknown error"
+        message: error instanceof Error ? error.message : "Unknown error",
       });
     }
   }
@@ -232,7 +265,9 @@ export class WorkerRouter {
       const dealData = req.body;
       const env = req.app.get("env");
 
-      console.log(`Handling dual-channel posting request for deal: ${dealData.id || dealData.productId}`);
+      console.log(
+        `Handling dual-channel posting request for deal: ${dealData.id || dealData.productId}`,
+      );
 
       const redisService = new RedisService(env);
       const supabaseService = new SupabaseService(env);
@@ -250,8 +285,8 @@ export class WorkerRouter {
           maxPostAttempts: 3,
           retryDelayMs: 2000,
           timeoutMs: 30000,
-          requireBothPlatforms: false
-        }
+          requireBothPlatforms: false,
+        },
       );
 
       const processedDeal: any = {
@@ -266,32 +301,35 @@ export class WorkerRouter {
         sourceUrl: dealData.sourceUrl || "",
         affiliateLink: dealData.affiliateLink,
         commissionRate: parseFloat(dealData.commissionRate) || 0.1,
-        expirationDate: dealData.expirationDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        expirationDate:
+          dealData.expirationDate ||
+          new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         seller: dealData.seller || "Online Seller",
         stock: parseInt(dealData.stock) || 100,
         createdAt: new Date(),
         body: dealData.body || [],
         cta: dealData.cta || "Shop Now",
-        hashtags: dealData.hashtags || []
+        hashtags: dealData.hashtags || [],
       };
 
       const dualPostResult = await dualPosterService.executeDualPost(
         processedDeal,
-        env
+        env,
       );
 
       const response: any = {
         success: dualPostResult.overallSuccess,
         platform: "dual",
         timestamp: new Date().toISOString(),
-        processingTimeMs: Date.now() - new Date(dualPostResult.processedAt).getTime(),
+        processingTimeMs:
+          Date.now() - new Date(dualPostResult.processedAt).getTime(),
         results: {
           twitter: dualPostResult.twitter,
-          facebook: dualPostResult.facebook
+          facebook: dualPostResult.facebook,
         },
-        message: dualPostResult.overallSuccess 
-          ? "Dual-channel posting successful" 
-          : "Dual-channel posting partially failed"
+        message: dualPostResult.overallSuccess
+          ? "Dual-channel posting successful"
+          : "Dual-channel posting partially failed",
       };
 
       await supabaseService.logFacebookPost({
@@ -300,27 +338,33 @@ export class WorkerRouter {
         fb_post_id: dualPostResult.facebook?.postId,
         fb_comment_id: dualPostResult.facebook?.commentId,
         status: dualPostResult.overallSuccess ? "published" : "failed",
-        error_message: dualPostResult.facebook?.error || dualPostResult.twitter?.error,
+        error_message:
+          dualPostResult.facebook?.error || dualPostResult.twitter?.error,
         timestamp: new Date().toISOString(),
-        source: "dual_poster_orchestrator"
+        source: "dual_poster_orchestrator",
       });
 
       return res.status(200).json(response);
-
     } catch (error) {
       console.error("Error handling dual-post request:", error);
       return res.status(500).json({
         error: "Failed to handle dual-post request",
-        message: error instanceof Error ? error.message : "Unknown error"
+        message: error instanceof Error ? error.message : "Unknown error",
       });
     }
   }
 
-  private async handleQStashWebhookWithDualPoster(req: Request, res: Response): Promise<Response> {
+  private async handleQStashWebhookWithDualPoster(
+    req: Request,
+    res: Response,
+  ): Promise<Response> {
     try {
       const webhookData = req.body;
 
-      console.log("QStash webhook received (dual-poster version):", webhookData);
+      console.log(
+        "QStash webhook received (dual-poster version):",
+        webhookData,
+      );
 
       if (webhookData.type === "workflow.triggered") {
         await this.handleRunBot(req, res);
@@ -340,12 +384,15 @@ export class WorkerRouter {
       console.error("Error processing QStash dual-poster webhook:", error);
       return res.status(500).json({
         error: "Failed to process QStash dual-poster webhook",
-        message: error instanceof Error ? error.message : "Unknown error"
+        message: error instanceof Error ? error.message : "Unknown error",
       });
     }
   }
 
-  private async handleGetClickAnalytics(req: Request, res: Response): Promise<Response> {
+  private async handleGetClickAnalytics(
+    req: Request,
+    res: Response,
+  ): Promise<Response> {
     try {
       const { startDate, endDate, shortCode } = req.query;
 
@@ -353,7 +400,7 @@ export class WorkerRouter {
       const analytics = await supabaseService.getLinkClickAnalytics(
         startDate as string,
         endDate as string,
-        shortCode as string
+        shortCode as string,
       );
 
       return res.status(200).json({
@@ -370,7 +417,10 @@ export class WorkerRouter {
     }
   }
 
-  private async handleGetConversionAnalytics(req: Request, res: Response): Promise<Response> {
+  private async handleGetConversionAnalytics(
+    req: Request,
+    res: Response,
+  ): Promise<Response> {
     try {
       const { startDate, endDate, shortCode } = req.query;
 
@@ -378,12 +428,15 @@ export class WorkerRouter {
       const conversions = await supabaseService.getConversionAnalytics(
         startDate as string,
         endDate as string,
-        shortCode as string
+        shortCode as string,
       );
 
       return res.status(200).json({
         conversions,
-        totalConversions: conversions.reduce((sum, item) => sum + item.conversions, 0),
+        totalConversions: conversions.reduce(
+          (sum, item) => sum + item.conversions,
+          0,
+        ),
         period: { startDate, endDate },
       });
     } catch (error) {
@@ -395,7 +448,10 @@ export class WorkerRouter {
     }
   }
 
-  private async handleGetWorkerInfo(req: Request, res: Response): Promise<Response> {
+  private async handleGetWorkerInfo(
+    req: Request,
+    res: Response,
+  ): Promise<Response> {
     try {
       const workerInfo = {
         worker: "racun-dapur-ibu-bot",
@@ -425,13 +481,14 @@ export class WorkerRouter {
   private async processBotWorkflow(
     env: any,
     redisService: RedisService,
-    supabaseService: SupabaseService
+    supabaseService: SupabaseService,
   ): Promise<void> {
     console.log("Starting bot workflow processing...");
 
     try {
       const rawProducts = await this.fetchTrendingProducts(env);
-      const filteredProducts = await redisService.filterRepeatProducts(rawProducts);
+      const filteredProducts =
+        await redisService.filterRepeatProducts(rawProducts);
 
       if (filteredProducts.length === 0) {
         console.log("No new products to process");
@@ -442,7 +499,9 @@ export class WorkerRouter {
         await this.processProduct(env, product, redisService, supabaseService);
       }
 
-      console.log(`Bot workflow completed. Processed ${filteredProducts.length} products.`);
+      console.log(
+        `Bot workflow completed. Processed ${filteredProducts.length} products.`,
+      );
     } catch (error) {
       console.error("Bot workflow processing failed:", error);
       throw error;
@@ -487,7 +546,7 @@ export class WorkerRouter {
     env: any,
     product: any,
     redisService: RedisService,
-    supabaseService: SupabaseService
+    supabaseService: SupabaseService,
   ): Promise<void> {
     const productId = product.id;
 
@@ -495,8 +554,14 @@ export class WorkerRouter {
 
     try {
       const generatedCopy = await this.generateCopywriting(product);
-      const imageUrl = await this.uploadProductImage(product.imageUrl, productId);
-      const tweetResults = await this.createTweetThread(generatedCopy, imageUrl);
+      const imageUrl = await this.uploadProductImage(
+        product.imageUrl,
+        productId,
+      );
+      const tweetResults = await this.createTweetThread(
+        generatedCopy,
+        imageUrl,
+      );
 
       await supabaseService.logPostedProduct({
         product_id: productId,
@@ -545,13 +610,19 @@ export class WorkerRouter {
     };
   }
 
-  private async uploadProductImage(imageUrl: string, productId: string): Promise<string> {
+  private async uploadProductImage(
+    imageUrl: string,
+    productId: string,
+  ): Promise<string> {
     console.log(`Uploading product image for ${productId}...`);
 
     return `https://storage.example.com/products/${productId}.jpg`;
   }
 
-  private async createTweetThread(copywriting: any, imageUrl: string): Promise<any> {
+  private async createTweetThread(
+    copywriting: any,
+    imageUrl: string,
+  ): Promise<any> {
     console.log("Creating 2-tweet thread on X...");
 
     return {

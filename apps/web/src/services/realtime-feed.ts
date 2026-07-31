@@ -1,9 +1,10 @@
 "use client";
 
-import { createClient } from '@supabase/supabase-js';
-import { RealtimeEventPayload } from './supabase-catalog';
+import { createClient } from "@supabase/supabase-js";
+import { RealtimeEventPayload } from "./supabase-catalog";
 
-export type RealtimeEventType = 'NEW_DEAL' | 'DEAL_UPDATED' | 'FLASH_SALE_START';
+export type RealtimeEventType =
+  "NEW_DEAL" | "DEAL_UPDATED" | "FLASH_SALE_START";
 
 export interface RealtimeEvent {
   type: RealtimeEventType;
@@ -21,7 +22,7 @@ export class RealtimeFeedService {
   constructor() {
     this.supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
   }
 
@@ -36,23 +37,23 @@ export class RealtimeFeedService {
     }
 
     this.channel = this.supabase
-      .channel('catalog-realtime-feed')
+      .channel("catalog-realtime-feed")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*', // INSERT, UPDATE, DELETE
-          schema: 'public',
-          table: 'posted_products',
+          event: "*", // INSERT, UPDATE, DELETE
+          schema: "public",
+          table: "posted_products",
         },
         (payload) => {
           const event: RealtimeEvent = {
             type: this.mapPayloadToEventType(payload),
             payload: {
-              type: payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE',
+              type: payload.eventType as "INSERT" | "UPDATE" | "DELETE",
               table: payload.table,
               event: {
                 timestamp: new Date().toISOString(),
-                op: payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE',
+                op: payload.eventType as "INSERT" | "UPDATE" | "DELETE",
               },
               new: payload.new as any,
               old: payload.old as any,
@@ -69,10 +70,10 @@ export class RealtimeFeedService {
             try {
               callback(event);
             } catch (error) {
-              console.error('Error in realtime subscriber:', error);
+              console.error("Error in realtime subscriber:", error);
             }
           });
-        }
+        },
       )
       .subscribe();
 
@@ -93,26 +94,26 @@ export class RealtimeFeedService {
     const oldRecord = payload.old as any;
 
     switch (payload.eventType) {
-      case 'INSERT':
+      case "INSERT":
         if (this.isFlashSale(newRecord)) {
-          return 'FLASH_SALE_START';
+          return "FLASH_SALE_START";
         }
-        return 'NEW_DEAL';
+        return "NEW_DEAL";
 
-      case 'UPDATE':
+      case "UPDATE":
         const wasFlashSale = this.isFlashSale(oldRecord);
         const isFlashSale = this.isFlashSale(newRecord);
 
         if (!wasFlashSale && isFlashSale) {
-          return 'FLASH_SALE_START';
+          return "FLASH_SALE_START";
         }
-        return 'DEAL_UPDATED';
+        return "DEAL_UPDATED";
 
-      case 'DELETE':
-        return 'DEAL_UPDATED'; // When product is removed
+      case "DELETE":
+        return "DEAL_UPDATED"; // When product is removed
 
       default:
-        return 'NEW_DEAL';
+        return "NEW_DEAL";
     }
   }
 
@@ -153,8 +154,8 @@ export class RealtimeFeedService {
   async healthCheck(): Promise<boolean> {
     try {
       const { data, error } = await this.supabase
-        .from('posted_products')
-        .select('id')
+        .from("posted_products")
+        .select("id")
         .limit(1);
 
       return !error;
@@ -179,7 +180,7 @@ export const realtimeFeedService = new RealtimeFeedService();
 // 🚀 Hook for React components
 export function useRealtimeDeals(
   onNewDeal?: (event: RealtimeEvent) => void,
-  onFlashSale?: (event: RealtimeEvent) => void
+  onFlashSale?: (event: RealtimeEvent) => void,
 ) {
   const [events, setEvents] = React.useState<RealtimeEvent[]>([]);
   const serviceRef = React.useRef<RealtimeFeedService | null>(null);
@@ -190,9 +191,9 @@ export function useRealtimeDeals(
     const handleEvent = (event: RealtimeEvent) => {
       setEvents((prev) => [event, ...prev].slice(0, 100)); // Keep last 100 events
 
-      if (event.type === 'NEW_DEAL' && onNewDeal) {
+      if (event.type === "NEW_DEAL" && onNewDeal) {
         onNewDeal(event);
-      } else if (event.type === 'FLASH_SALE_START' && onFlashSale) {
+      } else if (event.type === "FLASH_SALE_START" && onFlashSale) {
         onFlashSale(event);
       }
     };

@@ -6,11 +6,11 @@ export interface FTSQueryOptions {
   limit?: number;
   offset?: number;
   includeVector?: boolean;
-  language?: 'malay' | 'english' | 'combined';
+  language?: "malay" | "english" | "combined";
   filters?: {
     discountMin?: number;
     budget?: { min?: number; max?: number };
-    availability?: 'available' | 'all';
+    availability?: "available" | "all";
   };
 }
 
@@ -34,14 +34,14 @@ export class FTSQueryBuilder {
   // 🔍 Build optimized FTS query for Malay/English
   buildQuery(options: FTSQueryOptions): string {
     const {
-      query = '',
+      query = "",
       category,
       includeVector = true,
-      language = 'combined',
+      language = "combined",
       filters,
     } = options;
 
-    let sql = '';
+    let sql = "";
 
     if (includeVector && query.trim()) {
       // Build comprehensive text search using to_tsvector
@@ -61,7 +61,7 @@ export class FTSQueryBuilder {
         sql += ` OR (shopee_price >= ${filters.budget.min} AND shopee_price <= ${filters.budget.max})`;
       }
 
-      if (filters?.availability === 'available') {
+      if (filters?.availability === "available") {
         sql += ` AND (lazada_availability = 'available' OR shopee_availability = 'available')`;
       }
     } else {
@@ -81,10 +81,10 @@ export class FTSQueryBuilder {
     // Remove punctuation and extra spaces
     let normalized = query.toLowerCase().trim();
 
-    if (language === 'combined') {
+    if (language === "combined") {
       // Handle Malay and English words
       normalized = this.enhanceForMalayEnglish(normalized);
-    } else if (language === 'malay') {
+    } else if (language === "malay") {
       normalized = this.malayStemming(normalized);
     } else {
       normalized = this.englishStemming(normalized);
@@ -97,12 +97,21 @@ export class FTSQueryBuilder {
   private enhanceForMalayEnglish(query: string): string {
     // Add common Malay prefixes/suffixes for better matching
     const commonTerms = [
-      'makanan', 'minuman', 'barang', 'dapur', 'ibu', 'bayi',
-      'skincare', 'kosmetik', 'sepatu', 'baju', 'telekung',
+      "makanan",
+      "minuman",
+      "barang",
+      "dapur",
+      "ibu",
+      "bayi",
+      "skincare",
+      "kosmetik",
+      "sepatu",
+      "baju",
+      "telekung",
     ];
 
-    const queryWords = query.split(' ');
-    const enhancedWords = queryWords.map(word => {
+    const queryWords = query.split(" ");
+    const enhancedWords = queryWords.map((word) => {
       // Apply Malay stemming if applicable
       if (word.length > 3) {
         word = this.malayStemming(word);
@@ -110,14 +119,27 @@ export class FTSQueryBuilder {
       return word;
     });
 
-    return enhancedWords.join(' ');
+    return enhancedWords.join(" ");
   }
 
   // 📝 Malay word stemming
   private malayStemming(word: string): string {
     const malaySuffixes = [
-      'kan', 'an', 'i', 'lah', 'pun', 'lah', 'kah', 'tau',
-      'nya', 'mu', 'ku', 'dia', 'mereka', 'kami', 'kita',
+      "kan",
+      "an",
+      "i",
+      "lah",
+      "pun",
+      "lah",
+      "kah",
+      "tau",
+      "nya",
+      "mu",
+      "ku",
+      "dia",
+      "mereka",
+      "kami",
+      "kita",
     ];
 
     for (const suffix of malaySuffixes) {
@@ -132,8 +154,21 @@ export class FTSQueryBuilder {
   // 📝 English word stemming
   private englishStemming(word: string): string {
     const englishSuffixes = [
-      'ing', 'ed', 'ly', 'es', 's', 'tion', 'ed', 'er',
-      'ism', 'ity', 'al', 'y', 'ify', 'ise', 'ize',
+      "ing",
+      "ed",
+      "ly",
+      "es",
+      "s",
+      "tion",
+      "ed",
+      "er",
+      "ism",
+      "ity",
+      "al",
+      "y",
+      "ify",
+      "ise",
+      "ize",
     ];
 
     for (const suffix of englishSuffixes) {
@@ -147,18 +182,24 @@ export class FTSQueryBuilder {
 
   // 🔍 Build vector search query (PostgreSQL specific)
   private buildVectorSearch(query: string, language: string): string {
-    const tsvectorColumn = language === 'malay' ? 'to_tsvector("public", lazada_product_name)' :
-                          language === 'english' ? 'to_tsvector("en", lazada_product_name)' :
-                          `to_tsvector("public", lazada_product_name) || to_tsvector("en", lazada_product_name)`;
+    const tsvectorColumn =
+      language === "malay"
+        ? 'to_tsvector("public", lazada_product_name)'
+        : language === "english"
+          ? 'to_tsvector("en", lazada_product_name)'
+          : `to_tsvector("public", lazada_product_name) || to_tsvector("en", lazada_product_name)`;
 
-    const plainTo_tsquery = language === 'malay' ? 'to_tsquery("public", ?)' :
-                           language === 'english' ? 'to_tsquery("en", ?)' :
-                           `to_tsquery("public", ?) || to_tsquery("en", ?)`;
+    const plainTo_tsquery =
+      language === "malay"
+        ? 'to_tsquery("public", ?)'
+        : language === "english"
+          ? 'to_tsquery("en", ?)'
+          : `to_tsquery("public", ?) || to_tsquery("en", ?)`;
 
     let conditions = [];
 
     // Primary vector search
-    if (language === 'combined') {
+    if (language === "combined") {
       conditions.push(`${tsvectorColumn} @@ ${plainTo_tsquery}`);
     } else {
       conditions.push(`${tsvectorColumn} @@ ${plainTo_tsquery}`);
@@ -170,7 +211,7 @@ export class FTSQueryBuilder {
     // Category filter as separate condition
     // Will be handled by caller
 
-    return `(${conditions.join(' OR ')})`;
+    return `(${conditions.join(" OR ")})`;
   }
 
   // 🔄 Fallback ILIKE query for simplicity
@@ -188,7 +229,7 @@ export class FTSQueryBuilder {
   async executeQuery(
     queryOptions: FTSQueryOptions,
     pageSize: number = 20,
-    page: number = 0
+    page: number = 0,
   ): Promise<FTSQueryResult> {
     const startTime = Date.now();
 
@@ -248,26 +289,29 @@ export class FTSQueryBuilder {
         OFFSET ${offset};
       `;
 
-      const response = await fetch(`${this.supabaseUrl}/rest/v1/posted_products`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this.supabaseKey}`,
-          'apikey': this.supabaseKey,
-          'Content-Type': 'application/json',
-          'Prefer': 'count=exact',
-          'query': queryOptions.query || '',
-          'category': queryOptions.category || '',
+      const response = await fetch(
+        `${this.supabaseUrl}/rest/v1/posted_products`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${this.supabaseKey}`,
+            apikey: this.supabaseKey,
+            "Content-Type": "application/json",
+            Prefer: "count=exact",
+            query: queryOptions.query || "",
+            category: queryOptions.category || "",
+          },
+          next: { revalidate: 300 }, // Cache for 5 minutes
         },
-        next: { revalidate: 300 }, // Cache for 5 minutes
-      });
+      );
 
       if (!response.ok) {
         throw new Error(`FTS query failed: ${response.statusText}`);
       }
 
       const data = await response.json();
-      const totalCount = response.headers.get('content-range')
-        ? parseInt(response.headers.get('content-range')?.split('/')[1] || '0')
+      const totalCount = response.headers.get("content-range")
+        ? parseInt(response.headers.get("content-range")?.split("/")[1] || "0")
         : data.length;
 
       const executionTime = Date.now() - startTime;
@@ -277,10 +321,11 @@ export class FTSQueryBuilder {
         results: data,
         total: totalCount,
         executionTime,
-        coverage: totalCount > 0 ? Math.min((data.length / totalCount) * 100, 100) : 0,
+        coverage:
+          totalCount > 0 ? Math.min((data.length / totalCount) * 100, 100) : 0,
       };
     } catch (error) {
-      console.error('FTS query execution error:', error);
+      console.error("FTS query execution error:", error);
       throw error;
     }
   }
@@ -300,21 +345,24 @@ export class FTSQueryBuilder {
       /select /i,
     ];
 
-    return !dangerousPatterns.some(pattern => pattern.test(query));
+    return !dangerousPatterns.some((pattern) => pattern.test(query));
   }
 
   // 📊 Get query performance metrics
   async getQueryMetrics(): Promise<any> {
-    const response = await fetch(`${this.supabaseUrl}/rest/v1/posted_products`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${this.supabaseKey}`,
-        'apikey': this.supabaseKey,
+    const response = await fetch(
+      `${this.supabaseUrl}/rest/v1/posted_products`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${this.supabaseKey}`,
+          apikey: this.supabaseKey,
+        },
       },
-    });
+    );
 
     if (!response.ok) {
-      throw new Error('Failed to get query metrics');
+      throw new Error("Failed to get query metrics");
     }
 
     const data = await response.json();
@@ -322,7 +370,10 @@ export class FTSQueryBuilder {
     return {
       totalProducts: data.length,
       indexedProducts: data.filter((p: any) => p.product_name).length,
-      searchCoverage: data.length > 0 ? (data.filter((p: any) => p.product_name).length / data.length) * 100 : 0,
+      searchCoverage:
+        data.length > 0
+          ? (data.filter((p: any) => p.product_name).length / data.length) * 100
+          : 0,
       lastUpdated: new Date().toISOString(),
     };
   }
@@ -331,14 +382,17 @@ export class FTSQueryBuilder {
   async testFTSConfiguration(): Promise<boolean> {
     try {
       // Test basic search functionality
-      const testResponse = await fetch(`${this.supabaseUrl}/rest/v1/posted_products`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this.supabaseKey}`,
-          'apikey': this.supabaseKey,
-          'limit': '1',
+      const testResponse = await fetch(
+        `${this.supabaseUrl}/rest/v1/posted_products`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${this.supabaseKey}`,
+            apikey: this.supabaseKey,
+            limit: "1",
+          },
         },
-      });
+      );
 
       return testResponse.ok;
     } catch {

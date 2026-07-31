@@ -65,7 +65,9 @@ const mockImageProcessor = {
 // Setup module mocks before tests
 jest.mock("./src/services/facebook", () => ({
   FacebookService: jest.fn().mockImplementation(() => mockFacebookService),
-  createFacebookService: jest.fn().mockImplementation(() => mockFacebookService),
+  createFacebookService: jest
+    .fn()
+    .mockImplementation(() => mockFacebookService),
 }));
 
 jest.mock("./src/services/twitter", () => ({
@@ -77,7 +79,9 @@ jest.mock("./src/services/twitter", () => ({
 
 jest.mock("./src/services/supabase", () => ({
   SupabaseService: jest.fn().mockImplementation(() => mockSupabaseService),
-  createSupabaseService: jest.fn().mockImplementation(() => mockSupabaseService),
+  createSupabaseService: jest
+    .fn()
+    .mockImplementation(() => mockSupabaseService),
 }));
 
 jest.mock("./src/services/redis", () => ({
@@ -87,7 +91,9 @@ jest.mock("./src/services/redis", () => ({
 
 jest.mock("./src/services/b2-storage", () => ({
   B2StorageService: jest.fn().mockImplementation(() => mockB2StorageService),
-  createB2StorageService: jest.fn().mockImplementation(() => mockB2StorageService),
+  createB2StorageService: jest
+    .fn()
+    .mockImplementation(() => mockB2StorageService),
 }));
 
 jest.mock("./utils/image-processor", () => ({
@@ -155,7 +161,7 @@ describe("Facebook Graph API Integration Tests", () => {
         retryDelayMs: 2000,
         timeoutMs: 30000,
         requireBothPlatforms: false,
-      }
+      },
     );
   });
 
@@ -178,7 +184,9 @@ describe("Facebook Graph API Integration Tests", () => {
         postId: "post_123456789",
       };
 
-      mockFacebookService.publishPhotoWithStory.mockResolvedValue(mockFacebookResponse);
+      mockFacebookService.publishPhotoWithStory.mockResolvedValue(
+        mockFacebookResponse,
+      );
 
       // Mock successful comment response
       const mockCommentResponse = {
@@ -186,7 +194,9 @@ describe("Facebook Graph API Integration Tests", () => {
         success: true,
       };
 
-      mockFacebookService.addAffiliateComment.mockResolvedValue(mockCommentResponse);
+      mockFacebookService.addAffiliateComment.mockResolvedValue(
+        mockCommentResponse,
+      );
 
       // Test the publishPhotoWithStory method
       const result = await facebookService.publishPhotoWithStory(
@@ -236,7 +246,7 @@ describe("Facebook Graph API Integration Tests", () => {
       };
 
       mockFacebookService.publishPhotoWithStory.mockRejectedValue(
-        new Error("OAuth access token has been expired or revoked")
+        new Error("OAuth access token has been expired or revoked"),
       );
 
       // Test error handling
@@ -254,18 +264,22 @@ describe("Facebook Graph API Integration Tests", () => {
           "2024-12-30T23:59:59Z",
           mockEnv.FACEBOOK_PAGE_ACCESS_TOKEN,
           mockEnv.FACEBOOK_PAGE_ID,
-        )
+        ),
       ).rejects.toThrow("OAuth access token has been expired or revoked");
     });
 
     test("should validate Facebook credentials before posting", async () => {
       // Mock successful credential validation
       mockFacebookService.validateFacebookCredentials.mockResolvedValue(true);
-      mockFacebookService.getFacebookPageAccessToken.mockResolvedValue("new-valid-token");
+      mockFacebookService.getFacebookPageAccessToken.mockResolvedValue(
+        "new-valid-token",
+      );
 
       const result = await facebookService.validateFacebookCredentials();
 
-      expect(mockFacebookService.validateFacebookCredentials).toHaveBeenCalled();
+      expect(
+        mockFacebookService.validateFacebookCredentials,
+      ).toHaveBeenCalled();
       expect(result).toBe(true);
     });
 
@@ -274,7 +288,9 @@ describe("Facebook Graph API Integration Tests", () => {
       const mockRateLimitError = new Error("Rate limit exceeded");
       (mockRateLimitError as any).status = 429;
 
-      mockFacebookService.publishPhotoWithStory.mockRejectedValue(mockRateLimitError);
+      mockFacebookService.publishPhotoWithStory.mockRejectedValue(
+        mockRateLimitError,
+      );
 
       await expect(
         facebookService.publishPhotoWithStory(
@@ -290,7 +306,7 @@ describe("Facebook Graph API Integration Tests", () => {
           "2024-12-30T23:59:59Z",
           mockEnv.FACEBOOK_PAGE_ACCESS_TOKEN,
           mockEnv.FACEBOOK_PAGE_ID,
-        )
+        ),
       ).rejects.toThrow("Rate limit exceeded");
     });
   });
@@ -333,7 +349,9 @@ describe("Facebook Graph API Integration Tests", () => {
         processedAt: new Date(),
       };
 
-      mockDualPosterService.executeDualPost.mockResolvedValue(mockDualPostResult);
+      mockDualPosterService.executeDualPost.mockResolvedValue(
+        mockDualPostResult,
+      );
 
       // Mock anti-repeat check (no duplicates)
       mockRedisService.get.mockResolvedValue(null);
@@ -349,13 +367,13 @@ describe("Facebook Graph API Integration Tests", () => {
       // Execute dual-post
       const result = await dualPosterService.executeDualPost(
         dealData as any,
-        mockEnv
+        mockEnv,
       );
 
       // Assertions
       expect(mockDualPosterService.executeDualPost).toHaveBeenCalledWith(
         dealData as any,
-        mockEnv
+        mockEnv,
       );
 
       expect(result.overallSuccess).toBe(true);
@@ -388,12 +406,12 @@ describe("Facebook Graph API Integration Tests", () => {
 
       // Mock dual-post service error
       mockDualPosterService.executeDualPost.mockRejectedValue(
-        new Error("Network error: Failed to fetch")
+        new Error("Network error: Failed to fetch"),
       );
 
       // Test error handling
       await expect(
-        dualPosterService.executeDualPost(dealData as any, mockEnv)
+        dualPosterService.executeDualPost(dealData as any, mockEnv),
       ).rejects.toThrow("Network error: Failed to fetch");
     });
 
@@ -428,13 +446,13 @@ describe("Facebook Graph API Integration Tests", () => {
       // Execute dual-post
       const result = await dualPosterService.executeDualPost(
         dealData as any,
-        mockEnv
+        mockEnv,
       );
 
       // Should indicate already posted
       expect(result.overallSuccess).toBe(false);
       expect(mockRedisService.get).toHaveBeenCalledWith(
-        `deal_posted:${dealData.id}`
+        `deal_posted:${dealData.id}`,
       );
     });
   });
@@ -451,7 +469,7 @@ describe("Facebook Graph API Integration Tests", () => {
       });
 
       mockImageProcessor.formatB2StorageKey.mockReturnValue(
-        "account1/bucket/default/deal_12345.jpg"
+        "account1/bucket/default/deal_12345.jpg",
       );
 
       // Mock successful B2 upload
@@ -464,23 +482,26 @@ describe("Facebook Graph API Integration Tests", () => {
         maxSizeMB: 10,
       });
 
-      expect(mockImageProcessor.processImage).toHaveBeenCalledWith(imageBuffer, {
-        convertToWebP: true,
-        quality: 0.85,
-        maxSizeMB: 10,
-      });
+      expect(mockImageProcessor.processImage).toHaveBeenCalledWith(
+        imageBuffer,
+        {
+          convertToWebP: true,
+          quality: 0.85,
+          maxSizeMB: 10,
+        },
+      );
 
       expect(mockImageProcessor.formatB2StorageKey).toHaveBeenCalledWith(
         "deal_12345",
         "lazada",
         "kitchen",
-        "social_post.jpg"
+        "social_post.jpg",
       );
 
       expect(mockB2StorageService.uploadFile).toHaveBeenCalledWith(
         "account1/bucket/default/deal_12345.jpg",
         new ArrayBuffer(2048),
-        "image/webp"
+        "image/webp",
       );
     });
 
@@ -498,7 +519,9 @@ describe("Facebook Graph API Integration Tests", () => {
         maxSizeMB: 10,
       });
 
-      expect(result.webpUrl).toBe("https://example.com/images/kitchen-package.jpg");
+      expect(result.webpUrl).toBe(
+        "https://example.com/images/kitchen-package.jpg",
+      );
     });
   });
 
@@ -525,7 +548,9 @@ describe("Facebook Graph API Integration Tests", () => {
 
     test("should handle service failures in health check", async () => {
       // Mock one service failure
-      mockRedisService.ping.mockRejectedValue(new Error("Redis connection failed"));
+      mockRedisService.ping.mockRejectedValue(
+        new Error("Redis connection failed"),
+      );
       mockSupabaseService.healthCheck.mockResolvedValue({
         status: "connected",
         timestamp: new Date().toISOString(),
@@ -545,9 +570,15 @@ describe("Facebook Graph API Integration Tests", () => {
 
     test("should handle all services failure", async () => {
       // Mock all services failures
-      mockRedisService.ping.mockRejectedValue(new Error("Redis connection failed"));
-      mockSupabaseService.healthCheck.mockRejectedValue(new Error("Supabase connection failed"));
-      mockB2StorageService.healthCheck.mockRejectedValue(new Error("B2 storage connection failed"));
+      mockRedisService.ping.mockRejectedValue(
+        new Error("Redis connection failed"),
+      );
+      mockSupabaseService.healthCheck.mockRejectedValue(
+        new Error("Supabase connection failed"),
+      );
+      mockB2StorageService.healthCheck.mockRejectedValue(
+        new Error("B2 storage connection failed"),
+      );
 
       const healthResult = await dualPosterService.healthCheck();
 
@@ -592,7 +623,7 @@ describe("Facebook Graph API Integration Tests", () => {
           "2024-12-31T23:59:59Z",
           mockEnv.FACEBOOK_PAGE_ACCESS_TOKEN,
           mockEnv.FACEBOOK_PAGE_ID,
-        )
+        ),
       ).rejects.toThrow("Request timeout after 15000ms");
     });
 
@@ -609,7 +640,7 @@ describe("Facebook Graph API Integration Tests", () => {
 
       // Should handle gracefully or throw appropriate error
       await expect(
-        dualPosterService.executeDualPost(invalidDealData as any, mockEnv)
+        dualPosterService.executeDualPost(invalidDealData as any, mockEnv),
       ).rejects.toBeDefined();
     });
   });
@@ -632,7 +663,9 @@ export function runFacebookIntegrationTests(): void {
     // This would normally be implemented with a proper test runner
     // For now, we'll simulate test execution
     console.log("✅ Integration tests setup completed");
-    console.log("🔧 Ready to run actual Facebook Graph API integration scenarios");
+    console.log(
+      "🔧 Ready to run actual Facebook Graph API integration scenarios",
+    );
     console.log("📊 Test coverage includes:");
     console.log("   • Photo post creation and validation");
     console.log("   • Comment posting with affiliate links");
@@ -649,13 +682,15 @@ export function runFacebookIntegrationTests(): void {
 
   const testResults = testRunner();
 
-  console.log("\n📋 Test Summary:")
+  console.log("\n📋 Test Summary:");
   console.log(`   Total Tests: ${testResults.total}`);
   console.log(`   Passed: ${testResults.passed}`);
   console.log(`   Failed: ${testResults.failed}`);
   console.log(`   Skipped: ${testResults.skipped}`);
   console.log(`   Execution Time: ${testResults.executionTime}ms`);
-  console.log("\n✅ Facebook Graph API integration tests ready for production!");
+  console.log(
+    "\n✅ Facebook Graph API integration tests ready for production!",
+  );
 }
 
 // Export test utilities for external use

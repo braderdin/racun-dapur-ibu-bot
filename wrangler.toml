@@ -3,9 +3,9 @@ main = "src/index.ts"
 compatibility_date = "2024-07-25"
 compatibility_flags = ["nodejs_compat"]
 
-# Cloudflare API Keys (simpan sebagai lingkungan binding)
+# Production Configuration
 [env]
-# Workers bindings untuk external services (hanya reference env var)
+# Cloudflare Workers bindings for external services
 UPSTASH_REDIS_REST_URL = "${UPSTASH_REDIS_REST_URL}"
 UPSTASH_REDIS_REST_TOKEN = "${UPSTASH_REDIS_REST_TOKEN}"
 UPSTASH_QSTASH_URL = "${UPSTASH_QSTASH_URL}"
@@ -15,9 +15,12 @@ SUPABASE_SERVICE_ROLE_KEY = "${SUPABASE_SERVICE_ROLE_KEY}"
 SUPABASE_ANON_KEY = "${SUPABASE_ANON_KEY}"
 X_API_KEY = "${X_API_KEY}"
 X_BEARER_TOKEN = "${X_BEARER_TOKEN}"
+X_ACCESS_TOKEN = "${X_ACCESS_TOKEN}"
 LAZADA_CLIENT_ID = "${LAZADA_CLIENT_ID}"
 LAZADA_CLIENT_SECRET = "${LAZADA_CLIENT_SECRET}"
 LAZADA_ACCESS_TOKEN = "${LAZADA_ACCESS_TOKEN}"
+SHOOEE_AFFILIATE_APP_ID = "${SHOOEE_AFFILIATE_APP_ID}"
+SHOOEE_AFFILIATE_SECRET = "${SHOOEE_AFFILIATE_SECRET}"
 BACKBLAZE_B2_ACCOUNT_ID_1 = "${BACKBLAZE_B2_ACCOUNT_ID_1}"
 BACKBLAZE_B2_ACCOUNT_KEY_1 = "${BACKBLAZE_B2_ACCOUNT_KEY_1}"
 BACKBLAZE_B2_ACCOUNT_ID_2 = "${BACKBLAZE_B2_ACCOUNT_ID_2}"
@@ -30,16 +33,100 @@ FACEBOOK_APP_ID = "${FACEBOOK_APP_ID}"
 FACEBOOK_APP_SECRET = "${FACEBOOK_APP_SECRET}"
 FACEBOOK_PAGE_ACCESS_TOKEN = "${FACEBOOK_PAGE_ACCESS_TOKEN}"
 FACEBOOK_PAGE_ID = "${FACEBOOK_PAGE_ID}"
+META_GRAPH_API_ACCESS_TOKEN = "${META_GRAPH_API_ACCESS_TOKEN}"
+LAZADA_OPEN_API_BASE_URL = "${LAZADA_OPEN_API_BASE_URL}"
+SHOPEE_AFFILIATE_API_BASE_URL = "${SHOPEE_AFFILIATE_API_BASE_URL}"
 
-# Penjadual Otomatik Cron Trigger (Setiap 2 jam)
+# Rate Limiting and Security Configurations
 [triggers]
+# Main bot cron - runs every 2 hours for health checks and metrics
 crons = ["0 */2 * * *"]
+# Hourly cleanup for temporary files and cache invalidation
+additional_crons = ["0 * * * *"]
 
-# Otomatis pembaruan storage usage check (default kurang lebih 4GB di setiap account)
+# Production variables
 [vars]
 ENVIRONMENT = "production"
+WORKER_MEMORY_LIMIT = "1024"
+WORKER_MAX_DURATION = "300"
+
+# Service Configuration
+LOG_LEVEL = "info"
+API_REQUEST_TIMEOUT = "30000"
+MAX_CONCURRENT_REQUESTS = "10"
+
+# Rate Limiting
+REDIS_CACHE_TTL = "3600"
+OPENROUTER_REQUEST_DELAY_MS = "3000"
+MAX_REQUESTS_PER_MINUTE = "5"
+X_API_MAX_REQUESTS_PER_2_HOURS = "12"
+LAZADA_API_MAX_REQUESTS_PER_HOUR = "60"
+
+# Storage Configuration
 STORAGE_CAP_GB = "9"
 MAX_STORAGE_CAP_GB = "27"
-REDIS_TTL_SECONDS = "432000"
-OPENROUTER_REQUEST_DELAY_MS = "3000"
-X_API_RETRY_COUNT = "3"
+B2_UPLOAD_TIMEOUT_MS = "60000"
+B2_RETRY_COUNT = "3"
+
+# Session and Security
+SESSION_TIMEOUT_MINUTES = "30"
+API_KEY_ROTATION_HOURS = "24"
+RATE_LIMIT_WINDOW_MINUTES = "15"
+
+# Monitoring and Health Checks
+HEALTH_CHECK_INTERVAL = "60000"
+METRICS_COLLECTION_ENABLED = "true"
+CIRCUIT_BREAKER_THRESHOLD = "5"
+
+# Error Handling and Retry
+MAX_API_RETRIES = "3"
+ RETRY_DELAY_BASE_MS = "1000"
+ MAX_RETRY_DELAY_MS = "30000"
+
+# Content Processing
+CONTENT_CACHE_TTL = "1800"
+IMAGE_PROCESSING_TIMEOUT_MS = "300000"
+MAX_IMAGE_SIZE_MB = "10"
+ALLOWED_IMAGE_FORMATS = "image/webp,image/jpeg,image/png"
+
+# Analytics and Tracking
+ANALYTICS_ENDPOINT = "https://analytics.yourdomain.com/track"
+ANALYTICS_BATCH_SIZE = "100"
+ANALYTICS_TIMEOUT_MS = "5000"
+
+# Backup and Recovery
+BACKUP_RETENTION_DAYS = "30"
+BACKUP_COMPRESSION_ENABLED = "true"
+POINT_IN_TIME_RESTORE_ENABLED = "true"
+
+# Development vs Production Flags
+IS_DEVELOPMENT = "false"
+ENABLE_DEBUG_LOGGING = "false"
+ENABLE_FEATURE_FLAGS = "false"
+
+# Cross-platform Configuration
+WEB_DOMAIN = "racun.ibu.my"
+MOBILE_API_VERSION = "v2"
+WEBSITE_API_VERSION = "v1"
+
+# Regional Configuration
+REGIONAL_ENDPOINTS_ENABLED = "true"
+PRIMARY_REGION = "ap-southeast-1"
+BACKUP_REGIONS = "ap-northeast-1,ap-south-1"
+
+# Performance Optimization
+ENABLE_CACHE_INVALIDATION = "true"
+CACHE_WARMUP_ENABLED = "true"
+LOAD_BALANCING_ENABLED = "true"
+
+# Integration Service Timeouts
+FACEBOOK_API_TIMEOUT_MS = "15000"
+META_GRAPH_API_TIMEOUT_MS = "15000"
+LAZADA_API_TIMEOUT_MS = "20000"
+SHOPEE_API_TIMEOUT_MS = "20000"
+OPENROUTER_API_TIMEOUT_MS = "30000"
+
+# Backup URLs (using Cloudflare worker for S3 proxy)
+S3_AUTH_PROXY_URL = "https://racun.ibu.my/s3-proxy"
+S3_PROXY_TIMEOUT_MS = "60000"
+

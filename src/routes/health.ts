@@ -177,7 +177,10 @@ export class HealthHandler {
       return {
         status: healthResult.status,
         responseTime,
-        error: healthResult.status === "unhealthy" ? healthResult.details : undefined,
+        error:
+          healthResult.status === "unhealthy"
+            ? healthResult.details
+            : undefined,
       };
     } catch (error) {
       console.error("Facebook service health check failed:", error);

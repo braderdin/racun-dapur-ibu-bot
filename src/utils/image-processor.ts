@@ -42,27 +42,27 @@ export class ImageProcessor {
     options: ImageProcessingOptions = {},
   ): Promise<ProcessedImage> {
     const opts = { ...this.defaultOptions, ...options };
-    
+
     // Convert ArrayBuffer to Buffer for Sharp
     const inputBuffer = Buffer.from(imageBuffer);
-    
+
     // Get image metadata first
     let metadata: any;
     try {
       // We'll add sharp later after type checking is resolved
-      const sharp = require('sharp');
+      const sharp = require("sharp");
       metadata = await sharp(inputBuffer).metadata();
     } catch (error) {
       throw new Error(`Failed to read image metadata: ${error.message}`);
     }
-    
+
     const originalSize = inputBuffer.length;
     const sizeInMB = originalSize / (1024 * 1024);
     const sizeValid = sizeInMB <= opts.maxSizeMB;
 
     if (!sizeValid) {
       throw new Error(
-        `Image size (${sizeInMB.toFixed(2)}MB) exceeds maximum allowed size (${opts.maxSizeMB}MB)`
+        `Image size (${sizeInMB.toFixed(2)}MB) exceeds maximum allowed size (${opts.maxSizeMB}MB)`,
       );
     }
 
@@ -75,12 +75,12 @@ export class ImageProcessor {
     // Process with Sharp
     let sharpImage: any;
     try {
-      const sharp = require('sharp');
+      const sharp = require("sharp");
       sharpImage = sharp(inputBuffer);
     } catch (error) {
       throw new Error(`Failed to initialize Sharp: ${error.message}`);
     }
-    
+
     // Simulate dimension validation and resizing for now
     if (width > opts.maxWidth || height > opts.maxHeight) {
       width = Math.min(width, opts.maxWidth);
@@ -90,11 +90,11 @@ export class ImageProcessor {
     // If convertToWebP is true, convert to WebP
     if (opts.convertToWebP) {
       try {
-        const sharp = require('sharp');
+        const sharp = require("sharp");
         const webpBuffer = await sharpImage
           .webp({ quality: opts.quality, effort: 6 })
           .toBuffer();
-        
+
         processedBuffer = webpBuffer;
         mimeType = "image/webp";
         isWebP = true;
@@ -103,9 +103,14 @@ export class ImageProcessor {
       }
     } else {
       processedBuffer = inputBuffer;
-      mimeType = metadata.format === 'png' ? 'image/png' : 
-                 metadata.format === 'jpeg' || metadata.format === 'jpg' ? 'image/jpeg' : 
-                 metadata.format ? `image/${metadata.format}` : 'image/jpeg';
+      mimeType =
+        metadata.format === "png"
+          ? "image/png"
+          : metadata.format === "jpeg" || metadata.format === "jpg"
+            ? "image/jpeg"
+            : metadata.format
+              ? `image/${metadata.format}`
+              : "image/jpeg";
     }
 
     const compressedSize = processedBuffer.length;
@@ -123,16 +128,18 @@ export class ImageProcessor {
     };
   }
 
-  async validateImageHeader(imageBuffer: ArrayBuffer): Promise<{ valid: boolean; format: string }> {
+  async validateImageHeader(
+    imageBuffer: ArrayBuffer,
+  ): Promise<{ valid: boolean; format: string }> {
     try {
-      const sharp = require('sharp');
+      const sharp = require("sharp");
       const metadata = await sharp(imageBuffer).metadata();
-      return { 
-        valid: !!metadata.width && !!metadata.height, 
-        format: metadata.format || 'unknown' 
+      return {
+        valid: !!metadata.width && !!metadata.height,
+        format: metadata.format || "unknown",
       };
     } catch (error) {
-      return { valid: false, format: 'unknown' };
+      return { valid: false, format: "unknown" };
     }
   }
 
@@ -145,7 +152,7 @@ export class ImageProcessor {
     const date = new Date();
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
-    
+
     // Extract extension if available
     let extension = "webp";
     if (originalFileName) {
@@ -154,7 +161,7 @@ export class ImageProcessor {
         extension = ext;
       }
     }
-    
+
     // Format: products/YYYY/MM/category/platform_id.ext
     const fileName = `${platform}_${productId}.${extension}`;
     return `products/${year}/${month}/${category}/${fileName}`;
@@ -163,13 +170,19 @@ export class ImageProcessor {
   getStorageQuotaStatus(
     usedBytes: number,
     capBytes: number = CONSTANTS.B2_STORAGE_CAP_BYTES,
-  ): { usedGB: number; capGB: number; remainingGB: number; percentage: number; needsAutoSwitch: boolean } {
+  ): {
+    usedGB: number;
+    capGB: number;
+    remainingGB: number;
+    percentage: number;
+    needsAutoSwitch: boolean;
+  } {
     const usedGB = usedBytes / (1024 * 1024 * 1024);
     const capGB = capBytes / (1024 * 1024 * 1024);
     const remainingGB = capGB - usedGB;
     const percentage = (usedBytes / capBytes) * 100;
     const needsAutoSwitch = percentage >= 90; // Auto-switch when 90% full
-    
+
     return {
       usedGB,
       capGB,
@@ -184,11 +197,11 @@ export class ImageProcessor {
     quality: number = 0.85,
   ): Promise<ArrayBuffer> {
     try {
-      const sharp = require('sharp');
+      const sharp = require("sharp");
       const compressedBuffer = await sharp(imageBuffer)
         .webp({ quality, effort: 6 })
         .toBuffer();
-      
+
       return compressedBuffer;
     } catch (error) {
       throw new Error(`Failed to compress image to WebP: ${error.message}`);

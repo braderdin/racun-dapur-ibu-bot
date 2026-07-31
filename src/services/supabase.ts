@@ -141,14 +141,14 @@ export class SupabaseService {
 
   // Facebook-specific logging methods
   async logFacebookPost(data: {
-    productId: string,
-    platform: "lazada" | "shopee",
-    postId?: string,
-    commentId?: string,
-    status: "published" | "failed" | "pending",
-    errorMessage?: string,
-    timestamp?: string,
-    source?: string,
+    productId: string;
+    platform: "lazada" | "shopee";
+    postId?: string;
+    commentId?: string;
+    status: "published" | "failed" | "pending";
+    errorMessage?: string;
+    timestamp?: string;
+    source?: string;
   }): Promise<void> {
     try {
       if (!this.url || !this.serviceKey) return;
@@ -165,8 +165,10 @@ export class SupabaseService {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         // Include related product info for reference
-        lazada_product_id: data.platform === "lazada" ? `ref_${data.productId}` : null,
-        lazada_item_id: data.platform === "lazada" ? `ref_${data.productId}` : null,
+        lazada_product_id:
+          data.platform === "lazada" ? `ref_${data.productId}` : null,
+        lazada_item_id:
+          data.platform === "lazada" ? `ref_${data.productId}` : null,
         tweet_id: null, // Not applicable for Facebook posts
         reply_tweet_id: null,
         posted_at: new Date().toISOString(),
@@ -210,7 +212,11 @@ export class SupabaseService {
         "SupabaseService",
       );
     } catch (error) {
-      logger.error("Error logging Facebook post to Supabase:", { error }, "SupabaseService");
+      logger.error(
+        "Error logging Facebook post to Supabase:",
+        { error },
+        "SupabaseService",
+      );
     }
   }
 
@@ -218,7 +224,8 @@ export class SupabaseService {
     try {
       if (!this.url) return [];
 
-      let query = "/rest/v1/posted_products?select=*&source=eq.facebook_graph_api";
+      let query =
+        "/rest/v1/posted_products?select=*&source=eq.facebook_graph_api";
       if (productId) {
         query += `&product_id=eq.${productId}`;
       }

@@ -103,11 +103,7 @@
     }
   ],
   "images": {
-    "domains": [
-      "picsum.photos",
-      "images.unsplash.com",
-      ".*\.supabase\.co"
-    ],
+    "domains": ["picsum.photos", "images.unsplash.com", ".*\.supabase\.co"],
     "formats": [
       "image/avif",
       "image/webp",

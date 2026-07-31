@@ -1,8 +1,9 @@
 // 🎯 Catalog Core Types
 
-import { Database } from '@supabase/supabase-js';
+import { Database } from "@supabase/supabase-js";
 
-export type CatalogProduct = Database['public']['Tables']['posted_products']['Row'];
+export type CatalogProduct =
+  Database["public"]["Tables"]["posted_products"]["Row"];
 
 // 📊 Search & Filter Types
 export interface SearchParams {
@@ -24,17 +25,18 @@ export interface FilterCriteria {
 
 // 🔄 Realtime Types
 export interface RealtimeEventPayload {
-  type: 'INSERT' | 'UPDATE' | 'DELETE';
-  table: 'posted_products';
+  type: "INSERT" | "UPDATE" | "DELETE";
+  table: "posted_products";
   event: {
     timestamp: string;
-    op: 'INSERT' | 'UPDATE' | 'DELETE';
+    op: "INSERT" | "UPDATE" | "DELETE";
   };
   new?: CatalogProduct;
   old?: CatalogProduct;
 }
 
-export type RealtimeEventType = 'NEW_DEAL' | 'DEAL_UPDATED' | 'FLASH_SALE_START';
+export type RealtimeEventType =
+  "NEW_DEAL" | "DEAL_UPDATED" | "FLASH_SALE_START";
 
 export interface RealtimeEvent {
   type: RealtimeEventType;
@@ -48,10 +50,10 @@ export interface CatalogStats {
   total_products?: number;
   category_stats?: Record<string, number>;
   budget_distribution?: {
-    '<20': number;
-    '20-50': number;
-    '50-100': number;
-    '>100': number;
+    "<20": number;
+    "20-50": number;
+    "50-100": number;
+    ">100": number;
   };
   active_deals?: number;
   flash_sales?: number;
@@ -125,11 +127,7 @@ export interface FlashSaleInfo {
 }
 
 // 💰 Budget Range Types
-export type BudgetRange = 
-  | '<20'
-  | '20-50' 
-  | '50-100'
-  | '>100';
+export type BudgetRange = "<20" | "20-50" | "50-100" | ">100";
 
 export interface BudgetFilter {
   range: BudgetRange;
@@ -152,7 +150,7 @@ export interface SearchFacet {
 // 📱 Analytics & Tracking Types
 export interface ClickEvent {
   productId: string;
-  platform: 'lazada' | 'shopee';
+  platform: "lazada" | "shopee";
   affiliateCode?: string;
   timestamp: string;
   userAgent?: string;
@@ -171,7 +169,7 @@ export interface AnalyticsEvent {
 // 🎨 UI Component Types
 export interface DealCardProps {
   product: CatalogProduct;
-  variant?: 'default' | 'compact' | 'featured';
+  variant?: "default" | "compact" | "featured";
   showTimer?: boolean;
 }
 
@@ -185,7 +183,7 @@ export interface ProductDetail {
 // 🔔 Notification Types
 export interface Notification {
   id: string;
-  type: 'NEW_DEAL' | 'FLASH_SALE' | 'PRICE_DROP' | 'SYSTEM';
+  type: "NEW_DEAL" | "FLASH_SALE" | "PRICE_DROP" | "SYSTEM";
   message: string;
   data?: any;
   timestamp: string;

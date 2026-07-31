@@ -86,8 +86,8 @@ export class DualPosterService {
       maxPostAttempts: 3,
       retryDelayMs: 2000,
       timeoutMs: 30000,
-      requireBothPlatforms: false // Allow partial success
-    }
+      requireBothPlatforms: false, // Allow partial success
+    },
   ) {
     this.redisService = redisService;
     this.supabaseService = supabaseService;
@@ -102,22 +102,27 @@ export class DualPosterService {
       supabaseService,
       b2StorageService,
       imageProcessor,
-      this.openRouterService
+      this.openRouterService,
     );
     this.twitterService = new TwitterService();
   }
 
   // Main method: Execute dual-channel posting pipeline
-  async executeDualPost(deal: ProcessedDeal, env: any): Promise<DualPostResult> {
+  async executeDualPost(
+    deal: ProcessedDeal,
+    env: any,
+  ): Promise<DualPostResult> {
     const startTime = Date.now();
-    console.log(`🚀 Starting dual-channel posting pipeline for deal: ${deal.id}`);
-    
+    console.log(
+      `🚀 Starting dual-channel posting pipeline for deal: ${deal.id}`,
+    );
+
     // Initialize result object
     const result: DualPostResult = {
       twitter: undefined,
       facebook: undefined,
       overallSuccess: false,
-      processedAt: new Date()
+      processedAt: new Date(),
     };
 
     try {
@@ -129,7 +134,7 @@ export class DualPosterService {
           twitter: { success: false, error: "Already posted" },
           facebook: { success: false, error: "Already posted" },
           overallSuccess: false,
-          processedAt: new Date()
+          processedAt: new Date(),
         };
       }
 
@@ -143,43 +148,50 @@ export class DualPosterService {
 
       // Execute parallel posting to X and Facebook (if enabled)
       console.log(`🚀 Executing parallel posting to social media platforms...`);
-      
+
       const postingPromises: Promise<any>[] = [];
-      
+
       if (this.config.enableTwitterPosting) {
         postingPromises.push(
-          this.twitterService.postToX(
-            deal,
-            dualCopy.twitterCopy,
-            processedImage,
-            env.X_ACCESS_TOKEN,
-            env.X_CLIENT_ID
-          ).then(twitterResult => {
-            result.twitter = {
-              success: twitterResult.success,
-              postId: twitterResult.postId,
-              error: twitterResult.error
-            };
-          })
+          this.twitterService
+            .postToX(
+              deal,
+              dualCopy.twitterCopy,
+              processedImage,
+              env.X_ACCESS_TOKEN,
+              env.X_CLIENT_ID,
+            )
+            .then((twitterResult) => {
+              result.twitter = {
+                success: twitterResult.success,
+                postId: twitterResult.postId,
+                error: twitterResult.error,
+              };
+            }),
         );
       }
-      
+
       if (this.config.enableFacebookPosting) {
         // Prepare Facebook-specific data
         const facebookCopy = dualCopy.facebookCopy || dualCopy.twitterCopy;
         if (!facebookCopy) {
           throw new Error("No Facebook copy available");
         }
-        
+
         postingPromises.push(
-          this.executeFacebookPost(deal, facebookCopy, processedImage, env).then(facebookResult => {
+          this.executeFacebookPost(
+            deal,
+            facebookCopy,
+            processedImage,
+            env,
+          ).then((facebookResult) => {
             result.facebook = {
               success: facebookResult.success,
               postId: facebookResult.postId,
               commentId: facebookResult.commentId,
-              error: facebookResult.error
+              error: facebookResult.error,
             };
-          })
+          }),
         );
       }
 
@@ -187,8 +199,10 @@ export class DualPosterService {
       await Promise.allSettled(postingPromises);
 
       // Determine overall success
-      const twitterSuccess = result.twitter?.success || !this.config.enableTwitterPosting;
-      const facebookSuccess = result.facebook?.success || !this.config.enableFacebookPosting;
+      const twitterSuccess =
+        result.twitter?.success || !this.config.enableTwitterPosting;
+      const facebookSuccess =
+        result.facebook?.success || !this.config.enableFacebookPosting;
       result.overallSuccess = this.config.requireBothPlatforms
         ? twitterSuccess && facebookSuccess
         : twitterSuccess || facebookSuccess;
@@ -200,19 +214,22 @@ export class DualPosterService {
       await this.setAntiRepeat(deal.id, result);
 
       console.log(`✅ Dual-post pipeline completed for deal ${deal.id}`);
-      console.log(`   X Status: ${result.twitter?.success ? 'SUCCESS' : 'FAILED'}, Facebook Status: ${result.facebook?.success ? 'SUCCESS' : 'FAILED'}`);
+      console.log(
+        `   X Status: ${result.twitter?.success ? "SUCCESS" : "FAILED"}, Facebook Status: ${result.facebook?.success ? "SUCCESS" : "FAILED"}`,
+      );
 
       return result;
-
     } catch (error) {
       console.error(`❌ Dual-post pipeline failed for deal ${deal.id}:`, error);
-      
+
       // Log failure to database
       await this.logDualPost(deal, result, error.message);
 
       // Determine retry strategy
       if (this.isRetryableError(error)) {
-        console.log(`🔄 Error retryable, will retry after ${this.config.retryDelayMs}ms`);
+        console.log(
+          `🔄 Error retryable, will retry after ${this.config.retryDelayMs}ms`,
+        );
         await this.delayRequest(this.config.retryDelayMs);
         return await this.executeDualPost(deal, env); // Recursive retry
       }
@@ -228,7 +245,7 @@ export class DualPosterService {
     deal: ProcessedDeal,
     copy: any,
     image: any,
-    env: any
+    env: any,
   ): Promise<any> {
     try {
       // Generate Facebook-specific affiliate comment
@@ -247,7 +264,7 @@ export class DualPosterService {
         deal.affiliateLink,
         deal.expirationDate,
         env.FACEBOOK_PAGE_ACCESS_TOKEN,
-        env.FACEBOOK_PAGE_ID
+        env.FACEBOOK_PAGE_ID,
       );
 
       // Add affiliate comment if Facebook posting succeeded
@@ -256,9 +273,9 @@ export class DualPosterService {
         const commentResult = await this.facebookService.addAffiliateComment(
           facebookResult.postId,
           affiliateComment,
-          env.FACEBOOK_PAGE_ACCESS_TOKEN
+          env.FACEBOOK_PAGE_ACCESS_TOKEN,
         );
-        
+
         if (commentResult.success) {
           commentId = commentResult.id;
         }
@@ -268,16 +285,15 @@ export class DualPosterService {
         success: facebookResult.success,
         postId: facebookResult.postId || facebookResult.id,
         commentId,
-        error: facebookResult.error
+        error: facebookResult.error,
       };
-
     } catch (error) {
       console.error(`❌ Facebook posting failed for deal ${deal.id}:`, error);
       return {
         success: false,
         postId: undefined,
         commentId: undefined,
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -289,51 +305,55 @@ export class DualPosterService {
       if (!response.ok) {
         throw new Error(`Failed to fetch image: ${response.status}`);
       }
-      
+
       const arrayBuffer = await response.arrayBuffer();
-      
+
       // Process with ImageProcessor (convert to WebP)
-      const processedImage = await this.imageProcessor.processImage(arrayBuffer, {
-        convertToWebP: true,
-        quality: 0.85,
-        maxSizeMB: 10
-      });
+      const processedImage = await this.imageProcessor.processImage(
+        arrayBuffer,
+        {
+          convertToWebP: true,
+          quality: 0.85,
+          maxSizeMB: 10,
+        },
+      );
 
       // Upload to B2 Storage
       const storageKey = this.imageProcessor.formatB2StorageKey(
         deal.id,
         deal.platform,
         deal.category,
-        "social_post.jpg"
+        "social_post.jpg",
       );
 
       await this.b2StorageService.uploadFile(
         storageKey,
         processedImage.buffer,
-        "image/webp"
+        "image/webp",
       );
 
       return {
         webpUrl: `https://racun.ibu.my/${storageKey}`, // CDN URL
-        buffer: processedImage.buffer
+        buffer: processedImage.buffer,
       };
-
     } catch (error) {
-      console.warn(`⚠️ Image processing failed for deal ${deal.id}, using original URL:", error`);
+      console.warn(
+        `⚠️ Image processing failed for deal ${deal.id}, using original URL:", error`,
+      );
       // Return original URL as fallback
       return {
         webpUrl: deal.imageUrl,
-        buffer: undefined
+        buffer: undefined,
       };
     }
   }
 
   // Generate affiliate comment for Facebook
   private generateAffiliateComment(deal: ProcessedDeal): string {
-    const shortLink = deal.affiliateLink.includes("?") 
-      ? deal.affiliateLink.split("?")[0] + "?ref=racun_dapur_ibu" 
+    const shortLink = deal.affiliateLink.includes("?")
+      ? deal.affiliateLink.split("?")[0] + "?ref=racun_dapur_ibu"
       : deal.affiliateLink + "?ref=racun_dapur_ibu";
-    
+
     return `🚀 Special deal alert from Racun Dapur Ibu! ${deal.title} is now available for $${deal.price}. Limited stock - grab yours now! ${shortLink}`;
   }
 
@@ -350,15 +370,23 @@ export class DualPosterService {
   }
 
   // Set Redis anti-repeat cache
-  private async setAntiRepeat(dealId: string, result: DualPostResult): Promise<void> {
+  private async setAntiRepeat(
+    dealId: string,
+    result: DualPostResult,
+  ): Promise<void> {
     try {
       const cacheKey = `deal_posted:${dealId}`;
-      await this.redisService.setEx(cacheKey, 432000, JSON.stringify({ // 5 days TTL
-        postedAt: result.processedAt.toISOString(),
-        success: result.overallSuccess,
-        twitterSuccess: result.twitter?.success || false,
-        facebookSuccess: result.facebook?.success || false
-      }));
+      await this.redisService.setEx(
+        cacheKey,
+        432000,
+        JSON.stringify({
+          // 5 days TTL
+          postedAt: result.processedAt.toISOString(),
+          success: result.overallSuccess,
+          twitterSuccess: result.twitter?.success || false,
+          facebookSuccess: result.facebook?.success || false,
+        }),
+      );
     } catch (error) {
       console.warn("⚠️ Failed to set anti-repeat cache:", error);
       // Cache failure shouldn't break the flow
@@ -369,29 +397,36 @@ export class DualPosterService {
   private async logDualPost(
     deal: ProcessedDeal,
     result: DualPostResult,
-    errorMessage?: string
+    errorMessage?: string,
   ): Promise<void> {
     try {
       const logData = {
         productId: deal.id,
         platform: deal.platform,
         twitterPostId: result.twitter?.postId,
-        twitterStatus: result.twitter?.success ? "published" : result.twitter?.error ? "failed" : "pending",
+        twitterStatus: result.twitter?.success
+          ? "published"
+          : result.twitter?.error
+            ? "failed"
+            : "pending",
         twitterError: result.twitter?.error,
         facebookPostId: result.facebook?.postId,
         facebookCommentId: result.facebook?.commentId,
-        facebookStatus: result.facebook?.success ? "published" : result.facebook?.error ? "failed" : "pending",
+        facebookStatus: result.facebook?.success
+          ? "published"
+          : result.facebook?.error
+            ? "failed"
+            : "pending",
         facebookError: result.facebook?.error,
         overallStatus: result.overallSuccess ? "success" : "failed",
         errorMessage,
         processingTimeMs: Date.now() - new Date(result.processedAt).getTime(),
         timestamp: new Date().toISOString(),
-        source: "dual_poster_service"
+        source: "dual_poster_service",
       };
 
       // Log to Supabase
       await this.supabaseService.logFacebookPost(logData);
-
     } catch (error) {
       console.error("❌ Failed to log dual-post result:", error);
       // Don't throw - logging failure shouldn't break the main flow
@@ -408,7 +443,7 @@ export class DualPosterService {
       message.includes("network") ||
       message.includes("rate limit") ||
       message.includes("temporary") ||
-      status >= 500 && status < 600 ||
+      (status >= 500 && status < 600) ||
       status === 429 ||
       status === 503
     );
@@ -416,38 +451,52 @@ export class DualPosterService {
 
   // Delay request with timeout
   private async delayRequest(delayMs: number): Promise<void> {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       setTimeout(resolve, delayMs);
     });
   }
 
   // Health check for Dual-Poster service
-  async healthCheck(): Promise<{ status: 'healthy' | 'unhealthy'; details: string }> {
+  async healthCheck(): Promise<{
+    status: "healthy" | "unhealthy";
+    details: string;
+  }> {
     try {
       // Test all dependent services
       const [redisStatus, supabaseStatus, b2Status] = await Promise.all([
-        this.redisService.healthCheck().then(() => 'connected').catch(() => 'disconnected'),
-        this.supabaseService.healthCheck().then(() => 'connected').catch(() => 'disconnected'),
-        this.b2StorageService.healthCheck().then(() => 'connected').catch(() => 'disconnected')
+        this.redisService
+          .healthCheck()
+          .then(() => "connected")
+          .catch(() => "disconnected"),
+        this.supabaseService
+          .healthCheck()
+          .then(() => "connected")
+          .catch(() => "disconnected"),
+        this.b2StorageService
+          .healthCheck()
+          .then(() => "connected")
+          .catch(() => "disconnected"),
       ]);
 
-      const allConnected = [redisStatus, supabaseStatus, b2Status].every(status => status === 'connected');
-      
+      const allConnected = [redisStatus, supabaseStatus, b2Status].every(
+        (status) => status === "connected",
+      );
+
       if (allConnected) {
         return {
-          status: 'healthy',
-          details: `All services connected (Redis: ${redisStatus}, Supabase: ${supabaseStatus}, B2 Storage: ${b2Status})`
+          status: "healthy",
+          details: `All services connected (Redis: ${redisStatus}, Supabase: ${supabaseStatus}, B2 Storage: ${b2Status})`,
         };
       } else {
         return {
-          status: 'unhealthy',
-          details: `Some services disconnected - Redis: ${redisStatus}, Supabase: ${supabaseStatus}, B2 Storage: ${b2Status}`
+          status: "unhealthy",
+          details: `Some services disconnected - Redis: ${redisStatus}, Supabase: ${supabaseStatus}, B2 Storage: ${b2Status}`,
         };
       }
     } catch (error) {
       return {
-        status: 'unhealthy',
-        details: `Health check error: ${error.message}`
+        status: "unhealthy",
+        details: `Health check error: ${error.message}`,
       };
     }
   }
