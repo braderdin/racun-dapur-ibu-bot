@@ -49,17 +49,23 @@ export class GlobalErrorBoundary {
     this.errorHistory = [];
     this.config = {
       enableCircuitBreaker: true,
-      circuitBreakerThreshold: CONSTANTS.UPSTASH_VECTOR_CIRCUIT_BREAKER_THRESHOLD || 3,
-      circuitBreakerTimeoutMs: CONSTANTS.UPSTASH_VECTOR_CIRCUIT_BREAKER_TIMEOUT || 300000,
+      circuitBreakerThreshold:
+        CONSTANTS.UPSTASH_VECTOR_CIRCUIT_BREAKER_THRESHOLD || 3,
+      circuitBreakerTimeoutMs:
+        CONSTANTS.UPSTASH_VECTOR_CIRCUIT_BREAKER_TIMEOUT || 300000,
       enableGracefulDegradation: true,
       enableLogging: true,
       ...config,
     };
 
-    logger.info("GlobalErrorBoundary initialized", {
-      enableCircuitBreaker: this.config.enableCircuitBreaker,
-      enableGracefulDegradation: this.config.enableGracefulDegradation,
-    }, "GlobalErrorBoundary");
+    logger.info(
+      "GlobalErrorBoundary initialized",
+      {
+        enableCircuitBreaker: this.config.enableCircuitBreaker,
+        enableGracefulDegradation: this.config.enableGracefulDegradation,
+      },
+      "GlobalErrorBoundary",
+    );
   }
 
   async executeWithErrorHandling<T>(
@@ -70,7 +76,7 @@ export class GlobalErrorBoundary {
       circuitBreakerKey?: string;
       onSuccess?: (result: T) => void;
       onError?: (error: Error, context: ErrorContext) => Promise<any>;
-    } = {}
+    } = {},
   ): Promise<T> {
     const context: ErrorContext = {
       operation,
@@ -83,10 +89,14 @@ export class GlobalErrorBoundary {
       if (this.config.enableCircuitBreaker) {
         const circuitBreakerKey = options.circuitBreakerKey || operation;
         if (this.isCircuitBreakerOpen(circuitBreakerKey)) {
-          logger.warn("Circuit breaker open - using graceful degradation", {
-            operation,
-            circuitBreakerKey,
-          }, "GlobalErrorBoundary");
+          logger.warn(
+            "Circuit breaker open - using graceful degradation",
+            {
+              operation,
+              circuitBreakerKey,
+            },
+            "GlobalErrorBoundary",
+          );
 
           if (!this.config.enableGracefulDegradation) {
             throw new Error(`Circuit breaker open for operation: ${operation}`);
@@ -111,10 +121,14 @@ export class GlobalErrorBoundary {
         options.onSuccess(result);
       }
 
-      logger.info("Operation completed successfully", {
-        operation,
-        circuitBreakerKey: options.circuitBreakerKey,
-      }, "GlobalErrorBoundary");
+      logger.info(
+        "Operation completed successfully",
+        {
+          operation,
+          circuitBreakerKey: options.circuitBreakerKey,
+        },
+        "GlobalErrorBoundary",
+      );
 
       return result;
     } catch (error) {
@@ -125,27 +139,42 @@ export class GlobalErrorBoundary {
         this.recordFailure(options.circuitBreakerKey, context.error);
       }
 
-      logger.error("Operation failed", {
-        operation,
-        error: context.error.message,
-        stack: context.stack,
-        circuitBreakerKey: options.circuitBreakerKey,
-      }, "GlobalErrorBoundary");
+      logger.error(
+        "Operation failed",
+        {
+          operation,
+          error: context.error.message,
+          stack: context.stack,
+          circuitBreakerKey: options.circuitBreakerKey,
+        },
+        "GlobalErrorBoundary",
+      );
 
       // Call error handler
       if (options.onError) {
         try {
           const fallbackResult = await options.onError(error as Error, context);
-          logger.info("Error handler provided fallback result", {
-            operation,
-            fallbackResult: typeof fallbackResult,
-          }, "GlobalErrorBoundary");
+          logger.info(
+            "Error handler provided fallback result",
+            {
+              operation,
+              fallbackResult: typeof fallbackResult,
+            },
+            "GlobalErrorBoundary",
+          );
           return fallbackResult as T;
         } catch (handlerError) {
-          logger.error("Error handler failed", {
-            operation,
-            handlerError: handlerError instanceof Error ? handlerError.message : String(handlerError),
-          }, "GlobalErrorBoundary");
+          logger.error(
+            "Error handler failed",
+            {
+              operation,
+              handlerError:
+                handlerError instanceof Error
+                  ? handlerError.message
+                  : String(handlerError),
+            },
+            "GlobalErrorBoundary",
+          );
         }
       }
 
@@ -163,12 +192,16 @@ export class GlobalErrorBoundary {
     operation: string,
     options: {
       allowGracefulDegradation?: boolean;
-    } = {}
+    } = {},
   ): Promise<T> {
-    logger.warn("Using graceful degradation for operation", {
-      operation,
-      allowGracefulDegradation: options.allowGracefulDegradation ?? true,
-    }, "GlobalErrorBoundary");
+    logger.warn(
+      "Using graceful degradation for operation",
+      {
+        operation,
+        allowGracefulDegradation: options.allowGracefulDegradation ?? true,
+      },
+      "GlobalErrorBoundary",
+    );
 
     // Return safe defaults or empty results based on operation type
     switch (operation) {
@@ -213,9 +246,13 @@ export class GlobalErrorBoundary {
           // Transition to half-open
           state.state = "HALF_OPEN";
           state.failureCount = 0;
-          logger.info("Circuit breaker transitioning to HALF_OPEN", {
-            key,
-          }, "GlobalErrorBoundary");
+          logger.info(
+            "Circuit breaker transitioning to HALF_OPEN",
+            {
+              key,
+            },
+            "GlobalErrorBoundary",
+          );
           return false;
         }
         return true;
@@ -235,9 +272,13 @@ export class GlobalErrorBoundary {
     if (state.state === "HALF_OPEN") {
       state.state = "CLOSED";
       state.failureCount = 0;
-      logger.info("Circuit breaker closed after successful operation", {
-        key,
-      }, "GlobalErrorBoundary");
+      logger.info(
+        "Circuit breaker closed after successful operation",
+        {
+          key,
+        },
+        "GlobalErrorBoundary",
+      );
     }
 
     state.lastSuccessTime = Date.now();
@@ -264,17 +305,25 @@ export class GlobalErrorBoundary {
 
     if (state.state === "HALF_OPEN") {
       state.state = "OPEN";
-      logger.warn("Circuit breaker opened after half-open attempt", {
-        key,
-        failureCount: state.failureCount,
-      }, "GlobalErrorBoundary");
+      logger.warn(
+        "Circuit breaker opened after half-open attempt",
+        {
+          key,
+          failureCount: state.failureCount,
+        },
+        "GlobalErrorBoundary",
+      );
     } else if (state.failureCount >= this.config.circuitBreakerThreshold) {
       state.state = "OPEN";
-      logger.warn("Circuit breaker opened - threshold exceeded", {
-        key,
-        failureCount: state.failureCount,
-        threshold: this.config.circuitBreakerThreshold,
-      }, "GlobalErrorBoundary");
+      logger.warn(
+        "Circuit breaker opened - threshold exceeded",
+        {
+          key,
+          failureCount: state.failureCount,
+          threshold: this.config.circuitBreakerThreshold,
+        },
+        "GlobalErrorBoundary",
+      );
     }
   }
 
@@ -296,7 +345,10 @@ export class GlobalErrorBoundary {
 
     let timeToRecoverMs = 0;
     if (state.state === "OPEN") {
-      timeToRecoverMs = Math.max(0, state.timeoutMs - (Date.now() - state.lastFailureTime));
+      timeToRecoverMs = Math.max(
+        0,
+        state.timeoutMs - (Date.now() - state.lastFailureTime),
+      );
     }
 
     return {
@@ -312,9 +364,13 @@ export class GlobalErrorBoundary {
     if (state) {
       state.state = "CLOSED";
       state.failureCount = 0;
-      logger.info("Circuit breaker manually reset", {
-        key,
-      }, "GlobalErrorBoundary");
+      logger.info(
+        "Circuit breaker manually reset",
+        {
+          key,
+        },
+        "GlobalErrorBoundary",
+      );
     }
   }
 
@@ -359,12 +415,14 @@ export class GlobalErrorBoundary {
     degradedOperations: number;
   } {
     const totalOperations = this.errorHistory.length;
-    const failedOperations = this.errorHistory.filter((e) => e.error.message !== "Success").length;
-    const healthyCircuitBreakers = Array.from(this.circuitBreakers.values()).filter(
-      (s) => s.state === "CLOSED"
+    const failedOperations = this.errorHistory.filter(
+      (e) => e.error.message !== "Success",
     ).length;
+    const healthyCircuitBreakers = Array.from(
+      this.circuitBreakers.values(),
+    ).filter((s) => s.state === "CLOSED").length;
     const degradedOperations = this.errorHistory.filter(
-      (e) => e.error.message === "Graceful degradation applied"
+      (e) => e.error.message === "Graceful degradation applied",
     ).length;
 
     return {

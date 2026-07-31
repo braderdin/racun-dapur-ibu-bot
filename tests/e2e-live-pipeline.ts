@@ -56,39 +56,31 @@ import { HealthResponse } from "../src/routes/live-health-monitor";
 const mockSupabaseService = {
   logFacebookPost: jest.fn().mockResolvedValue(undefined),
   getRecentProducts: jest.fn().mockResolvedValue([]),
-  healthCheck: jest
-    .fn()
-    .mockResolvedValue({
-      status: "connected",
-      timestamp: new Date().toISOString(),
-    }),
+  healthCheck: jest.fn().mockResolvedValue({
+    status: "connected",
+    timestamp: new Date().toISOString(),
+  }),
   logPostedProduct: jest.fn().mockResolvedValue(undefined),
   getFacebookPostLogs: jest.fn().mockResolvedValue([]),
-  getServiceStatus: jest
-    .fn()
-    .mockResolvedValue({
-      name: "Supabase",
-      status: "connected",
-      timestamp: new Date().toISOString(),
-    }),
+  getServiceStatus: jest.fn().mockResolvedValue({
+    name: "Supabase",
+    status: "connected",
+    timestamp: new Date().toISOString(),
+  }),
 };
 
 const mockRedisService = {
   get: jest.fn().mockResolvedValue(null),
   setEx: jest.fn().mockResolvedValue(undefined),
-  healthCheck: jest
-    .fn()
-    .mockResolvedValue({
-      status: "connected",
-      timestamp: new Date().toISOString(),
-    }),
-  getServiceStatus: jest
-    .fn()
-    .mockResolvedValue({
-      name: "Upstash Redis",
-      status: "connected",
-      timestamp: new Date().toISOString(),
-    }),
+  healthCheck: jest.fn().mockResolvedValue({
+    status: "connected",
+    timestamp: new Date().toISOString(),
+  }),
+  getServiceStatus: jest.fn().mockResolvedValue({
+    name: "Upstash Redis",
+    status: "connected",
+    timestamp: new Date().toISOString(),
+  }),
   ping: jest.fn().mockResolvedValue("PONG"),
   filterRepeatProducts: jest.fn().mockResolvedValue([]),
   addRepeatProduct: jest.fn().mockResolvedValue(undefined),
@@ -99,19 +91,15 @@ const mockUpstashVectorService = {
   searchSimilar: jest.fn().mockResolvedValue([]),
   upsert: jest.fn().mockResolvedValue(undefined),
   delete: jest.fn().mockResolvedValue(undefined),
-  healthCheck: jest
-    .fn()
-    .mockResolvedValue({
-      status: "connected",
-      timestamp: new Date().toISOString(),
-    }),
-  getServiceStatus: jest
-    .fn()
-    .mockResolvedValue({
-      name: "Upstash Vector",
-      status: "connected",
-      timestamp: new Date().toISOString(),
-    }),
+  healthCheck: jest.fn().mockResolvedValue({
+    status: "connected",
+    timestamp: new Date().toISOString(),
+  }),
+  getServiceStatus: jest.fn().mockResolvedValue({
+    name: "Upstash Vector",
+    status: "connected",
+    timestamp: new Date().toISOString(),
+  }),
 };
 
 const mockOpenRouterService = {
@@ -129,63 +117,49 @@ const mockOpenRouterService = {
     cta: "Shop Now",
     hashtags: ["#RacunDapurIbu"],
   }),
-  healthCheck: jest
-    .fn()
-    .mockResolvedValue({
-      status: "connected",
-      timestamp: new Date().toISOString(),
-    }),
+  healthCheck: jest.fn().mockResolvedValue({
+    status: "connected",
+    timestamp: new Date().toISOString(),
+  }),
 };
 
 const mockB2StorageService = {
-  uploadFile: jest
-    .fn()
-    .mockResolvedValue({
-      success: true,
-      imageUrl: "https://racun.ibu.my/storage/deal_123.webp",
-    }),
-  healthCheck: jest
-    .fn()
-    .mockResolvedValue({
-      status: "connected",
-      timestamp: new Date().toISOString(),
-    }),
-  getServiceStatus: jest
-    .fn()
-    .mockResolvedValue({
-      name: "Backblaze B2",
-      status: "connected",
-      timestamp: new Date().toISOString(),
-    }),
-  getStorageStats: jest
-    .fn()
-    .mockReturnValue({
-      usedGB: 3.2,
-      capGB: 9,
-      remainingGB: 5.8,
-      percentage: 35,
-      needsAutoSwitch: false,
-    }),
+  uploadFile: jest.fn().mockResolvedValue({
+    success: true,
+    imageUrl: "https://racun.ibu.my/storage/deal_123.webp",
+  }),
+  healthCheck: jest.fn().mockResolvedValue({
+    status: "connected",
+    timestamp: new Date().toISOString(),
+  }),
+  getServiceStatus: jest.fn().mockResolvedValue({
+    name: "Backblaze B2",
+    status: "connected",
+    timestamp: new Date().toISOString(),
+  }),
+  getStorageStats: jest.fn().mockReturnValue({
+    usedGB: 3.2,
+    capGB: 9,
+    remainingGB: 5.8,
+    percentage: 35,
+    needsAutoSwitch: false,
+  }),
   switchToNextAccount: jest.fn().mockResolvedValue(undefined),
 };
 
 const mockFacebookService = {
-  publishPhotoWithStory: jest
-    .fn()
-    .mockResolvedValue({
-      success: true,
-      postId: "fb_post_987",
-      commentId: "fb_comment_555",
-    }),
+  publishPhotoWithStory: jest.fn().mockResolvedValue({
+    success: true,
+    postId: "fb_post_987",
+    commentId: "fb_comment_555",
+  }),
   addAffiliateComment: jest
     .fn()
     .mockResolvedValue({ success: true, id: "comment_555666777" }),
-  healthCheck: jest
-    .fn()
-    .mockResolvedValue({
-      status: "connected",
-      timestamp: new Date().toISOString(),
-    }),
+  healthCheck: jest.fn().mockResolvedValue({
+    status: "connected",
+    timestamp: new Date().toISOString(),
+  }),
   validateFacebookCredentials: jest.fn().mockResolvedValue(true),
   getFacebookPageAccessToken: jest.fn().mockResolvedValue("test_token"),
 };
@@ -194,12 +168,10 @@ const mockTwitterService = {
   postToX: jest
     .fn()
     .mockResolvedValue({ success: true, postId: "tweet_123456789" }),
-  healthCheck: jest
-    .fn()
-    .mockResolvedValue({
-      status: "connected",
-      timestamp: new Date().toISOString(),
-    }),
+  healthCheck: jest.fn().mockResolvedValue({
+    status: "connected",
+    timestamp: new Date().toISOString(),
+  }),
 };
 
 const mockAIFallbackRouter = {
@@ -216,37 +188,29 @@ const mockAIFallbackRouter = {
   healthCheck: jest
     .fn()
     .mockResolvedValue({ status: "healthy", details: "All tiers operational" }),
-  getTierStatus: jest
-    .fn()
-    .mockReturnValue({
-      tier1: "available",
-      tier2: "available",
-      tier3: "available",
-    }),
-  getRouterStats: jest
-    .fn()
-    .mockReturnValue({
-      totalRequests: 100,
-      successfulRequests: 98,
-      fallbackRequests: 2,
-    }),
+  getTierStatus: jest.fn().mockReturnValue({
+    tier1: "available",
+    tier2: "available",
+    tier3: "available",
+  }),
+  getRouterStats: jest.fn().mockReturnValue({
+    totalRequests: 100,
+    successfulRequests: 98,
+    fallbackRequests: 2,
+  }),
 };
 
 const mockRateLimiter = {
-  checkRateLimit: jest
-    .fn()
-    .mockResolvedValue({
-      allowed: true,
-      limit: 5,
-      remaining: 4,
-      resetTime: Date.now() + 60000,
-    }),
-  healthCheck: jest
-    .fn()
-    .mockResolvedValue({
-      status: "healthy",
-      details: "Rate limiter operational",
-    }),
+  checkRateLimit: jest.fn().mockResolvedValue({
+    allowed: true,
+    limit: 5,
+    remaining: 4,
+    resetTime: Date.now() + 60000,
+  }),
+  healthCheck: jest.fn().mockResolvedValue({
+    status: "healthy",
+    details: "Rate limiter operational",
+  }),
   resetRateLimit: jest.fn().mockResolvedValue(true),
 };
 
@@ -327,26 +291,22 @@ const mockHealthMonitor = {
 };
 
 const mockImageProcessor = {
-  processImage: jest
-    .fn()
-    .mockResolvedValue({
-      webpUrl: "https://racun.ibu.my/storage/deal_123.webp",
-      buffer: new ArrayBuffer(2048),
-      originalSize: 5242880,
-      compressedSize: 1048576,
-      isWebP: true,
-      dimensions: { width: 1200, height: 800 },
-      quality: 0.85,
-    }),
+  processImage: jest.fn().mockResolvedValue({
+    webpUrl: "https://racun.ibu.my/storage/deal_123.webp",
+    buffer: new ArrayBuffer(2048),
+    originalSize: 5242880,
+    compressedSize: 1048576,
+    isWebP: true,
+    dimensions: { width: 1200, height: 800 },
+    quality: 0.85,
+  }),
   formatB2StorageKey: jest
     .fn()
     .mockReturnValue("products/2026/07/lazada/deal_123.webp"),
-  healthCheck: jest
-    .fn()
-    .mockResolvedValue({
-      status: "healthy",
-      details: "Image processor operational",
-    }),
+  healthCheck: jest.fn().mockResolvedValue({
+    status: "healthy",
+    details: "Image processor operational",
+  }),
 };
 
 // ===========================================================================

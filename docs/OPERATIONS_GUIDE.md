@@ -1,10 +1,13 @@
 # Corporate Operations & Maintenance Runbook
+
 **Phase 6: E2E Live Testing & 24/7 Autonomous Bot Launch**
 
 ## Overview
+
 This document provides comprehensive operational guidelines for maintaining the @RacunDapurIbu dual-channel bot ecosystem in production. It covers daily operations, maintenance procedures, troubleshooting, and incident response for all Phase 6 services.
 
 ## Table of Contents
+
 1. [System Overview](#system-overview)
 2. [Daily Operations](#daily-operations)
 3. [Weekly Maintenance](#weekly-maintenance)
@@ -20,6 +23,7 @@ This document provides comprehensive operational guidelines for maintaining the 
 ## System Overview
 
 ### Architecture Components
+
 - **Cloudflare Workers** - Main processing engine with edge CDN
 - **Upstash Redis** - Anti-repeat protection (5-day TTL), rate limiting
 - **Upstash Vector** - Semantic similarity checking (>0.85 threshold)
@@ -30,11 +34,13 @@ This document provides comprehensive operational guidelines for maintaining the 
 - **OpenRouter AI** - 3-tier resilient AI content generation
 
 ### Service Dependencies
+
 1. **Frontend** -> **API Gateway** -> **Core Services**
 2. **Mobile App** -> **API Gateway** -> **Core Services**
 3. **Admin Dashboard** -> **API Gateway** -> **Core Services**
 
 ### Key Metrics
+
 - **Deal Processing**: < 2 seconds
 - **Social Posting**: 4 posts/day (X), 4 posts/day (Facebook)
 - **API Response**: 95%+ success rate
@@ -45,6 +51,7 @@ This document provides comprehensive operational guidelines for maintaining the 
 ### Morning Checklist (6:00 AM - 10:00 AM)
 
 #### System Health Verification
+
 ```bash
 # Check service health
 ./bin/run-e2e-simulation.js --health-only
@@ -57,6 +64,7 @@ This document provides comprehensive operational guidelines for maintaining the 
 ```
 
 #### Log Analysis
+
 ```bash
 # Review system logs for errors
 tail -n 100 /var/log/racun-dapur-ibu-bot/errors.log
@@ -69,6 +77,7 @@ tail -n 50 /var/log/racun-dapur-ibu-bot/social-posts.log
 ```
 
 #### Backup Verification
+
 ```bash
 # Ensure recent backups exist
 ls -la /backup/racun-dapur-ibu-bot/
@@ -78,6 +87,7 @@ ls -la /backup/racun-dapur-ibu-bot/
 ```
 
 #### Cache and Session Management
+
 ```bash
 # Clear expired cache entries
 redis-cli FLUSHDB
@@ -90,6 +100,7 @@ find /var/tmp -name "racun-*" -delete
 ### Midday Monitoring (12:00 PM - 4:00 PM)
 
 #### Peak Hour Operations
+
 ```bash
 # Monitor QStash peak hour jobs
 ./bin/check-peak-hour-jobs.js
@@ -102,6 +113,7 @@ find /var/tmp -name "racun-*" -delete
 ```
 
 #### Performance Optimization
+
 ```bash
 # Adjust cache settings based on usage
 ./bin/optimize-cache.sh
@@ -114,6 +126,7 @@ find /var/tmp -name "racun-*" -delete
 ```
 
 #### Security Review
+
 ```bash
 # Verify no exposed secrets
 ./bin/security-scan.sh
@@ -128,6 +141,7 @@ find /var/tmp -name "racun-*" -delete
 ### Evening Operations (5:00 PM - 9:00 PM)
 
 #### System Cleanup
+
 ```bash
 # Archive old logs
 ./bin/archive-logs.sh
@@ -140,6 +154,7 @@ find /var/tmp -name "racun-*" -delete
 ```
 
 #### Nightly Backups
+
 ```bash
 # Create complete system backup
 ./bin/create-full-backup.sh
@@ -152,6 +167,7 @@ find /var/tmp -name "racun-*" -delete
 ```
 
 #### Security Patching
+
 ```bash
 # Apply security updates
 ./bin/apply-security-updates.sh
@@ -168,6 +184,7 @@ find /var/tmp -name "racun-*" -delete
 ### Weekend Maintenance (Friday - Sunday)
 
 #### Infrastructure Review
+
 ```bash
 # Review infrastructure costs
 ./bin/cost-analysis.sh
@@ -180,6 +197,7 @@ find /var/tmp -name "racun-*" -delete
 ```
 
 #### Performance Tuning
+
 ```bash
 # Optimize database queries
 ./bin/optimize-database-queries.sh
@@ -192,6 +210,7 @@ find /var/tmp -name "racun-*" -delete
 ```
 
 #### Service Updates
+
 ```bash
 # Update all services to latest versions
 ./bin/update-all-services.sh
@@ -206,6 +225,7 @@ find /var/tmp -name "racun-*" -delete
 ### Monthly Maintenance (Last Weekend of Month)
 
 #### System Audit
+
 ```bash
 # Comprehensive system audit
 ./bin/system-audit.sh --comprehensive
@@ -218,6 +238,7 @@ find /var/tmp -name "racun-*" -delete
 ```
 
 #### Capacity Planning
+
 ```bash
 # Project future growth requirements
 ./bin/project-future-requirements.sh
@@ -230,6 +251,7 @@ find /var/tmp -name "racun-*" -delete
 ```
 
 #### Documentation Updates
+
 ```bash
 # Update operational procedures
 ./bin/update-operational-procedures.sh
@@ -246,21 +268,25 @@ find /var/tmp -name "racun-*" -delete
 ### Severity Classification
 
 #### Level 1: Minor Issues
+
 - **Symptoms**: Non-critical functionality degradation
 - **Examples**: Slow response times (< 2 seconds), minor UI issues
 - **Response**: Log and monitor, fix during next maintenance window
 
 #### Level 2: Moderate Issues
+
 - **Symptoms**: Partial service degradation
 - **Examples**: Limited feature availability, increased error rates
 - **Response**: Immediate investigation, implement fixes within 4 hours
 
 #### Level 3: Major Issues
+
 - **Symptoms**: Significant service disruption
 - **Examples**: Social media posting failures, database connectivity issues
 - **Response**: Emergency procedures, dedicated response team
 
 #### Level 4: Critical Issues
+
 - **Symptoms**: Complete service outage
 - **Examples**: All posting channels down, data loss
 - **Response**: Business continuity procedures, executive notification
@@ -268,6 +294,7 @@ find /var/tmp -name "racun-*" -delete
 ### Incident Response Procedures
 
 #### Level 2 and Below Response
+
 1. **Immediate Actions**:
    - Activate monitoring and logging
    - Document incident details
@@ -287,6 +314,7 @@ find /var/tmp -name "racun-*" -delete
    - Document lessons learned
 
 #### Level 3 and Above Response
+
 1. **Emergency Procedures**:
    - Activate disaster recovery
    - Implement fix immediately
@@ -308,18 +336,21 @@ find /var/tmp -name "racun-*" -delete
 ### Service-Specific Incident Response
 
 #### Social Media Posting Failures
+
 1. Check X API authentication status
 2. Verify Facebook Page permissions
 3. Validate message content formatting
 4. Test retry mechanisms
 
 #### Database Issues
+
 1. Verify Supabase connection status
 2. Check for query timeouts
 3. Validate data integrity
 4. Implement rollback procedures
 
 #### Storage Issues
+
 1. Check B2 account status
 2. Verify WebP compression
 3. Test upload/download processes
@@ -330,18 +361,21 @@ find /var/tmp -name "racun-*" -delete
 ### Key Metrics
 
 #### Performance Metrics
+
 - **Response Time**: P99 < 2 seconds
 - **Success Rate**: > 95%
 - **Throughput**: 100 deals/hour
 - **Uptime**: 99.9%
 
 #### Business Metrics
+
 - **Posts Per Day**: 8 total (4 X + 4 Facebook)
 - **Deals Processed**: 100 per day
 - **Click-Through Rate**: > 1%
 - **Storage Usage**: < 90% of capacity
 
 #### System Metrics
+
 - **CPU Usage**: < 80%
 - **Memory Usage**: < 90%
 - **Disk I/O**: < 100MB/s
@@ -350,6 +384,7 @@ find /var/tmp -name "racun-*" -delete
 ### Alert Configuration
 
 #### Critical Alerts
+
 ```yaml
 # Critical: Social media posting failures
 alert:
@@ -377,12 +412,14 @@ alert:
 ```
 
 #### Escalation Matrix
+
 - **Level 1**: Self-recovery, log and monitor
 - **Level 2**: Immediate response, implement fixes
 - **Level 3**: Emergency procedures, dedicated team
 - **Level 4**: Business continuity, executive notification
 
 ### Monitoring Tools
+
 ```bash
 # Health check endpoints
 GET https://api.racun.ibu.my/health/live
@@ -400,12 +437,14 @@ GET https://api.racun.ibu.my/status/health
 ## Security Operations
 
 ### Access Control
+
 - **Multi-Factor Authentication**: Required for all admin access
 - **Role-Based Access**: Clear separation of duties
 - **API Key Management**: Secure storage and rotation
 - **Session Management**: Timeout and logging
 
 ### Threat Detection
+
 ```bash
 # Monitor for suspicious activities
 ./bin/detect-anomalies.sh
@@ -418,6 +457,7 @@ GET https://api.racun.ibu.my/status/health
 ```
 
 ### Incident Response
+
 ```bash
 # Immediate containment
 ./bin/contain-security-incident.sh
@@ -432,11 +472,13 @@ GET https://api.racun.ibu.my/status/health
 ## Backup and Recovery
 
 ### Backup Strategy
+
 - **Daily**: Incremental backups of all critical data
 - **Weekly**: Full system backup
 - **Monthly**: Incremental backup verification
 
 ### Recovery Procedures
+
 ```bash
 # Step 1: Activate disaster recovery
 ./bin/activate-disaster-recovery.sh
@@ -452,6 +494,7 @@ GET https://api.racun.ibu.my/status/health
 ```
 
 ### Backup Verification
+
 ```bash
 # Verify backup integrity
 ./bin/verify-backup-integrity.sh
@@ -466,6 +509,7 @@ GET https://api.racun.ibu.my/status/health
 ## Performance Optimization
 
 ### Cache Optimization
+
 ```bash
 # Monitor cache performance
 ./bin/monitor-cache-performance.sh
@@ -478,6 +522,7 @@ GET https://api.racun.ibu.my/status/health
 ```
 
 ### Database Optimization
+
 ```bash
 # Analyze slow queries
 ./bin/analyze-slow-queries.sh
@@ -490,6 +535,7 @@ GET https://api.racun.ibu.my/status/health
 ```
 
 ### Application Optimization
+
 ```bash
 # Fine-tune application settings
 ./bin/optimize-application-settings.sh
@@ -504,6 +550,7 @@ GET https://api.racun.ibu.my/status/health
 ## Change Management
 
 ### Change Approval
+
 ```yaml
 change:
   title: Update AI Model Configuration
@@ -516,6 +563,7 @@ change:
 ```
 
 ### Deployment Process
+
 1. **Planning**: Document changes and assess impact
 2. **Approval**: Obtain necessary approvals
 3. **Testing**: Validate in staging environment
@@ -524,6 +572,7 @@ change:
 6. **Rollback**: Prepare for quick rollback if needed
 
 ### Rollback Procedures
+
 ```bash
 # Quick rollback for critical issues
 ./bin/quick-rollback.sh
@@ -538,6 +587,7 @@ change:
 ## Documentation and Knowledge Base
 
 ### Documentation Structure
+
 ```
 docs/
 ├── operations-guide.md          # Current document
@@ -550,6 +600,7 @@ docs/
 ```
 
 ### Knowledge Base Articles
+
 - **Health Check Procedures**: How to troubleshoot health check failures
 - **Performance Tuning**: Guidelines for optimizing system performance
 - **Security Patches**: Procedures for applying security updates
@@ -564,6 +615,6 @@ The system is designed for high availability and performance, with robust backup
 
 ---
 
-*Document Version: 1.0*
-*Last Updated: July 31, 2026*
-*Prepared by: Racun Dapur Ibu Operations Team*
+_Document Version: 1.0_
+_Last Updated: July 31, 2026_
+_Prepared by: Racun Dapur Ibu Operations Team_

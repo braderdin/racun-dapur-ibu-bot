@@ -63,7 +63,8 @@ export class ShortlinkRouter {
       {
         id: "route-lk-002",
         shortCode: "baby-stroller",
-        originalUrl: "https://www.lazada.com.my/products/baby-stroller-malaysia",
+        originalUrl:
+          "https://www.lazada.com.my/products/baby-stroller-malaysia",
         affiliateUrl: "https://racun.ibu.my/baby-stroller",
         productName: "Baby Stroller Double Seat",
         platform: "lazada",
@@ -102,12 +103,19 @@ export class ShortlinkRouter {
       this.routes.set(route.shortCode, route);
     }
 
-    logger.info("ShortlinkRouter initialized with default routes", {
-      routeCount: defaultRoutes.length,
-    }, "ShortlinkRouter");
+    logger.info(
+      "ShortlinkRouter initialized with default routes",
+      {
+        routeCount: defaultRoutes.length,
+      },
+      "ShortlinkRouter",
+    );
   }
 
-  public resolveShortlink(shortCode: string, clickData: Partial<ClickTrackingData> = {}): {
+  public resolveShortlink(
+    shortCode: string,
+    clickData: Partial<ClickTrackingData> = {},
+  ): {
     success: boolean;
     redirectUrl: string;
     originalUrl: string;
@@ -136,19 +144,27 @@ export class ShortlinkRouter {
       shortCode,
     }).catch((error) => {
       // Don't fail redirect for tracking errors
-      logger.warn("Failed to track click", {
-        shortCode,
-        error: error instanceof Error ? error.message : String(error),
-      }, "ShortlinkRouter");
+      logger.warn(
+        "Failed to track click",
+        {
+          shortCode,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        "ShortlinkRouter",
+      );
     });
 
     // Log redirect for analytics
-    logger.info("Shortlink redirect resolved", {
-      shortCode,
-      affiliateUrl: route.affiliateUrl,
-      productName: route.productName,
-      clickCount: route.clickCount,
-    }, "ShortlinkRouter");
+    logger.info(
+      "Shortlink redirect resolved",
+      {
+        shortCode,
+        affiliateUrl: route.affiliateUrl,
+        productName: route.productName,
+        clickCount: route.clickCount,
+      },
+      "ShortlinkRouter",
+    );
 
     return {
       success: true,
@@ -163,13 +179,20 @@ export class ShortlinkRouter {
     }
 
     this.routes.set(route.shortCode, route);
-    logger.info("New shortlink route added", {
-      shortCode: route.shortCode,
-      productName: route.productName,
-    }, "ShortlinkRouter");
+    logger.info(
+      "New shortlink route added",
+      {
+        shortCode: route.shortCode,
+        productName: route.productName,
+      },
+      "ShortlinkRouter",
+    );
   }
 
-  public updateRoute(shortCode: string, updates: Partial<ShortlinkRoute>): void {
+  public updateRoute(
+    shortCode: string,
+    updates: Partial<ShortlinkRoute>,
+  ): void {
     const route = this.routes.get(shortCode);
     if (!route) {
       throw new Error(`Shortlink code '${shortCode}' not found`);
@@ -178,10 +201,14 @@ export class ShortlinkRouter {
     const updatedRoute = { ...route, ...updates };
     this.routes.set(shortCode, updatedRoute);
 
-    logger.info("Shortlink route updated", {
-      shortCode,
-      updates: Object.keys(updates),
-    }, "ShortlinkRouter");
+    logger.info(
+      "Shortlink route updated",
+      {
+        shortCode,
+        updates: Object.keys(updates),
+      },
+      "ShortlinkRouter",
+    );
   }
 
   public disableRoute(shortCode: string): void {
@@ -193,9 +220,13 @@ export class ShortlinkRouter {
     route.enabled = false;
     this.routes.set(shortCode, route);
 
-    logger.info("Shortlink route disabled", {
-      shortCode,
-    }, "ShortlinkRouter");
+    logger.info(
+      "Shortlink route disabled",
+      {
+        shortCode,
+      },
+      "ShortlinkRouter",
+    );
   }
 
   public getRoute(shortCode: string): ShortlinkRoute | undefined {
@@ -217,8 +248,10 @@ export class ShortlinkRouter {
     const categoryDistribution: Record<string, number> = {};
 
     for (const route of routes) {
-      platformDistribution[route.platform] = (platformDistribution[route.platform] || 0) + 1;
-      categoryDistribution[route.category] = (categoryDistribution[route.category] || 0) + 1;
+      platformDistribution[route.platform] =
+        (platformDistribution[route.platform] || 0) + 1;
+      categoryDistribution[route.category] =
+        (categoryDistribution[route.category] || 0) + 1;
     }
 
     return {
@@ -269,11 +302,15 @@ export class ShortlinkRouter {
 
     const redirectUrl = `https://racun.ibu.my/${shortCode}`;
 
-    logger.info("Generated new shortlink", {
-      shortCode,
-      productName,
-      redirectUrl,
-    }, "ShortlinkRouter");
+    logger.info(
+      "Generated new shortlink",
+      {
+        shortCode,
+        productName,
+        redirectUrl,
+      },
+      "ShortlinkRouter",
+    );
 
     return redirectUrl;
   }
@@ -284,7 +321,7 @@ export class ShortlinkRouter {
       category?: string;
       enabled?: boolean;
       minClicks?: number;
-    } = {}
+    } = {},
   ): ShortlinkRoute[] {
     let results = Array.from(this.routes.values());
 
@@ -310,7 +347,7 @@ export class ShortlinkRouter {
   // Helper method to generate HTML response for redirects
   public generateRedirectResponse(
     shortCode: string,
-    clickData: Partial<ClickTrackingData> = {}
+    clickData: Partial<ClickTrackingData> = {},
   ): { status: number; headers: HeadersInit; body: string } {
     const route = this.routes.get(shortCode);
 
@@ -368,15 +405,21 @@ class ClickTracker {
   public async trackClick(data: ClickTrackingData): Promise<void> {
     const timestamp = new Date().toISOString();
 
-    logger.info("Tracking shortlink click", {
-      shortCode: data.shortCode,
-      source: data.source,
-      timestamp,
-    }, "ClickTracker");
+    logger.info(
+      "Tracking shortlink click",
+      {
+        shortCode: data.shortCode,
+        source: data.source,
+        timestamp,
+      },
+      "ClickTracker",
+    );
 
     // In production, this would send to Supabase or other analytics service
     // For now, we'll log it
-    console.log(`[ClickTracker] Click tracked: ${data.shortCode} from ${data.source || 'unknown'}`);
+    console.log(
+      `[ClickTracker] Click tracked: ${data.shortCode} from ${data.source || "unknown"}`,
+    );
 
     // Simulate async tracking operation
     await this.delay(10);
