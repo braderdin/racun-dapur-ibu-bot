@@ -4,6 +4,9 @@
 -- Date: 2026-07-30T00:00:04Z
 -- =======================================
 
+-- Enable pg_cron extension (idempotent)
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+
 -- 1. Add posted_products table to supabase_realtime publication
 -- This enables real-time synchronization for catalog changes
 ALTER PUBLICATION supabase_realtime ADD TABLE posted_products;
@@ -20,10 +23,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 3. Create trigger on click_logs table
+-- 3. Create trigger on link_clicks table
 -- Fires after each click insertion to update product click counts
 CREATE TRIGGER trigger_increment_total_clicks
-AFTER INSERT ON click_logs
+AFTER INSERT ON link_clicks
 FOR EACH ROW
 EXECUTE FUNCTION increment_total_clicks();
 
@@ -33,18 +36,9 @@ SELECT cron.schedule(
     'cleanup_analytics_60d',
     '0 3 * * *',  -- Run daily at 3:00 AM UTC
     $$
-    DELETE FROM click_logs WHERE created_at < NOW() - INTERVAL '60 days';
+    DELETE FROM link_clicks WHERE created_at < NOW() - INTERVAL '60 days';
     $$
 );
-
--- 5. Create FTS index for better search performance
--- Optimized for both Malay and English language search
-CREATE INDEX IF NOT EXISTS idx_posted_products_fts ON posted_products USING gin(to_tsvector('public', COALESCE(product_name, '') || ' ' || COALESCE(product_description, '')));
-
--- 6. Create partial index for active products
--- Faster queries for available products only
-CREATE INDEX IF NOT EXISTS idx_posted_products_active ON posted_products (id)
-WHERE lazada_availability = 'available' AND shopee_availability = 'available';
 
 -- 7. Create trigger for updated_at timestamp
 -- Automatically update timestamp on record modifications
@@ -226,7 +220,7 @@ SELECT cron.schedule(
     '0 2 * * 0',  -- Run weekly on Sunday at 2:00 AM UTC
     $$
     -- Clean up click logs older than 90 days
-    DELETE FROM click_logs WHERE created_at < NOW() - INTERVAL '90 days';
+    DELETE FROM link_clicks WHERE created_at < NOW() - INTERVAL '90 days';
     -- Clean up temporary cache entries
     DELETE FROM pg_catalog.pg_stat_statements WHERE timestamp < NOW() - INTERVAL '7 days';
     $$
@@ -296,6 +290,6 @@ USING (true)
 WITH CHECK (true);
 
 -- Comments for documentation
-COMMENT ON MIGRATION '20260730000004_realtime_and_cron' IS 'Add realtime publication, click tracking triggers, and maintenance cron jobs';
+COMMENT ON TABLE posted_products IS 'Main catalog products table with dual-platform support';
 COMMENT ON TABLE posted_products IS 'Main catalog products table with dual-platform support';
 COMMENT ON COLUMN posted_products.total_clicks IS 'Total number of clicks tracked for this product';

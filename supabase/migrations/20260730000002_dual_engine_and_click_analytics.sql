@@ -66,9 +66,6 @@ ADD COLUMN IF NOT EXISTS image_webp_url TEXT,
 ADD COLUMN IF NOT EXISTS shopee_product_id VARCHAR(255),
 ADD COLUMN IF NOT EXISTS shopee_item_id VARCHAR(255);
 
--- Indeks untuk penyemakan sejarah produk yang disebabkan oleh product_id yang sama
-CREATE UNIQUE INDEX IF NOT EXISTS idx_posted_products_product_id_unique ON posted_products (product_id) WHERE posted_at > (CURRENT_TIMESTAMP - INTERVAL '5 days');
-
 -- Indeks untuk penyemakan isi kandungan (jika diperlukan)
 CREATE INDEX IF NOT EXISTS idx_posted_products_shopee_item_id ON posted_products (shopee_item_id);
 

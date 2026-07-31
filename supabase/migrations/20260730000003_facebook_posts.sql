@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS facebook_posts (
   sentiment_score DECIMAL(3,2),
   image_storage_used JSONB,
   -- Foreign key to posted_products
-  posted_product_id UUID REFERENCES posted_products(id) ON DELETE SET NULL
+  posted_product_id BIGINT REFERENCES posted_products(id) ON DELETE SET NULL
 );
 
 -- Create index for efficient queries
@@ -33,6 +33,11 @@ CREATE INDEX IF NOT EXISTS idx_facebook_posts_source ON facebook_posts(source);
 
 -- Add RLS policy for Facebook posts
 ALTER TABLE facebook_posts ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist (idempotent re-run)
+DROP POLICY IF EXISTS select_facebook_posts ON facebook_posts;
+DROP POLICY IF EXISTS insert_facebook_posts ON facebook_posts;
+DROP POLICY IF EXISTS update_facebook_posts ON facebook_posts;
 
 -- Allow authenticated users to read Facebook posts
 CREATE POLICY select_facebook_posts ON facebook_posts
@@ -62,6 +67,8 @@ BEGIN
 END;
 $$
 LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_facebook_posts_updated_at ON facebook_posts;
 
 CREATE TRIGGER trigger_facebook_posts_updated_at
   BEFORE UPDATE ON facebook_posts

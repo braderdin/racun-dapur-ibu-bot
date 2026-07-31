@@ -122,44 +122,49 @@ async function loadEnvFromDevVars() {
   }
 }
 
-// Connection configuration with 5-second timeout
-const connectionConfig = {
-  connectionString: DIRECT_URL,
-  connectionTimeoutMillis: 5000,
-  idleInTransactionSessionTimeoutMillis: 5000,
-  max: 20, // Maximum pool size for concurrent operations
-};
-
 async function executeSqlFile(filePath) {
   try {
     console.log(`📄 Executing SQL file: ${filePath}`);
 
     const sqlContent = await fs.readFile(filePath, "utf8");
 
-    // Parse SQL into individual statements (simple splitting by semicolon)
-    const statements = sqlContent
-      .split(";")
-      .map((stmt) => stmt.trim())
-      .filter((stmt) => stmt.length > 0 && !stmt.startsWith("--"));
+    // Remove single-line comment lines but preserve all SQL statements
+    const cleanedSql = sqlContent
+      .split("\n")
+      .map((line) => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith("--")) return "";
+        return line;
+      })
+      .join("\n")
+      .trim();
 
-    if (statements.length === 0) {
-      console.log(`⚠️  No valid SQL statements found in ${filePath}`);
+    if (cleanedSql.length === 0) {
+      console.log(`⚠️  No valid SQL found in ${filePath}`);
       return;
     }
 
-    const client = new pg.Pool(connectionConfig);
+    const client = new pg.Pool({
+      connectionString: DIRECT_URL,
+      ssl: { rejectUnauthorized: false },
+    });
 
-    // Execute each statement with timeout
-    for (let i = 0; i < statements.length; i++) {
-      const stmt = statements[i];
-      console.log(`  Executing statement ${i + 1}/${statements.length}`);
-
-      await client.query(stmt);
+    // Execute entire SQL file as a single query batch
+    await client.query("BEGIN");
+    try {
+      console.log(`  Executing SQL batch from ${path.basename(filePath)}`);
+      await client.query(cleanedSql);
+      await client.query("COMMIT");
+      console.log(`  ✅ SQL batch executed successfully`);
+    } catch (error) {
+      await client.query("ROLLBACK");
+      console.error(`  ❌ Transaction failed:`, error.message);
+      throw error;
     }
 
     await client.end();
     console.log(
-      `✅ Successfully executed ${statements.length} statements from ${filePath}`,
+      `✅ Successfully executed ${path.basename(filePath)}`,
     );
   } catch (error) {
     console.error(`❌ Failed to execute ${filePath}:`, error.message);

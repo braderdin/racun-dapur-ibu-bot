@@ -4,13 +4,10 @@
 -- Tujuan: Inisialisasi jadual `posted_products` untuk menjejak sejarah penghantaran produk
 -- ============================================================================
 
--- Memastikan extension pgvector aktif (jika diperlukan untuk similarity search)
-CREATE EXTENSION IF NOT EXISTS pgvector WITH SCHEMA public;
-
 -- Jadual utama untuk menjejak produk yang telah diposting
 CREATE TABLE IF NOT EXISTS posted_products (
   id bigserial PRIMARY KEY,
-  product_id VARCHAR(255) NOT NULL,
+  product_id VARCHAR(255) NOT NULL UNIQUE,
   product_title TEXT,
   product_price DECIMAL(10, 2),
   product_image_url TEXT,
@@ -26,18 +23,24 @@ CREATE TABLE IF NOT EXISTS posted_products (
   x_display_name TEXT, -- Nama paparan pengguna X
   tags_used JSONB DEFAULT '[]'::jsonb,
   sentiment_score DECIMAL(3, 2), -- Skor sentimen AI untuk ayat yang dijana
-  image_storage_used JSONB DEFAULT '{}'::jsonb, -- Menyimpan metadata penyimpanan B2 (contoh: { "account": "1", "bucket": "..., "object": "..." })
+  image_storage_used JSONB DEFAULT '{}'::jsonb -- Menyimpan metadata penyimpanan B2 (contoh: { "account": "1", "bucket": "..., "object": "..." })
 );
 
 -- Indeks untuk penghantaran yang kerap (anti-spam, semakan pantas)
 CREATE INDEX IF NOT EXISTS idx_posted_products_product_id ON posted_products (product_id);
 CREATE INDEX IF NOT EXISTS idx_posted_products_posted_at ON posted_products (posted_at);
 
--- Indeks untuk penyemakan sejarah produk yang disebabkan oleh product_id yang sama
-CREATE UNIQUE INDEX IF NOT EXISTS idx_posted_products_product_id_unique ON posted_products (product_id) WHERE posted_at > (CURRENT_TIMESTAMP - INTERVAL '5 days');
-
 -- Indeks untuk penyemakan isi kandungan (jika diperlukan)
 CREATE INDEX IF NOT EXISTS idx_posted_products_lazada_item_id ON posted_products (lazada_item_id);
+
+-- Pastikan product_id mempunyai UNIQUE constraint untuk FK rujukan
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'uq_posted_products_product_id'
+  ) THEN
+    ALTER TABLE posted_products ADD CONSTRAINT uq_posted_products_product_id UNIQUE (product_id);
+  END IF;
+END $$;
 
 -- Jejaring keselamatan: Pastikan setiap product_id tidak mempunyai lebih daripada satu entri untuk tempoh 5 hari
 -- (Oleh kerana pemantauan dilaksanakan di tahap aplikasi dengan Upstash Redis, jejaring keselamatan ini sebagai langkah kedua)
