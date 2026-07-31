@@ -75,7 +75,8 @@ export interface ShopeeProductRequest {
 export class ShopeeApiService {
   private config: ShopeeApiConfig;
   private baseUrl: string;
-  private readonly USER_AGENT = "RacunDapurIbuBot/1.0 (Affiliate Marketing Bot)";
+  private readonly USER_AGENT =
+    "RacunDapurIbuBot/1.0 (Affiliate Marketing Bot)";
   private readonly REQUEST_TIMEOUT = 15000;
 
   constructor(config: Partial<ShopeeApiConfig> = {}) {
@@ -86,35 +87,40 @@ export class ShopeeApiService {
       accessToken: config.accessToken || "",
       refreshToken: config.refreshToken || "",
       expiresAt: config.expiresAt || 0,
-      ...config
+      ...config,
     };
-    
+
     console.log("🔧 ShopeeApiService initialized");
   }
 
-  async fetchTrendingProducts(request: ShopeeProductRequest): Promise<ShopeeProductResponse> {
+  async fetchTrendingProducts(
+    request: ShopeeProductRequest,
+  ): Promise<ShopeeProductResponse> {
     try {
       console.log("🔍 Fetching trending products from Shopee...");
-      
+
       // Check if API keys are configured
       if (!this.config.clientId || !this.config.clientSecret) {
         console.log("⚠️  Shopee API keys not configured, returning mock data");
         return this.getMockProducts(request);
       }
-      
+
       // Try to fetch from real API
       const response = await this.makeApiRequest<ShopeeProductResponse>(
         "/api/v1/product/search",
         {
           ...request,
           sortBy: request.sortBy || "pop",
-          sortOrder: "desc"
-        }
+          sortOrder: "desc",
+        },
       );
-      
-      console.log("✅ Successfully fetched", response.items.length, "products from Shopee");
+
+      console.log(
+        "✅ Successfully fetched",
+        response.items.length,
+        "products from Shopee",
+      );
       return response;
-      
     } catch (error) {
       console.log("⚠️  Shopee API failed, returning mock data:", error.message);
       return this.getMockProducts(request);
@@ -124,16 +130,18 @@ export class ShopeeApiService {
   async getProductById(productId: string): Promise<ShopeeProduct | null> {
     try {
       console.log("🔍 Fetching product details for ID:", productId);
-      
+
       const product = await this.makeApiRequest<ShopeeProduct>(
-        `/api/v1/product/${productId}`
+        `/api/v1/product/${productId}`,
       );
-      
+
       console.log("✅ Successfully fetched product details");
       return product;
-      
     } catch (error) {
-      console.log("⚠️  Failed to fetch product details, using fallback:", error.message);
+      console.log(
+        "⚠️  Failed to fetch product details, using fallback:",
+        error.message,
+      );
       return this.getMockProductById(productId);
     }
   }
@@ -141,31 +149,38 @@ export class ShopeeApiService {
   async generateAffiliateLink(
     productId: string,
     campaignId?: string,
-    subId?: string
+    subId?: string,
   ): Promise<string> {
     try {
       console.log("🔗 Generating affiliate link for product:", productId);
-      
-      const response = await this.makeApiRequest<{ affiliateLink: string }>(`/api/v1/affiliate/link`, {
-        productId,
-        campaignId,
-        subId,
-        channel: "website",
-        version: "v1"
-      });
-      
+
+      const response = await this.makeApiRequest<{ affiliateLink: string }>(
+        `/api/v1/affiliate/link`,
+        {
+          productId,
+          campaignId,
+          subId,
+          channel: "website",
+          version: "v1",
+        },
+      );
+
       console.log("✅ Affiliate link generated successfully");
       return response.affiliateLink;
-      
     } catch (error) {
-      console.log("⚠️  Failed to generate affiliate link, using fallback:", error.message);
+      console.log(
+        "⚠️  Failed to generate affiliate link, using fallback:",
+        error.message,
+      );
       return this.generateFallbackAffiliateLink(productId, campaignId, subId);
     }
   }
 
   async validateApiCredentials(): Promise<boolean> {
     try {
-      const response = await this.makeApiRequest<{ valid: boolean }>("/api/v1/auth/validate");
+      const response = await this.makeApiRequest<{ valid: boolean }>(
+        "/api/v1/auth/validate",
+      );
       return response.valid;
     } catch (error) {
       console.log("❌ API credentials validation failed:", error.message);
@@ -173,40 +188,47 @@ export class ShopeeApiService {
     }
   }
 
-  private async makeApiRequest<T>(endpoint: string, params: any = {}): Promise<T> {
+  private async makeApiRequest<T>(
+    endpoint: string,
+    params: any = {},
+  ): Promise<T> {
     const url = `${this.config.baseUrl}${endpoint}`;
     const headers = {
       "Content-Type": "application/json",
       "User-Agent": this.USER_AGENT,
-      "Authorization": `Bearer ${this.config.accessToken}`,
+      Authorization: `Bearer ${this.config.accessToken}`,
       "X-API-Key": this.config.clientId,
-      "X-Channel": "wemedia"
+      "X-Channel": "wemedia",
     };
 
     const body = JSON.stringify(params);
-    
+
     // Simulate API call (replace with actual fetch in real implementation)
     console.log("🌐 Making API request to:", url);
-    
+
     // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // For now, return mock response
     // In real implementation, this would be:
     // const response = await fetch(url, { method: 'POST', headers, body });
     // return await response.json();
-    
-    throw new Error("API integration pending - Shopee Open API approval needed");
+
+    throw new Error(
+      "API integration pending - Shopee Open API approval needed",
+    );
   }
 
-  private getMockProducts(request: ShopeeProductRequest): ShopeeProductResponse {
+  private getMockProducts(
+    request: ShopeeProductRequest,
+  ): ShopeeProductResponse {
     console.log("📋 Using mock Shopee data (API integration pending)");
-    
+
     const mockProducts: ShopeeProduct[] = [
       {
         id: "shopeemock001",
         itemId: "ITEM123456789",
-        name: `Trending Product ${request.keyword || 'Electronics'} A`,
+        name: `Trending Product ${request.keyword || "Electronics"} A`,
         description: "High-quality product from Shopee marketplace",
         price: 99.99,
         originalPrice: 149.99,
@@ -215,7 +237,7 @@ export class ShopeeApiService {
         imageUrls: [
           "https://example.com/shopee-product-1.jpg",
           "https://example.com/shopee-product-1-2.jpg",
-          "https://example.com/shopee-product-1-3.jpg"
+          "https://example.com/shopee-product-1-3.jpg",
         ],
         category: "electronics",
         brand: "PopularBrand",
@@ -230,12 +252,12 @@ export class ShopeeApiService {
         affiliateLink: "https://shopee.co/1234567890?sub_id=racun_dapur_ibu",
         cpaLink: "https://shopee.co/1234567890?cpa=1",
         campaignId: "CAMPAIGN_DU123",
-        expirationDate: "2024-12-31"
+        expirationDate: "2024-12-31",
       },
       {
         id: "shopeemock002",
         itemId: "ITEM987654321",
-        name: `Best Deal ${request.keyword || 'Home'} B`,
+        name: `Best Deal ${request.keyword || "Home"} B`,
         description: "Amazing value proposition for Shopee shoppers",
         price: 49.99,
         originalPrice: 79.99,
@@ -243,7 +265,7 @@ export class ShopeeApiService {
         thumbnailUrl: "https://example.com/shopee-product-2.jpg",
         imageUrls: [
           "https://example.com/shopee-product-2.jpg",
-          "https://example.com/shopee-product-2-2.jpg"
+          "https://example.com/shopee-product-2-2.jpg",
         ],
         category: "home",
         brand: "ValueBrand",
@@ -258,12 +280,12 @@ export class ShopeeApiService {
         affiliateLink: "https://shopee.co/0987654321?sub_id=racun_dapur_ibu",
         cpaLink: "https://shopee.co/0987654321?cpa=1",
         campaignId: "CAMPAIGN_HO123",
-        expirationDate: "2024-11-30"
+        expirationDate: "2024-11-30",
       },
       {
         id: "shopeemock003",
         itemId: "ITEM555555555",
-        name: `Premium ${request.keyword || 'Beauty'} C`,
+        name: `Premium ${request.keyword || "Beauty"} C`,
         description: "Luxury item for discerning shoppers",
         price: 199.99,
         originalPrice: 299.99,
@@ -273,7 +295,7 @@ export class ShopeeApiService {
           "https://example.com/shopee-product-3.jpg",
           "https://example.com/shopee-product-3-2.jpg",
           "https://example.com/shopee-product-3-3.jpg",
-          "https://example.com/shopee-product-3-4.jpg"
+          "https://example.com/shopee-product-3-4.jpg",
         ],
         category: "beauty",
         brand: "PremiumBrand",
@@ -288,51 +310,58 @@ export class ShopeeApiService {
         affiliateLink: "https://shopee.co/5555555555?sub_id=racun_dapur_ibu",
         cpaLink: "https://shopee.co/5555555555?cpa=1",
         campaignId: "CAMPAIGN_BE456",
-        expirationDate: "2024-10-31"
-      }
+        expirationDate: "2024-10-31",
+      },
     ];
-    
+
     // Filter mock products based on request
     let filteredProducts = mockProducts;
-    
+
     if (request.keyword) {
-      filteredProducts = filteredProducts.filter(product =>
-        product.name.toLowerCase().includes(request.keyword.toLowerCase()) ||
-        product.description.toLowerCase().includes(request.keyword.toLowerCase())
+      filteredProducts = filteredProducts.filter(
+        (product) =>
+          product.name.toLowerCase().includes(request.keyword.toLowerCase()) ||
+          product.description
+            .toLowerCase()
+            .includes(request.keyword.toLowerCase()),
       );
     }
-    
+
     if (request.category) {
-      filteredProducts = filteredProducts.filter(product => product.category === request.category);
+      filteredProducts = filteredProducts.filter(
+        (product) => product.category === request.category,
+      );
     }
-    
+
     return {
       items: filteredProducts,
       pagination: {
         currentPage: request.page || 1,
-        totalPages: Math.ceil(filteredProducts.length / (request.pageSize || 10)),
+        totalPages: Math.ceil(
+          filteredProducts.length / (request.pageSize || 10),
+        ),
         totalItems: filteredProducts.length,
-        itemsPerPage: request.pageSize || 10
+        itemsPerPage: request.pageSize || 10,
       },
       filters: {
         sortBy: request.sortBy || "pop",
         sortOrder: "desc",
         category: request.category || "",
         minPrice: request.filter?.minPrice || 0,
-        maxPrice: request.filter?.maxPrice || 9999
-      }
+        maxPrice: request.filter?.maxPrice || 9999,
+      },
     };
   }
 
   private getMockProductById(productId: string): ShopeeProduct | null {
     const mockProducts = this.getMockProducts({ keyword: "" }).items;
-    return mockProducts.find(p => p.id === productId) || null;
+    return mockProducts.find((p) => p.id === productId) || null;
   }
 
   private generateFallbackAffiliateLink(
     productId: string,
     campaignId?: string,
-    subId?: string
+    subId?: string,
   ): string {
     const baseUrl = "https://shopeepartners.com/track";
     const params = new URLSearchParams();
@@ -340,12 +369,16 @@ export class ShopeeApiService {
     if (campaignId) params.set("campaign_id", campaignId);
     if (subId) params.set("sub_id", subId);
     params.set("source", "racun_dapur_ibu_bot");
-    
+
     return `${baseUrl}?${params.toString()}`;
   }
 
   isApiReady(): boolean {
-    return !!(this.config.clientId && this.config.clientSecret && this.config.accessToken);
+    return !!(
+      this.config.clientId &&
+      this.config.clientSecret &&
+      this.config.accessToken
+    );
   }
 
   getApiStatus(): string {
@@ -367,7 +400,7 @@ const shopeeApiService = new ShopeeApiService({
   clientId: "", // To be filled after Shopee API approval
   clientSecret: "", // To be filled after Shopee API approval
   accessToken: "", // To be obtained after authentication
-  refreshToken: ""
+  refreshToken: "",
 });
 
 export { shopeeApiService };
@@ -377,5 +410,5 @@ export type {
   ShopeeProductResponse,
   ShopeeProduct,
   ShopeeApiConfig,
-  ShopeeProductRequest
-} from this;
+  ShopeeProductRequest,
+};

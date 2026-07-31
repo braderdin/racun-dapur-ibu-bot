@@ -1,6 +1,6 @@
 "use client";
 
-import { CatalogProduct } from './supabase-catalog';
+import { CatalogProduct } from "./supabase-catalog";
 
 export interface CountdownTimer {
   days: number;
@@ -105,7 +105,7 @@ export class FlashSaleService {
 
         if (shopeeEnds && shopeeEnds > now && shopeeRemaining > 0) {
           flashSale.shopeePeakHourEnd = product.shopee_peak_hour_end;
-          flashSale.shoe peRemaining = shopeeRemaining;
+          flashSale.shopeeRemaining = shopeeRemaining;
           flashSale.currentPrice = product.shopee_peak_hour_current_price;
           flashSale.originalPrice = product.shopee_peak_hour_original_price;
           flashSale.discountPercentage = product.shopee_peak_hour_percent;
@@ -123,12 +123,21 @@ export class FlashSaleService {
     const now = new Date();
     let nearestEnd: string | null = null;
 
-    if (product.lazada_peak_hour_end && new Date(product.lazada_peak_hour_end) > now) {
+    if (
+      product.lazada_peak_hour_end &&
+      new Date(product.lazada_peak_hour_end) > now
+    ) {
       nearestEnd = product.lazada_peak_hour_end;
     }
 
-    if (product.shopee_peak_hour_end && new Date(product.shopee_peak_hour_end) > now) {
-      if (!nearestEnd || new Date(product.shopee_peak_hour_end) < new Date(nearestEnd)) {
+    if (
+      product.shopee_peak_hour_end &&
+      new Date(product.shopee_peak_hour_end) > now
+    ) {
+      if (
+        !nearestEnd ||
+        new Date(product.shopee_peak_hour_end) < new Date(nearestEnd)
+      ) {
         nearestEnd = product.shopee_peak_hour_end;
       }
     }
@@ -139,7 +148,7 @@ export class FlashSaleService {
   // 🔄 Format countdown for display
   formatCountdown(timer: CountdownTimer): string {
     if (timer.isExpired) {
-      return 'Selesai';
+      return "Selesai";
     }
 
     const parts: string[] = [];
@@ -155,7 +164,7 @@ export class FlashSaleService {
     parts.push(`${timer.minutes} min`);
     parts.push(`${timer.seconds} saat`);
 
-    return parts.join(' ');
+    return parts.join(" ");
   }
 
   // 📊 Calculate flash sale priority (for sorting)
@@ -187,7 +196,10 @@ export class FlashSaleService {
   }
 
   // 🔥 Filter flash sales by category
-  filterFlashSalesByCategory(flashSales: FlashSaleInfo[], category: string): FlashSaleInfo[] {
+  filterFlashSalesByCategory(
+    flashSales: FlashSaleInfo[],
+    category: string,
+  ): FlashSaleInfo[] {
     // This would need to be combined with product data
     // For now, returning all flash sales
     return flashSales;
@@ -195,12 +207,15 @@ export class FlashSaleService {
 
   // 📈 Sort flash sales by priority (high to low)
   sortFlashSalesByPriority(flashSales: FlashSaleInfo[]): FlashSaleInfo[] {
-    return flashSales.sort((a, b) => b.calculateFlashSalePriority(b) - a.calculateFlashSalePriority(a));
+    return flashSales.sort(
+      (a, b) =>
+        b.calculateFlashSalePriority(b) - a.calculateFlashSalePriority(a),
+    );
   }
 
   // 🔧 Debug and testing utilities
   debugFlashSale(flashSale: FlashSaleInfo): void {
-    console.log('🔥 Flash Sale Debug:', {
+    console.log("🔥 Flash Sale Debug:", {
       productId: flashSale.productId,
       lazadaEnd: flashSale.lazadaPeakHourEnd,
       shopeeEnd: flashSale.shopeePeakHourEnd,
@@ -208,7 +223,7 @@ export class FlashSaleService {
       originalPrice: flashSale.originalPrice,
       discountPercentage: flashSale.discountPercentage,
       remainingTime: this.calculateCountdown(
-        flashSale.lazadaPeakHourEnd || flashSale.shopeePeakHourEnd || undefined
+        flashSale.lazadaPeakHourEnd || flashSale.shopeePeakHourEnd || undefined,
       ),
     });
   }

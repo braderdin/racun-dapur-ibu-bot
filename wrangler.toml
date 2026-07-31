@@ -1,6 +1,6 @@
 name = "racun-dapur-ibu-bot"
 main = "src/index.ts"
-compatibility_date = "2024-07-25"
+compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
 # Production Configuration
@@ -19,8 +19,8 @@ X_ACCESS_TOKEN = "${X_ACCESS_TOKEN}"
 LAZADA_CLIENT_ID = "${LAZADA_CLIENT_ID}"
 LAZADA_CLIENT_SECRET = "${LAZADA_CLIENT_SECRET}"
 LAZADA_ACCESS_TOKEN = "${LAZADA_ACCESS_TOKEN}"
-SHOOEE_AFFILIATE_APP_ID = "${SHOOEE_AFFILIATE_APP_ID}"
-SHOOEE_AFFILIATE_SECRET = "${SHOOEE_AFFILIATE_SECRET}"
+SHOPEE_AFFILIATE_APP_ID = "${SHOPEE_AFFILIATE_APP_ID}"
+SHOPEE_AFFILIATE_SECRET = "${SHOPEE_AFFILIATE_SECRET}"
 BACKBLAZE_B2_ACCOUNT_ID_1 = "${BACKBLAZE_B2_ACCOUNT_ID_1}"
 BACKBLAZE_B2_ACCOUNT_KEY_1 = "${BACKBLAZE_B2_ACCOUNT_KEY_1}"
 BACKBLAZE_B2_ACCOUNT_ID_2 = "${BACKBLAZE_B2_ACCOUNT_ID_2}"
@@ -41,8 +41,6 @@ SHOPEE_AFFILIATE_API_BASE_URL = "${SHOPEE_AFFILIATE_API_BASE_URL}"
 [triggers]
 # Main bot cron - runs every 2 hours for health checks and metrics
 crons = ["0 */2 * * *"]
-# Hourly cleanup for temporary files and cache invalidation
-additional_crons = ["0 * * * *"]
 
 # Production variables
 [vars]

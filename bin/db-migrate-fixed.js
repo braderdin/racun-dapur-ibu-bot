@@ -11,9 +11,12 @@ import fs from "fs/promises";
 import path from "path";
 
 // Helper function to read DIRECT_URL from .dev.vars file
-async function getDirectUrlFromDevVars(): Promise<string> {
+async function getDirectUrlFromDevVars() {
   try {
-    const content = await fs.readFile(path.join(process.cwd(), ".dev.vars"), "utf8");
+    const content = await fs.readFile(
+      path.join(process.cwd(), ".dev.vars"),
+      "utf8",
+    );
     const lines = content.split("\n");
     for (const line of lines) {
       const trimmed = line.trim();
@@ -35,7 +38,8 @@ async function getDirectUrlFromDevVars(): Promise<string> {
 }
 
 // Environment variables - read-only access to .env.local/.dev.vars
-let DIRECT_URL = process.env.DIRECT_URL;
+let DIRECT_URL =
+  process.env.DATABASE_URL_DIRECT_UNPOOLED || process.env.DIRECT_URL;
 let SUPABASE_URL = process.env.SUPABASE_URL;
 let SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -45,9 +49,12 @@ async function loadEnvFromDevVars() {
     if (!DIRECT_URL || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       console.log("📄 Loading environment variables from .dev.vars file...");
       // Extract values from .dev.vars
-      const devVarsContent = await fs.readFile(path.join(process.cwd(), ".dev.vars"), "utf8");
+      const devVarsContent = await fs.readFile(
+        path.join(process.cwd(), ".dev.vars"),
+        "utf8",
+      );
       const lines = devVarsContent.split("\n");
-      
+
       for (const line of lines) {
         const trimmed = line.trim();
         if (trimmed && !trimmed.startsWith("#")) {
@@ -56,20 +63,25 @@ async function loadEnvFromDevVars() {
           if (match) {
             const varName = match[1];
             let varValue = match[2].trim();
-            
+
             // Remove surrounding quotes
-            if ((varValue.startsWith('"') && varValue.endsWith('"')) || 
-                (varValue.startsWith("'") && varValue.endsWith("'"))) {
+            if (
+              (varValue.startsWith('"') && varValue.endsWith('"')) ||
+              (varValue.startsWith("'") && varValue.endsWith("'"))
+            ) {
               varValue = varValue.slice(1, -1);
             }
-            
+
             // Set environment variable
             if (!process.env[varName]) {
               process.env[varName] = varValue;
             }
-            
+
             // Set local variables for the script
             switch (varName) {
+              case "DATABASE_URL_DIRECT_UNPOOLED":
+                DIRECT_URL = varValue;
+                break;
               case "DIRECT_URL":
                 DIRECT_URL = varValue;
                 break;
@@ -84,15 +96,26 @@ async function loadEnvFromDevVars() {
         }
       }
     }
-    
+
     // Validate required environment variables
     if (!DIRECT_URL) {
-      throw new Error("❌ DIRECT_URL environment variable is required (set in .env.local or .dev.vars)");
+      throw new Error(
+        "❌ DATABASE_URL_DIRECT_UNPOOLED environment variable is required (set in .env.local or .dev.vars)",
+      );
     }
-    
+
+    // Ensure pgbouncer=false is set for direct unpooled connection
+    if (!DIRECT_URL.includes("pgbouncer=false")) {
+      DIRECT_URL = DIRECT_URL.replace(/pgbouncer=true/, "pgbouncer=false");
+      if (!DIRECT_URL.includes("pgbouncer=")) {
+        DIRECT_URL = DIRECT_URL + "?pgbouncer=false";
+      }
+    }
+
     console.log("✅ Environment variables loaded successfully");
-    console.log("🔗 DIRECT_URL: " + DIRECT_URL.substring(0, 50) + "...");
-    
+    console.log(
+      "🔗 DATABASE_URL_DIRECT_UNPOOLED: " + DIRECT_URL.substring(0, 50) + "...",
+    );
   } catch (error) {
     console.error("❌ Failed to load environment variables:", error.message);
     throw error;
@@ -146,7 +169,7 @@ async function executeSqlFile(filePath) {
 
 async function main() {
   await loadEnvFromDevVars();
-  
+
   const migrationsDir = path.join(process.cwd(), "supabase", "migrations");
 
   try {

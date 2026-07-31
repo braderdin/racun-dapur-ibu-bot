@@ -669,7 +669,10 @@ export class CatalogService {
 
       // Also apply phrase matching as fallback/boost
       queryBuilder = queryBuilder.or(
-        `product_name.ilike.%${phrase}%`,` + `shopee_product_name.ilike.%${phrase}%`,` + `lazada_sku.ilike.%${phrase}%',' + `shopee_sku.ilike.%${phrase}%'`
+        `product_name.ilike.%${phrase}%`,
+        `shopee_product_name.ilike.%${phrase}%`,
+        `lazada_sku.ilike.%${phrase}%`,
+        `shopee_sku.ilike.%${phrase}%`,
       );
     }
 

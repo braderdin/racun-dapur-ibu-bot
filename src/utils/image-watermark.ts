@@ -8,9 +8,13 @@
  * All credentials read from environment variables — no hardcoded secrets.
  */
 
-import sharp from "sharp";
 import { CONSTANTS } from "../config/constants";
 import { logger } from "../utils/logger";
+
+// Lazy-load sharp to avoid bundling native .node binaries in Cloudflare Workers
+async function getSharp() {
+  return import("sharp");
+}
 
 // ---------------------------------------------------------------------------
 // Interfaces
@@ -158,10 +162,11 @@ export class ImageWatermarkService {
     );
 
     // Step 1: Read image metadata
-    const metadata = await sharp(inputBuffer).metadata();
+    const sharpLib = await getSharp();
+    const metadata = await sharpLib(inputBuffer).metadata();
 
     // Step 2: Resize if needed (maintain aspect ratio)
-    let pipeline = sharp(inputBuffer);
+    let pipeline = sharpLib(inputBuffer);
 
     if (metadata.width && metadata.width > opts.maxWidth) {
       pipeline = pipeline.resize({
@@ -227,10 +232,10 @@ export class ImageWatermarkService {
   // -----------------------------------------------------------------------
 
   private async applyWatermark(
-    pipeline: sharp.Sharp,
-    metadata: sharp.Metadata,
+    pipeline: any,
+    metadata: any,
     opts: Required<WatermarkOptions>,
-  ): Promise<sharp.Sharp> {
+  ): Promise<any> {
     const svg = this.generateWatermarkSvg(metadata, opts);
     const svgBuffer = Buffer.from(svg);
 
@@ -247,10 +252,10 @@ export class ImageWatermarkService {
   // -----------------------------------------------------------------------
 
   private async applyBadgeOverlay(
-    pipeline: sharp.Sharp,
-    metadata: sharp.Metadata,
+    pipeline: any,
+    metadata: any,
     opts: Required<WatermarkOptions>,
-  ): Promise<sharp.Sharp> {
+  ): Promise<any> {
     const position = opts.badgePosition || "top-right";
     const style = BADGE_STYLES[position];
     const width = metadata.width || 800;
@@ -305,7 +310,7 @@ export class ImageWatermarkService {
   // -----------------------------------------------------------------------
 
   private generateWatermarkSvg(
-    metadata: sharp.Metadata,
+    metadata: any,
     opts: Required<WatermarkOptions>,
   ): string {
     const width = metadata.width || 800;
@@ -352,10 +357,10 @@ export class ImageWatermarkService {
   // -----------------------------------------------------------------------
 
   private applyOutputFormat(
-    pipeline: sharp.Sharp,
+    pipeline: any,
     format: string,
     opts: Required<WatermarkOptions>,
-  ): sharp.Sharp {
+  ): any {
     switch (format) {
       case "webp":
         return pipeline.webp({

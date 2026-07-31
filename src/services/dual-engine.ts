@@ -51,7 +51,7 @@ export interface RotationSchedule {
   totalSlots: number;
   rotationType: "strict_50_50" | "balanced" | "priority_based";
   nextRotationAt: Date;
-  dealsToday: { lazada: number; shopee: number; };
+  dealsToday: { lazada: number; shopee: number };
 }
 
 export class DualEngineRotationManager {
@@ -64,11 +64,11 @@ export class DualEngineRotationManager {
   constructor(
     shopeeService: ShopeeApiService,
     redisService: RedisService,
-    config: Partial<RotationConfig> = {}
+    config: Partial<RotationConfig> = {},
   ) {
     this.shopeeService = shopeeService;
     this.redisService = redisService;
-    
+
     this.config = {
       rotationIntervalHours: 24,
       ensure_50_50_balance: true,
@@ -76,9 +76,9 @@ export class DualEngineRotationManager {
       api_timeout_seconds: 30,
       max_retry_attempts: 3,
       enable_circuit_breaker: true,
-      ...config
+      ...config,
     };
-    
+
     this.platformStatus = new Map();
     this.platformStatus.set("lazada", {
       platform: "lazada",
@@ -87,9 +87,9 @@ export class DualEngineRotationManager {
       successRate: 1.0,
       lastChecked: new Date(),
       errorCount: 0,
-      healthy: true
+      healthy: true,
     });
-    
+
     this.platformStatus.set("shopee", {
       platform: "shopee",
       available: true,
@@ -97,63 +97,101 @@ export class DualEngineRotationManager {
       successRate: 1.0,
       lastChecked: new Date(),
       errorCount: 0,
-      healthy: true
+      healthy: true,
     });
-    
+
     this.rotationSchedule = this.initializeRotationSchedule();
-    
+
     console.log("🔄 DualEngineRotationManager initialized");
   }
 
   private initializeRotationSchedule(): RotationSchedule {
     const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-    const hoursPassed = Math.floor((now.getTime() - startOfDay.getTime()) / (1000 * 60 * 60));
-    
+    const startOfDay = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      0,
+      0,
+      0,
+    );
+    const hoursPassed = Math.floor(
+      (now.getTime() - startOfDay.getTime()) / (1000 * 60 * 60),
+    );
+
     const totalSlots = this.config.rotationIntervalHours * 2; // 2 slots per hour (1 hour each)
     const currentSlot = Math.min(hoursPassed * 2, totalSlots - 1);
-    
+
     return {
       currentSlot,
       totalSlots,
       rotationType: "strict_50_50",
-      nextRotationAt: new Date(startOfDay.getTime() + (currentSlot + 1) * 3600000),
-      dealsToday: { lazada: 0, shopee: 0 }
+      nextRotationAt: new Date(
+        startOfDay.getTime() + (currentSlot + 1) * 3600000,
+      ),
+      dealsToday: { lazada: 0, shopee: 0 },
     };
   }
 
   async executeDealsCuration(): Promise<Deal[]> {
     try {
-      console.log("🔄 Executing deals curation...")
-      console.log("⏰ Current slot:", this.rotationSchedule.currentSlot, "/", this.rotationSchedule.totalSlots);
-      
+      console.log("🔄 Executing deals curation...");
+      console.log(
+        "⏰ Current slot:",
+        this.rotationSchedule.currentSlot,
+        "/",
+        this.rotationSchedule.totalSlots,
+      );
+
       // Determine which platform to prioritize based on current slot
       const targetPlatform = this.getTargetPlatformForCurrentSlot();
       console.log("🎯 Target platform for this slot:", targetPlatform);
-      
+
       // Get deals from target platform
       const targetDeals = await this.getDealsFromPlatform(targetPlatform);
-      console.log("✅ Retrieved", targetDeals.length, "deals from", targetPlatform);
-      
+      console.log(
+        "✅ Retrieved",
+        targetDeals.length,
+        "deals from",
+        targetPlatform,
+      );
+
       // Get deals from alternative platform
-      const alternativePlatform: "lazada" | "shopee" = targetPlatform === "lazada" ? "shopee" : "lazada";
-      const alternativeDeals = await this.getDealsFromPlatform(alternativePlatform);
-      console.log("✅ Retrieved", alternativeDeals.length, "deals from", alternativePlatform);
-      
+      const alternativePlatform: "lazada" | "shopee" =
+        targetPlatform === "lazada" ? "shopee" : "lazada";
+      const alternativeDeals =
+        await this.getDealsFromPlatform(alternativePlatform);
+      console.log(
+        "✅ Retrieved",
+        alternativeDeals.length,
+        "deals from",
+        alternativePlatform,
+      );
+
       // Balance the deals to maintain 50/50 ratio
-      const balancedDeals = this.balanceDealAllocation(targetDeals, alternativeDeals);
-      
+      const balancedDeals = this.balanceDealAllocation(
+        targetDeals,
+        alternativeDeals,
+      );
+
       // Update rotation schedule
-      this.rotationSchedule.dealsToday[targetPlatform] += Math.ceil(balancedDeals.length / 2);
-      this.rotationSchedule.currentSlot = (this.rotationSchedule.currentSlot + 1) % this.rotationSchedule.totalSlots;
+      this.rotationSchedule.dealsToday[targetPlatform] += Math.ceil(
+        balancedDeals.length / 2,
+      );
+      this.rotationSchedule.currentSlot =
+        (this.rotationSchedule.currentSlot + 1) %
+        this.rotationSchedule.totalSlots;
       this.rotationSchedule.nextRotationAt = new Date(Date.now() + 3600000); // Next rotation in 1 hour
-      
+
       // Save rotation state to Redis
       await this.saveRotationState();
-      
-      console.log("✅ Deals curation completed:", balancedDeals.length, "total deals");
+
+      console.log(
+        "✅ Deals curation completed:",
+        balancedDeals.length,
+        "total deals",
+      );
       return balancedDeals;
-      
     } catch (error) {
       console.error("❌ Deals curation failed:", error.message);
       throw error;
@@ -162,7 +200,7 @@ export class DualEngineRotationManager {
 
   private getTargetPlatformForCurrentSlot(): "lazada" | "shopee" {
     const isEvenSlot = this.rotationSchedule.currentSlot % 2 === 0;
-    
+
     if (this.config.rotationType === "strict_50_50") {
       return isEvenSlot ? "lazada" : "shopee";
     } else if (this.config.rotationType === "priority_based") {
@@ -172,31 +210,35 @@ export class DualEngineRotationManager {
     }
   }
 
-  private async getDealsFromPlatform(platform: "lazada" | "shopee"): Promise<Deal[]> {
+  private async getDealsFromPlatform(
+    platform: "lazada" | "shopee",
+  ): Promise<Deal[]> {
     const startTime = Date.now();
-    
+
     try {
       let deals: Deal[] = [];
-      
+
       if (platform === "shopee") {
         // Get Shopee products and convert to Deal format
         const shopeeProducts = await this.shopeeService.fetchTrendingProducts({
           keyword: "",
           page: 1,
           pageSize: 20,
-          sortBy: "pop"
+          sortBy: "pop",
         });
-        
-        deals = shopeeProducts.items.map(product => this.convertShopeeProductToDeal(product));
+
+        deals = shopeeProducts.items.map((product) =>
+          this.convertShopeeProductToDeal(product),
+        );
       } else {
         // Lazada integration would go here
         // For now, simulate with mock data
         deals = this.getMockLazadaDeals();
       }
-      
+
       const endTime = Date.now();
       const responseTime = endTime - startTime;
-      
+
       // Update platform status
       const status = this.platformStatus.get(platform);
       if (status) {
@@ -206,11 +248,12 @@ export class DualEngineRotationManager {
         status.errorCount = 0;
         this.platformStatus.set(platform, status);
       }
-      
-      console.log(`✅ ${platform} API responded in ${responseTime}ms, returned ${deals.length} deals`);
-      
+
+      console.log(
+        `✅ ${platform} API responded in ${responseTime}ms, returned ${deals.length} deals`,
+      );
+
       return deals;
-      
     } catch (error) {
       // Update platform status with error
       const status = this.platformStatus.get(platform);
@@ -218,38 +261,53 @@ export class DualEngineRotationManager {
         status.errorCount++;
         status.lastChecked = new Date();
         status.healthy = false;
-        status.successRate = status.successRate * (status.errorCount - 1) / status.errorCount;
+        status.successRate =
+          (status.successRate * (status.errorCount - 1)) / status.errorCount;
         this.platformStatus.set(platform, status);
       }
-      
+
       console.log(`❌ ${platform} API failed:`, error.message);
-      
+
       // Return empty array for now
       return [];
     }
   }
 
-  private balanceDealAllocation(targetDeals: Deal[], alternativeDeals: Deal[]): Deal[] {
-    const targetCount = Math.max(1, Math.floor((targetDeals.length + alternativeDeals.length) / 2));
-    const alternativeCount = Math.max(1, Math.floor((targetDeals.length + alternativeDeals.length) / 2));
-    
+  private balanceDealAllocation(
+    targetDeals: Deal[],
+    alternativeDeals: Deal[],
+  ): Deal[] {
+    const targetCount = Math.max(
+      1,
+      Math.floor((targetDeals.length + alternativeDeals.length) / 2),
+    );
+    const alternativeCount = Math.max(
+      1,
+      Math.floor((targetDeals.length + alternativeDeals.length) / 2),
+    );
+
     // Take up to targetCount from target platform
     const selectedTargetDeals = targetDeals.slice(0, targetCount);
-    
-    // Take up to alternativeCount from alternative platform  
-    const selectedAlternativeDeals = alternativeDeals.slice(0, alternativeCount);
-    
+
+    // Take up to alternativeCount from alternative platform
+    const selectedAlternativeDeals = alternativeDeals.slice(
+      0,
+      alternativeCount,
+    );
+
     // Combine and shuffle
     const allDeals = [...selectedTargetDeals, ...selectedAlternativeDeals];
-    
+
     // Shuffle to mix platforms
     for (let i = allDeals.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [allDeals[i], allDeals[j]] = [allDeals[j], allDeals[i]];
     }
-    
-    console.log(`🎯 Balanced allocation: ${selectedTargetDeals.length} from target (${targetDeals[0]?.platform || 'N/A'}), ${selectedAlternativeDeals.length} from alternative`);
-    
+
+    console.log(
+      `🎯 Balanced allocation: ${selectedTargetDeals.length} from target (${targetDeals[0]?.platform || "N/A"}), ${selectedAlternativeDeals.length} from alternative`,
+    );
+
     return allDeals;
   }
 
@@ -269,7 +327,7 @@ export class DualEngineRotationManager {
       rating: product.rating,
       seller: "Shopee Seller",
       stock: product.stock,
-      createdAt: new Date()
+      createdAt: new Date(),
     };
   }
 
@@ -291,10 +349,10 @@ export class DualEngineRotationManager {
         rating: 4.3,
         seller: "Lazada Official",
         stock: 150,
-        createdAt: new Date()
+        createdAt: new Date(),
       },
       {
-        id: "lazada_mock_002", 
+        id: "lazada_mock_002",
         title: "Home & Living Item B",
         description: "Beautiful home and living item from Lazada",
         price: 39.99,
@@ -308,8 +366,8 @@ export class DualEngineRotationManager {
         rating: 4.7,
         seller: "Lazada Merchant",
         stock: 75,
-        createdAt: new Date()
-      }
+        createdAt: new Date(),
+      },
     ];
   }
 
@@ -321,17 +379,16 @@ export class DualEngineRotationManager {
         rotationType: this.rotationSchedule.rotationType,
         nextRotationAt: this.rotationSchedule.nextRotationAt.toISOString(),
         dealsToday: this.rotationSchedule.dealsToday,
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString(),
       };
-      
+
       await this.redisService.set(
         `dual_engine_rotation:state`,
         JSON.stringify(state),
-        3600 // 1 hour TTL
+        3600, // 1 hour TTL
       );
-      
+
       console.log("💾 Rotation state saved to Redis");
-      
     } catch (error) {
       console.error("❌ Failed to save rotation state:", error.message);
     }
@@ -339,8 +396,10 @@ export class DualEngineRotationManager {
 
   async loadRotationState(): Promise<void> {
     try {
-      const stateStr = await this.redisService.get(`dual_engine_rotation:state`);
-      
+      const stateStr = await this.redisService.get(
+        `dual_engine_rotation:state`,
+      );
+
       if (stateStr) {
         const state = JSON.parse(stateStr);
         this.rotationSchedule = {
@@ -349,12 +408,11 @@ export class DualEngineRotationManager {
           totalSlots: state.totalSlots,
           rotationType: state.rotationType,
           nextRotationAt: new Date(state.nextRotationAt),
-          dealsToday: state.dealsToday
+          dealsToday: state.dealsToday,
         };
-        
+
         console.log("📥 Rotation state loaded from Redis");
       }
-      
     } catch (error) {
       console.error("❌ Failed to load rotation state:", error.message);
       // Initialize with default schedule if loading fails
@@ -374,25 +432,33 @@ export class DualEngineRotationManager {
     for (const [platform] of this.platformStatus) {
       try {
         console.log(`🔍 Checking health of ${platform} platform...`);
-        
+
         // Simple health check
         const startTime = Date.now();
-        const healthy = platform === "shopee" ? await this.shopeeService.validateApiCredentials() : true;
+        const healthy =
+          platform === "shopee"
+            ? await this.shopeeService.validateApiCredentials()
+            : true;
         const responseTime = Date.now() - startTime;
-        
+
         const status = this.platformStatus.get(platform);
         if (status) {
           status.responseTime = responseTime;
           status.lastChecked = new Date();
-          status.healthy = healthy && responseTime < this.config.api_timeout_seconds * 1000;
+          status.healthy =
+            healthy && responseTime < this.config.api_timeout_seconds * 1000;
           this.platformStatus.set(platform, status);
         }
-        
-        console.log(`✅ ${platform} platform health: ${status?.healthy ? 'HEALTHY' : 'UNHEALTHY'} (${responseTime}ms)`);
-        
+
+        console.log(
+          `✅ ${platform} platform health: ${status?.healthy ? "HEALTHY" : "UNHEALTHY"} (${responseTime}ms)`,
+        );
       } catch (error) {
-        console.error(`❌ ${platform} platform health check failed:`, error.message);
-        
+        console.error(
+          `❌ ${platform} platform health check failed:`,
+          error.message,
+        );
+
         const status = this.platformStatus.get(platform);
         if (status) {
           status.errorCount++;
@@ -412,24 +478,19 @@ export class DualEngineRotationManager {
 
 // Create a singleton instance
 const dualEngineRotationManager = new DualEngineRotationManager(
-  require('./shopee').shopeeApiService,
-  require('./redis').redisService,
+  require("./shopee").shopeeApiService,
+  require("./redis").redisService,
   {
     rotationIntervalHours: 24,
     ensure_50_50_balance: true,
     prefer_platform: "balanced",
     api_timeout_seconds: 30,
     max_retry_attempts: 3,
-    enable_circuit_breaker: true
-  }
+    enable_circuit_breaker: true,
+  },
 );
 
 export { dualEngineRotationManager };
 
-// Export types for convenience
-export type {
-  Deal,
-  RotationConfig,
-  PlatformStatus,
-  RotationSchedule
-} from this;
+// Re-export types for convenience
+export type { Deal, RotationConfig, PlatformStatus, RotationSchedule };

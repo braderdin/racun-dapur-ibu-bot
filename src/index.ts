@@ -12,7 +12,6 @@ import { ShopeeApiService } from "./services/shopee";
 import { SupabaseService } from "./services/supabase";
 import { AIFallbackEngine } from "./services/ai-fallback";
 import { EdgeAnalyticsService } from "./services/analytics";
-import { ImageProcessor } from "./utils/image-processor";
 import { B2StorageService } from "./services/b2-storage";
 
 // Initialize services
@@ -40,11 +39,20 @@ const edgeAnalyticsService = new EdgeAnalyticsService(
   redisService,
   supabaseService,
 );
-const imageProcessor = new ImageProcessor({
-  convertToWebP: true,
-  quality: 0.85,
-  maxSizeMB: 10,
-});
+
+// Lazy-load ImageProcessor only when image processing is needed
+let imageProcessor: any = null;
+async function getImageProcessor() {
+  if (!imageProcessor) {
+    const { ImageProcessor } = await import("./utils/image-processor");
+    imageProcessor = new ImageProcessor({
+      convertToWebP: true,
+      quality: 0.85,
+      maxSizeMB: 10,
+    });
+  }
+  return imageProcessor;
+}
 
 if (typeof CONSTANTS === "undefined") {
   console.log(

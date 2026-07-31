@@ -50,7 +50,14 @@ export class ImageProcessor {
     let metadata: any;
     try {
       // We'll add sharp later after type checking is resolved
-      const sharp = require("sharp");
+      let sharp: any;
+      try {
+        sharp = await import("sharp");
+      } catch {
+        throw new Error(
+          "Sharp image processing is not available in this environment",
+        );
+      }
       metadata = await sharp(inputBuffer).metadata();
     } catch (error) {
       throw new Error(`Failed to read image metadata: ${error.message}`);
@@ -75,7 +82,14 @@ export class ImageProcessor {
     // Process with Sharp
     let sharpImage: any;
     try {
-      const sharp = require("sharp");
+      let sharp: any;
+      try {
+        sharp = await import("sharp");
+      } catch {
+        throw new Error(
+          "Sharp image processing is not available in this environment",
+        );
+      }
       sharpImage = sharp(inputBuffer);
     } catch (error) {
       throw new Error(`Failed to initialize Sharp: ${error.message}`);
@@ -90,7 +104,14 @@ export class ImageProcessor {
     // If convertToWebP is true, convert to WebP
     if (opts.convertToWebP) {
       try {
-        const sharp = require("sharp");
+        let sharp: any;
+        try {
+          sharp = await import("sharp");
+        } catch {
+          throw new Error(
+            "Sharp image processing is not available in this environment",
+          );
+        }
         const webpBuffer = await sharpImage
           .webp({ quality: opts.quality, effort: 6 })
           .toBuffer();
@@ -132,7 +153,14 @@ export class ImageProcessor {
     imageBuffer: ArrayBuffer,
   ): Promise<{ valid: boolean; format: string }> {
     try {
-      const sharp = require("sharp");
+      let sharp: any;
+      try {
+        sharp = await import("sharp");
+      } catch {
+        throw new Error(
+          "Sharp image processing is not available in this environment",
+        );
+      }
       const metadata = await sharp(imageBuffer).metadata();
       return {
         valid: !!metadata.width && !!metadata.height,
@@ -197,7 +225,14 @@ export class ImageProcessor {
     quality: number = 0.85,
   ): Promise<ArrayBuffer> {
     try {
-      const sharp = require("sharp");
+      let sharp: any;
+      try {
+        sharp = await import("sharp");
+      } catch {
+        throw new Error(
+          "Sharp image processing is not available in this environment",
+        );
+      }
       const compressedBuffer = await sharp(imageBuffer)
         .webp({ quality, effort: 6 })
         .toBuffer();
