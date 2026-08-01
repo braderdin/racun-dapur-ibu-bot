@@ -38,7 +38,7 @@ export class ShortlinkRouter {
   private routes: Map<string, ShortlinkRoute>;
   private clickTracker: ClickTracker;
 
-  constructor(env: ENV) {
+  constructor(env: Env) {
     this.routes = new Map();
     this.clickTracker = new ClickTracker(env);
 
@@ -396,9 +396,9 @@ export class ShortlinkRouter {
 }
 
 class ClickTracker {
-  private env: ENV;
+  private env: Env;
 
-  constructor(env: ENV) {
+  constructor(env: Env) {
     this.env = env;
   }
 

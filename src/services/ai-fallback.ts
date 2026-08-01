@@ -215,6 +215,8 @@ class MockOpenRouterService implements OpenRouterService {
     return {
       ...copy,
       platform: product.platform || "lazada",
+      confidence: 1.0,
+      fallbackChainUsed: "none",
     };
   }
 

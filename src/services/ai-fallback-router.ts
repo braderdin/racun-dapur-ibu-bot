@@ -85,6 +85,10 @@ export class AIFallbackRouter {
     lastUpdated: Date;
   };
 
+  private openRouterService: OpenRouterService;
+  private geminiService: GeminiServiceWrapper;
+  private heuristicService: HeuristicRuleEngineWrapper;
+
   constructor(config?: Partial<RouterConfig>) {
     this.config = {
       preferTier1: true,
@@ -133,6 +137,8 @@ export class AIFallbackRouter {
 
     // Initialize service wrappers
     this.openRouterService = new OpenRouterService();
+    this.geminiService = new GeminiServiceWrapper();
+    this.heuristicService = new HeuristicRuleEngineWrapper();
 
     console.log(
       "🚀 AIFallbackRouter initialized with 3-tier fallback strategy",
@@ -147,7 +153,8 @@ export class AIFallbackRouter {
   }
 
   private openRouterService: OpenRouterService;
-
+  private geminiService: GeminiServiceWrapper;
+  private heuristicService: HeuristicRuleEngineWrapper;
 
   /**
    * Phase 6: Enqueue request for 24/7 autonomous processing.
@@ -752,7 +759,7 @@ ${product.category === "beauty" ? "Transform your appearance today" : product.ca
       cta: ctas[Math.floor(Math.random() * ctas.length)],
       hashtags: hashtags,
       threadTarget: "single-tweet",
-      platform: "balanced",
+      platform: product.platform || "shopee",
       confidence: 0.6,
       fallbackChainUsed: "tier-3",
     };

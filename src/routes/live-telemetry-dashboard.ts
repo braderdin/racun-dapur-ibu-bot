@@ -9,9 +9,9 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { B2StorageSwitcher } from "../../services/b2-storage-switcher";
-import { EdgeCacheShortlinkService } from "../../services/edge-cache-shortlink";
-import { Env } from "../../types/env";
+import { B2StorageSwitcher } from "../services/b2-storage-switcher";
+import { EdgeCacheShortlinkService } from "../services/edge-cache-shortlink";
+import { Env } from "../types/env";
 
 // API key authentication
 function verifyApiKey(request: Request): boolean {
