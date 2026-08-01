@@ -70,12 +70,12 @@ export class FacebookService {
   private readonly graphApiBaseUrl = "https://graph.facebook.com/v19.0";
   private readonly timeoutMs = 15000;
 
-  constructor(env: Env) {
-    this.env = env;
+  constructor(env?: Env) {
+    this.env = env || {} as Env;
     logger.info(
       "Facebook Service initialized",
       {
-        hasAccessToken: !!env.FACEBOOK_PAGE_ACCESS_TOKEN,
+        hasAccessToken: !!env?.FACEBOOK_PAGE_ACCESS_TOKEN,
       },
       "FacebookService",
     );

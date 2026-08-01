@@ -238,6 +238,14 @@ export class B2StorageService {
       errors,
     };
   }
+
+  async healthCheck(): Promise<{ status: string; details: string; timestamp: string }> {
+    return {
+      status: this.config.length > 0 ? "healthy" : "unhealthy",
+      details: `B2 storage service operational with ${this.config.length} accounts`,
+      timestamp: new Date().toISOString(),
+    };
+  }
 }
 
 // Create a singleton instance

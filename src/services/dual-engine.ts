@@ -495,6 +495,3 @@ const dualEngineRotationManager = new DualEngineRotationManager(
 );
 
 export { dualEngineRotationManager };
-
-// Re-export types for convenience
-export type { Deal, RotationConfig, PlatformStatus, RotationSchedule };

@@ -8,10 +8,10 @@ export class SupabaseService {
   private serviceKey: string;
   private anonKey: string;
 
-  constructor(env: Env) {
-    this.url = env.SUPABASE_URL || "";
-    this.serviceKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
-    this.anonKey = env.SUPABASE_ANON_KEY || "";
+  constructor(env?: Env) {
+    this.url = env?.SUPABASE_URL || "";
+    this.serviceKey = env?.SUPABASE_SERVICE_ROLE_KEY || "";
+    this.anonKey = env?.SUPABASE_ANON_KEY || "";
 
     // Validasi konfigurasi
     if (!this.url || !this.serviceKey) {
@@ -329,6 +329,178 @@ export class SupabaseService {
         "SupabaseService",
       );
       return [];
+    }
+  }
+
+  // Analytics methods for EdgeAnalyticsService
+  async logClickEvent(clickData: any): Promise<void> {
+    try {
+      if (!this.url || !this.serviceKey) return;
+
+      const response = await fetch(`${this.url}/rest/v1/link_clicks`, {
+        method: "POST",
+        headers: {
+          apikey: this.serviceKey,
+          Authorization: `Bearer ${this.serviceKey}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify(clickData),
+      });
+
+      if (!response.ok) {
+        console.error("Supabase logClickEvent error:", await response.text());
+      }
+    } catch (error) {
+      logger.error("Error logging click event to Supabase:", { error }, "SupabaseService");
+    }
+  }
+
+  async getClicks(options: any = {}): Promise<any[]> {
+    try {
+      if (!this.url) return [];
+
+      let query = "/rest/v1/link_clicks?select=*";
+      if (options.startDate) query += `&created_at=gte.${options.startDate}`;
+      if (options.endDate) query += `&created_at=lte.${options.endDate}`;
+      if (options.shortCode) query += `&short_code=eq.${options.shortCode}`;
+      if (options.limit) query += `&limit=${options.limit}`;
+      if (options.offset) query += `&offset=${options.offset}`;
+      query += "&order=created_at.desc";
+
+      const response = await fetch(`${this.url}${query}`, {
+        method: "GET",
+        headers: {
+          apikey: this.serviceKey,
+          Authorization: `Bearer ${this.serviceKey}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Supabase API error: ${response.statusText}`);
+      }
+
+      const data = (await response.json()) as any[];
+      return data;
+    } catch (error) {
+      logger.error("Error fetching clicks from Supabase:", { error }, "SupabaseService");
+      return [];
+    }
+  }
+
+  async getCampaignReports(options: any = {}): Promise<any[]> {
+    try {
+      if (!this.url) return [];
+
+      let query = "/rest/v1/campaign_reports?select=*";
+      if (options.startDate) query += `&created_at=gte.${options.startDate}`;
+      if (options.endDate) query += `&created_at=lte.${options.endDate}`;
+      if (options.limit) query += `&limit=${options.limit}`;
+      query += "&order=created_at.desc";
+
+      const response = await fetch(`${this.url}${query}`, {
+        method: "GET",
+        headers: {
+          apikey: this.serviceKey,
+          Authorization: `Bearer ${this.serviceKey}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Supabase API error: ${response.statusText}`);
+      }
+
+      const data = (await response.json()) as any[];
+      return data;
+    } catch (error) {
+      logger.error("Error fetching campaign reports from Supabase:", { error }, "SupabaseService");
+      return [];
+    }
+  }
+
+  async getPopularLinks(options: any = {}): Promise<any[]> {
+    try {
+      if (!this.url) return [];
+
+      let query = "/rest/v1/popular_links?select=*";
+      if (options.limit) query += `&limit=${options.limit}`;
+      query += "&order=clicks.desc";
+
+      const response = await fetch(`${this.url}${query}`, {
+        method: "GET",
+        headers: {
+          apikey: this.serviceKey,
+          Authorization: `Bearer ${this.serviceKey}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Supabase API error: ${response.statusText}`);
+      }
+
+      const data = (await response.json()) as any[];
+      return data;
+    } catch (error) {
+      logger.error("Error fetching popular links from Supabase:", { error }, "SupabaseService");
+      return [];
+    }
+  }
+
+  async getGeographicDistribution(options: any = {}): Promise<any[]> {
+    try {
+      if (!this.url) return [];
+
+      let query = "/rest/v1/geographic_distribution?select=*";
+      if (options.startDate) query += `&created_at=gte.${options.startDate}`;
+      if (options.endDate) query += `&created_at=lte.${options.endDate}`;
+      if (options.limit) query += `&limit=${options.limit}`;
+      query += "&order=clicks.desc";
+
+      const response = await fetch(`${this.url}${query}`, {
+        method: "GET",
+        headers: {
+          apikey: this.serviceKey,
+          Authorization: `Bearer ${this.serviceKey}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Supabase API error: ${response.statusText}`);
+      }
+
+      const data = (await response.json()) as any[];
+      return data;
+    } catch (error) {
+      logger.error("Error fetching geographic distribution from Supabase:", { error }, "SupabaseService");
+      return [];
+    }
+  }
+
+  async cleanupOldClickEvents(olderThanDays: number = 30): Promise<number> {
+    try {
+      if (!this.url || !this.serviceKey) return 0;
+
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
+      const cutoffISO = cutoffDate.toISOString();
+
+      const response = await fetch(`${this.url}/rest/v1/link_clicks?created_at=lt.${cutoffISO}`, {
+        method: "DELETE",
+        headers: {
+          apikey: this.serviceKey,
+          Authorization: `Bearer ${this.serviceKey}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Supabase API error: ${response.statusText}`);
+      }
+
+      // Return number of deleted rows (approximate)
+      return 0;
+    } catch (error) {
+      logger.error("Error cleaning up old click events from Supabase:", { error }, "SupabaseService");
+      return 0;
     }
   }
 }

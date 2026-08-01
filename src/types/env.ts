@@ -116,6 +116,10 @@ export const securityConfigSchema = z.object({
   BACKBLAZE_ACC1_APPLICATION_KEY: z.string().optional(),
   BACKBLAZE_ACC2_APPLICATION_KEY: z.string().optional(),
   BACKBLAZE_ACC3_APPLICATION_KEY: z.string().optional(),
+  B2_ACC1_KEY_NAME: z.string().optional(),
+  B2_ACC1_APPLICATION_KEY: z.string().optional(),
+  B2_ACC2_KEY_NAME: z.string().optional(),
+  B2_ACC2_APPLICATION_KEY: z.string().optional(),
 
   // QStash Authentication and Signing
   QSTASH_CURRENT_SIGNING_KEY: z.string().optional(),
@@ -139,6 +143,10 @@ export const securityConfigSchema = z.object({
   FACEBOOK_PAGE_ACCESS_TOKEN: z.string().optional(),
   FACEBOOK_APP_SECRET: z.string().optional(),
   FACEBOOK_APP_ID: z.string().optional(),
+  FACEBOOK_PAGE_ID: z.string().optional(),
+  FB_PAGE_ACCESS_TOKEN: z.string().optional(),
+  FB_COMMENT_DELAY_MS: z.string().optional(),
+  FB_COMMENT_MAX_RETRIES: z.string().optional(),
 
   // Twitter/X API Credentials
   TWITTER_API_KEY: z.string().optional(),
@@ -172,6 +180,30 @@ export const securityConfigSchema = z.object({
 
   // Proxy Rotation Seed
   PROXY_ROTATION_SEED: z.string().optional(),
+
+  // AI Persona Configuration
+  PERSONA_LANGUAGE: z.string().optional(),
+  PERSONA_MAX_BODY_LINES: z.string().optional(),
+  PERSONA_MAX_HASHTAGS: z.string().optional(),
+  PERSONA_FALLBACK: z.string().optional(),
+
+  // Deal Curation Configuration
+  DEAL_MIN_DISCOUNT_PERCENT: z.string().optional(),
+  DEAL_MAX_PRICE: z.string().optional(),
+  DEAL_MIN_RATING: z.string().optional(),
+  DEAL_IN_STOCK_ONLY: z.string().optional(),
+  DEAL_PLATFORMS: z.string().optional(),
+  DEAL_MAX_PER_RUN: z.string().optional(),
+
+  // Recommendations Configuration
+  RECOMMENDATIONS_TOP_K: z.string().optional(),
+  RECOMMENDATIONS_SIMILARITY: z.string().optional(),
+  RECOMMENDATIONS_CACHE_TTL: z.string().optional(),
+  RECOMMENDATIONS_CATEGORY_BOOST: z.string().optional(),
+
+  // Upstash Vector Circuit Breaker
+  UPSTASH_VECTOR_CIRCUIT_BREAKER_THRESHOLD: z.string().optional(),
+  UPSTASH_VECTOR_CIRCUIT_BREAKER_TIMEOUT: z.string().optional(),
 });
 
 /**

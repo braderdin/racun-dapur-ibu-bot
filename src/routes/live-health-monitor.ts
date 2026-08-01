@@ -197,10 +197,10 @@ class HealthMonitorService {
       );
 
       return response;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Health check failed",
-        { error: error.message },
+        { error: (error as Error).message },
         "HealthMonitor",
       );
 
@@ -215,7 +215,7 @@ class HealthMonitorService {
           {
             severity: "critical",
             service: "system",
-            message: `Health monitoring system error: ${error.message}`,
+            message: `Health monitoring system error: ${(error as Error).message}`,
             timestamp,
             autoRecovery: "restarting health monitoring service",
           },
@@ -293,11 +293,11 @@ class HealthMonitorService {
         errorCount: status === "unhealthy" ? 1 : 0,
         circuitBreaker,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       const responseTime = Date.now() - startTime;
       logger.warn(
         "Twitter service health check failed",
-        { error: error.message },
+        { error: (error as Error).message },
         "HealthMonitor",
       );
 
@@ -357,11 +357,11 @@ class HealthMonitorService {
         errorCount: status === "unhealthy" ? 1 : 0,
         circuitBreaker,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       const responseTime = Date.now() - startTime;
       logger.warn(
         "Facebook service health check failed",
-        { error: error.message },
+        { error: (error as Error).message },
         "HealthMonitor",
       );
 
@@ -421,11 +421,11 @@ class HealthMonitorService {
         errorCount: status === "unhealthy" ? 1 : 0,
         circuitBreaker,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       const responseTime = Date.now() - startTime;
       logger.warn(
         "Supabase service health check failed",
-        { error: error.message },
+        { error: (error as Error).message },
         "HealthMonitor",
       );
 
@@ -483,11 +483,11 @@ class HealthMonitorService {
         errorCount: circuitBreakerCount,
         circuitBreaker,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       const responseTime = Date.now() - startTime;
       logger.warn(
         "Redis service health check failed",
-        { error: error.message },
+        { error: (error as Error).message },
         "HealthMonitor",
       );
 
@@ -547,11 +547,11 @@ class HealthMonitorService {
         errorCount: status === "unhealthy" ? 1 : 0,
         circuitBreaker,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       const responseTime = Date.now() - startTime;
       logger.warn(
         "Upstash Vector service health check failed",
-        { error: error.message },
+        { error: (error as Error).message },
         "HealthMonitor",
       );
 
@@ -610,11 +610,11 @@ class HealthMonitorService {
         errorCount: status === "unhealthy" ? 1 : 0,
         circuitBreaker,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       const responseTime = Date.now() - startTime;
       logger.warn(
         "B2 storage service health check failed",
-        { error: error.message },
+        { error: (error as Error).message },
         "HealthMonitor",
       );
 

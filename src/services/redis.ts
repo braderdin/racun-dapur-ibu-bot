@@ -7,10 +7,10 @@ export class RedisService {
   private token: string;
   private env: Env;
 
-  constructor(env: Env) {
-    this.env = env;
-    this.baseUrl = env.UPSTASH_REDIS_REST_URL || "";
-    this.token = env.UPSTASH_REDIS_REST_TOKEN || "";
+  constructor(env?: Env) {
+    this.env = env || {} as Env;
+    this.baseUrl = env?.UPSTASH_REDIS_REST_URL || "";
+    this.token = env?.UPSTASH_REDIS_REST_TOKEN || "";
 
     // Validasi konfigurasi
     if (!this.baseUrl || !this.token) {

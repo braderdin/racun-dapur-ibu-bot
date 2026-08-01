@@ -53,7 +53,7 @@ export class UpstashVectorService {
   private lastFailureTime: Map<string, number>;
   private healthStats: UpstashVectorHealth;
 
-  constructor(env: Env) {
+  constructor(env?: Env) {
     this.config = {
       model: "text-embedding-3-small",
       dimension: 1536,
@@ -62,9 +62,9 @@ export class UpstashVectorService {
     };
 
     this.baseUrl =
-      env.UPSTASH_VECTOR_REST_URL ||
+      env?.UPSTASH_VECTOR_REST_URL ||
       "https://your-upstash-vector-url.upstash.io";
-    this.apiKey = env.UPSTASH_VECTOR_REST_TOKEN || "";
+    this.apiKey = env?.UPSTASH_VECTOR_REST_TOKEN || "";
 
     this.circuitBreakerCounts = new Map();
     this.circuitBreakerTimeout = new Map();

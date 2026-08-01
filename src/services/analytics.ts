@@ -763,12 +763,3 @@ const analyticsService = new EdgeAnalyticsService(
 );
 
 export { analyticsService };
-
-// Re-export types for convenience
-export type {
-  ClickEvent,
-  AnalyticsQueryOptions,
-  AnalyticsStats,
-  RealTimeAnalytics,
-  CampaignReport,
-};

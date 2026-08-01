@@ -404,11 +404,3 @@ const shopeeApiService = new ShopeeApiService({
 });
 
 export { shopeeApiService };
-
-// Re-export types for convenience
-export type {
-  ShopeeProductResponse,
-  ShopeeProduct,
-  ShopeeApiConfig,
-  ShopeeProductRequest,
-};

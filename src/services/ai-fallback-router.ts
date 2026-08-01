@@ -764,7 +764,3 @@ ${product.category === "beauty" ? "Transform your appearance today" : product.ca
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
-
-// Export types for external use
-export type { FallbackResult, TierStatusInfo, RouterConfig, RouterHealth };
-export { AIFallbackRouter, Tier, TierStatus };

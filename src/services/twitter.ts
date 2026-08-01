@@ -4,8 +4,8 @@ import { GeneratedCopy } from "../types/product";
 export class TwitterService {
   private bearerToken: string;
 
-  constructor(env: Env) {
-    this.bearerToken = env.X_BEARER_TOKEN;
+  constructor(env?: Env) {
+    this.bearerToken = env?.X_BEARER_TOKEN || "";
   }
 
   /**
@@ -34,5 +34,13 @@ export class TwitterService {
       console.error("X API Error posting thread:", error);
       return false;
     }
+  }
+
+  async healthCheck(): Promise<{ status: string; details: string; timestamp: string }> {
+    return {
+      status: this.bearerToken ? "healthy" : "unhealthy",
+      details: this.bearerToken ? "X API v2 service operational" : "X API v2 not configured",
+      timestamp: new Date().toISOString(),
+    };
   }
 }
