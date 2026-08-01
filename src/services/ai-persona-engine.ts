@@ -43,6 +43,7 @@ export interface TwitterThreadOutput {
   tweet1: PersonaCopyOutput;
   tweet2: PersonaCopyOutput;
   threadId?: string;
+  confidence: number;
 }
 
 export interface FacebookPostOutput {

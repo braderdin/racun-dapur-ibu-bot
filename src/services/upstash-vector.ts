@@ -42,6 +42,7 @@ export interface UpstashVectorHealth {
   details: string;
   circuitBreaker: "open" | "half-open" | "closed";
   errorCount: number;
+  timestamp: string;
 }
 
 export class UpstashVectorService {
@@ -311,6 +312,7 @@ export class UpstashVectorService {
         details: `Upstash Vector service operational (${responseTime}ms response time, ${this.circuitBreakerCounts.size} services monitored)`,
         circuitBreaker: "closed",
         errorCount: 0,
+        timestamp: new Date().toISOString(),
       };
 
       logger.info(

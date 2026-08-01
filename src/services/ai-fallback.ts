@@ -272,6 +272,8 @@ class MockGeminiService implements GeminiService {
     return {
       ...copy,
       platform: product.platform || "shopee",
+      confidence: 0.8,
+      fallbackChainUsed: "tier-2",
     };
   }
 
@@ -337,7 +339,9 @@ class HeuristicRuleEngine implements HeuristicRuleEngine {
     const copy = this.generateCreativeCopy(product);
     return {
       ...copy,
-      platform: "balanced" as ("platform" & "lazada") | "shopee", // Use balanced as generic platform
+      platform: product.platform || "shopee",
+      confidence: 0.6,
+      fallbackChainUsed: "tier-3",
     };
   }
 
