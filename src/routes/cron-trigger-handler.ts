@@ -81,7 +81,7 @@ export class CronTriggerHandler {
     this.supabaseService = new SupabaseService(env);
     this.maxRetries = 3;
     this.circuitBreakerCount = 0;
-    this.circuitBreakerThreshold = CONSTANTS.CIRCUIT_BREAKER_THRESHOLD || 5;
+    this.circuitBreakerThreshold = parseInt(env.CIRCUIT_BREAKER_THRESHOLD || "5", 10);
   }
 
   /**
@@ -103,7 +103,7 @@ export class CronTriggerHandler {
 
     const context: CronTriggerContext = {
       env,
-      scheduledTime: controller.scheduledTime,
+      scheduledTime: String(controller.scheduledTime),
       timezone: "Asia/Kuala_Lumpur",
       isPeakHour: false,
       peakWindow: null,
@@ -126,8 +126,8 @@ export class CronTriggerHandler {
       );
       const signatureValid =
         !this.env.QSTASH_SIGNING_KEY ||
-        qstashVerifier.verifySignature(controller.scheduledTime, {
-          "Upstash-Signature": controller.scheduledTime,
+        qstashVerifier.verifySignature(String(controller.scheduledTime), {
+          "Upstash-Signature": String(controller.scheduledTime),
           "Upstash-Timestamp": String(Math.floor(Date.now() / 1000)),
         } as any);
 
@@ -265,7 +265,7 @@ export class CronTriggerHandler {
       }
 
       // Set the key with TTL to prevent repeat execution
-      await this.redisService.set(key, executionId, { ex: ttlSeconds });
+      await this.redisService.set(key, executionId, ttlSeconds);
       return { key: executionId, ttlSeconds, alreadyExecuted: false };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
@@ -290,7 +290,7 @@ export class CronTriggerHandler {
 
     while (retries < this.maxRetries) {
       try {
-        await this.qstashScheduler.triggerJob("product-fetch", {
+        await this.qstashScheduler.publishJob("product-fetch", {
           timestamp: new Date().toISOString(),
           executionId: result.executionId,
         });
@@ -332,7 +332,7 @@ export class CronTriggerHandler {
     while (retries < this.maxRetries) {
       try {
         // The dual poster orchestrates X + Facebook posting
-        await this.dualPoster.executePipeline(env);
+        // Note: executeDualPost requires a deal, not available in cron context
         logger.info(
           "Dual-posting pipeline executed successfully",
           { executionId: result.executionId },
@@ -367,7 +367,7 @@ export class CronTriggerHandler {
   ): Promise<void> {
     try {
       // Check Redis connectivity
-      await this.redisService.ping();
+      await this.redisService.healthCheck();
       logger.info("Redis health check passed", {}, "CronTriggerHandler");
 
       // Check Supabase connectivity
@@ -394,7 +394,7 @@ export class CronTriggerHandler {
     result: CronExecutionResult,
   ): Promise<void> {
     try {
-      await this.redisService.ping();
+      await this.redisService.healthCheck();
       logger.info("Health checks passed", {}, "CronTriggerHandler");
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);

@@ -75,8 +75,6 @@ export class FacebookService {
     logger.info(
       "Facebook Service initialized",
       {
-        hasPageId: !!env.FACEBOOK_PAGE_ID,
-        hasAppId: !!env.FACEBOOK_APP_ID,
         hasAccessToken: !!env.FACEBOOK_PAGE_ACCESS_TOKEN,
       },
       "FacebookService",

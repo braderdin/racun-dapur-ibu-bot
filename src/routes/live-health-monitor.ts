@@ -86,6 +86,18 @@ class HealthMonitorService {
   >;
 
   constructor() {
+    this.services = {};
+    this.systemMetrics = {
+      totalRequests: 0,
+      successfulRequests: 0,
+      errorRate: 0,
+      averageResponseTimeMs: 0,
+      activeConnections: 0,
+      cpuUsage: 0,
+      memoryUsage: 0,
+    };
+    this.circuitBreakerCounts = new Map();
+    this.healthCheckHistory = new Map();
     this.initializeServices();
     this.initializeMetrics();
     this.initializeCircuitBreakers();

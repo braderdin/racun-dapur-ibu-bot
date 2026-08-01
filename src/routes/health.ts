@@ -24,6 +24,11 @@ export interface HealthStatus {
       responseTime?: number;
       error?: string;
     };
+    facebook?: {
+      status: "up" | "down" | "unknown";
+      responseTime?: number;
+      error?: string;
+    };
   };
   metrics: {
     totalRequests?: number;
@@ -64,6 +69,9 @@ export class HealthHandler {
 
     // Check storage service (Backblaze B2)
     status.services.storage = await this.checkStorageService();
+
+    // Check Facebook service
+    status.services.facebook = await this.checkFacebookService();
 
     // Determine overall status
     status.status = this.determineOverallStatus(status.services);
@@ -135,14 +143,18 @@ export class HealthHandler {
   > {
     try {
       // Import here to avoid circular dependencies
-      const { B2StorageService } = await import("./services/b2-storage");
+      const { B2StorageService } = await import("../services/b2-storage");
 
       const startTime = Date.now();
       const b2Service = new B2StorageService({} as any); // Mock env for status check
 
       // Try a simple operation to test connectivity
       const testData = new ArrayBuffer(100); // 100 bytes test data
-      await b2Service.uploadProductImage(testData, "health_check_test.txt");
+      await b2Service.uploadProductImage(testData, "health_check_test.txt", {
+        platform: "lazada",
+        category: "general",
+        originalFileName: "health_check_test.txt",
+      });
 
       const responseTime = Date.now() - startTime;
 
@@ -164,23 +176,23 @@ export class HealthHandler {
   > {
     try {
       // Import here to avoid circular dependencies
-      const { FacebookService } = await import("./services/facebook");
+      const { FacebookService } = await import("../services/facebook");
 
       const startTime = Date.now();
       const facebookService = new FacebookService({} as any); // Mock env for status check
 
-      // Test Facebook Graph API connectivity
-      const healthResult = await facebookService.healthCheck();
+      // Test Facebook Graph API connectivity by attempting to post a test comment
+      // This will validate that the service is properly configured and can reach Facebook
+      const testComment = await facebookService.postCommentToFacebook(
+        "test_post_id",
+        { message: "health_check_test" },
+      );
 
       const responseTime = Date.now() - startTime;
 
       return {
-        status: healthResult.status,
+        status: "up",
         responseTime,
-        error:
-          healthResult.status === "unhealthy"
-            ? healthResult.details
-            : undefined,
       };
     } catch (error) {
       console.error("Facebook service health check failed:", error);
@@ -229,12 +241,14 @@ export class HealthHandler {
   }
 
   // Simple health response for quick endpoint (faster version)
-  getQuickHealth(): Omit<HealthStatus, "services" | "metrics"> {
+  getQuickHealth(): HealthStatus {
     return {
       status: "healthy",
       timestamp: new Date().toISOString(),
       uptime: Date.now() - this.startTime,
       version: "1.0.0",
+      services: {},
+      metrics: {},
     };
   }
 }

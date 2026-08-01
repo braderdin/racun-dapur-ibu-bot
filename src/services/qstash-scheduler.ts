@@ -212,6 +212,37 @@ export class QStashScheduler {
     }
   }
 
+  public async publishJob(
+    jobId: string,
+    body: Record<string, any>,
+  ): Promise<void> {
+    const job: QStashJob = {
+      id: jobId,
+      cronExpression: "* * * * *", // Run every minute
+      targetUrl: "https://api.racun.ibu.my/internal/product-fetch",
+      body,
+      headers: {
+        "upstash-delay": "0",
+        "upstash-retry": "3",
+        "upstash-ttl": "3600", // 1 hour TTL
+      },
+    };
+
+    this.jobs.set(jobId, job);
+    console.log(
+      `[QStashScheduler] Published job: ${jobId} -> ${job.targetUrl}`,
+      {
+        jobId,
+        targetUrl: job.targetUrl,
+        body,
+        headers: job.headers,
+      },
+    );
+
+    // Schedule the job
+    this.scheduleJob(job);
+  }
+
   public async updatePeakHours(newPeakHours: {
     morningStart: string;
     morningEnd: string;
