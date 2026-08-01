@@ -255,4 +255,80 @@ export class SupabaseService {
       return [];
     }
   }
+
+  async getLinkClickAnalytics(
+    startDate?: string,
+    endDate?: string,
+    shortCode?: string,
+  ): Promise<any[]> {
+    try {
+      if (!this.url) return [];
+
+      let query = "/rest/v1/link_clicks?select=*";
+      if (startDate) query += `&created_at=gte.${startDate}`;
+      if (endDate) query += `&created_at=lte.${endDate}`;
+      if (shortCode) query += `&short_code=eq.${shortCode}`;
+      query += "&order=created_at.desc";
+
+      const response = await fetch(`${this.url}${query}`, {
+        method: "GET",
+        headers: {
+          apikey: this.serviceKey,
+          Authorization: `Bearer ${this.serviceKey}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Supabase API error: ${response.statusText}`);
+      }
+
+      const data = (await response.json()) as any[];
+      return data;
+    } catch (error) {
+      logger.error(
+        "Error fetching link click analytics from Supabase:",
+        { error },
+        "SupabaseService",
+      );
+      return [];
+    }
+  }
+
+  async getConversionAnalytics(
+    startDate?: string,
+    endDate?: string,
+    shortCode?: string,
+  ): Promise<any[]> {
+    try {
+      if (!this.url) return [];
+
+      let query = "/rest/v1/conversions?select=*";
+      if (startDate) query += `&created_at=gte.${startDate}`;
+      if (endDate) query += `&created_at=lte.${endDate}`;
+      if (shortCode) query += `&short_code=eq.${shortCode}`;
+      query += "&order=created_at.desc";
+
+      const response = await fetch(`${this.url}${query}`, {
+        method: "GET",
+        headers: {
+          apikey: this.serviceKey,
+          Authorization: `Bearer ${this.serviceKey}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Supabase API error: ${response.statusText}`);
+      }
+
+      const data = (await response.json()) as any[];
+      return data;
+    } catch (error) {
+      logger.error(
+        "Error fetching conversion analytics from Supabase:",
+        { error },
+        "SupabaseService",
+      );
+      return [];
+    }
+  }
 }

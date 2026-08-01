@@ -9,6 +9,9 @@ import { ShortenerService } from "./services/shortener";
 import { RedisService } from "./services/redis";
 import { SupabaseService } from "./services/supabase";
 import { createFacebookService } from "./services/facebook";
+import { B2StorageService } from "./services/b2-storage";
+import { DualPosterService } from "./services/dual-poster";
+import { ImageProcessor } from "./utils/image-processor";
 
 export class WorkerRouter {
   private router: Router;
@@ -127,7 +130,7 @@ export class WorkerRouter {
     res: Response,
   ): Promise<Response> {
     try {
-      const { code } = req.params;
+      const code = Array.isArray(req.params.code) ? req.params.code[0] : req.params.code;
 
       const shortenerService = new ShortenerService(
         new RedisService(this.env),
@@ -145,7 +148,8 @@ export class WorkerRouter {
 
       await shortenerService.incrementClickCount(code);
 
-      return res.status(302).redirect(affiliateUrl);
+      res.status(302).redirect(affiliateUrl);
+      return res.status(200).json({ redirect: affiliateUrl });
     } catch (error) {
       console.error("Error redirecting to affiliate:", error);
       return res.status(500).json({
@@ -165,7 +169,7 @@ export class WorkerRouter {
       console.log("QStash webhook received:", webhookData);
 
       if (webhookData.type === "workflow.triggered") {
-        await this.handleRunBot(req, res);
+        return this.handleRunBot(req, res);
       } else if (webhookData.type === "workflow.completed") {
         console.log("QStash workflow completed:", webhookData.data);
         return res.status(200).json({
@@ -338,10 +342,10 @@ export class WorkerRouter {
       await supabaseService.logFacebookPost({
         productId: processedDeal.id,
         platform: processedDeal.platform,
-        fb_post_id: dualPostResult.facebook?.postId,
-        fb_comment_id: dualPostResult.facebook?.commentId,
+        postId: dualPostResult.facebook?.postId,
+        commentId: dualPostResult.facebook?.commentId,
         status: dualPostResult.overallSuccess ? "published" : "failed",
-        error_message:
+        errorMessage:
           dualPostResult.facebook?.error || dualPostResult.twitter?.error,
         timestamp: new Date().toISOString(),
         source: "dual_poster_orchestrator",
@@ -370,7 +374,7 @@ export class WorkerRouter {
       );
 
       if (webhookData.type === "workflow.triggered") {
-        await this.handleRunBot(req, res);
+        return this.handleRunBot(req, res);
       } else if (webhookData.type === "workflow.completed") {
         console.log("QStash dual-poster workflow completed:", webhookData.data);
         return res.status(200).json({
@@ -566,28 +570,18 @@ export class WorkerRouter {
         imageUrl,
       );
 
-      await supabaseService.logPostedProduct({
-        product_id: productId,
-        title: product.title,
-        price: parseFloat(product.price) || 0,
-        imageUrl: imageUrl,
-        affiliateUrl: product.affiliateUrl,
-        lazadaProductId: product.lazadaProductId,
-        lazadaItemId: product.lazadaItemId,
-        tweetId: tweetResults ? "tweet_mock_id" : null,
-        replyTweetId: null,
-        copyUsed: JSON.stringify(generatedCopy),
-        xUserId: null,
-        xUsername: null,
-        xDisplayName: null,
-        tagsUsed: [],
-        sentimentScore: null,
-        imageStorageUsed: JSON.stringify({
-          account: 1,
-          bucket: "default",
-          object: `${productId}.jpg`,
-        }),
-      });
+      await supabaseService.logPostedProduct(
+        {
+          id: productId,
+          title: product.title,
+          price: String(parseFloat(product.price) || 0),
+          imageUrl: imageUrl,
+          affiliateUrl: product.affiliateUrl,
+          category: product.category || "general",
+        },
+        tweetResults ? "tweet_mock_id" : "",
+        null,
+      );
 
       await redisService.addRepeatProduct(
         productId,

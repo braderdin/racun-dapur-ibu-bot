@@ -437,6 +437,114 @@ export class FacebookService {
     }
   }
 
+  // Post photo with story to Facebook Page
+  async publishPhotoWithStory(
+    productId: string,
+    platform: string,
+    title: string,
+    description: string,
+    price: number,
+    imageUrl: string,
+    category: string,
+    rating: number,
+    affiliateLink: string,
+    expirationDate: string,
+    accessToken: string,
+    pageId: string,
+  ): Promise<FacebookPostResponse> {
+    try {
+      await delay(3000);
+
+      const message = `${title}\n\n${description}\n\nPrice: $${price}\nRating: ${rating}/5\nCategory: ${category}\nExpires: ${expirationDate}\n\n${affiliateLink}`;
+
+      const formData = new URLSearchParams();
+      formData.append("message", message);
+      if (imageUrl) formData.append("url", imageUrl);
+      formData.append("link", affiliateLink);
+
+      const response = await fetch(
+        `${this.graphApiBaseUrl}/${pageId}/feed`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: formData.toString(),
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        return {
+          id: "",
+          success: false,
+          error: {
+            message: errorData?.error?.message || "Failed to post to Facebook",
+            type: "API_ERROR",
+            code: response.status,
+          },
+        };
+      }
+
+      const data = await response.json();
+      return {
+        id: data.id || "",
+        success: true,
+        postId: data.id,
+      };
+    } catch (error) {
+      return {
+        id: "",
+        success: false,
+        error: {
+          message: error instanceof Error ? error.message : "Unknown error",
+          type: "NETWORK_ERROR",
+          code: 0,
+        },
+      };
+    }
+  }
+
+  // Add affiliate comment to Facebook post
+  async addAffiliateComment(
+    postId: string,
+    comment: string,
+    accessToken: string,
+  ): Promise<{ success: boolean; id?: string; error?: string }> {
+    try {
+      await delay(3000);
+
+      const response = await fetch(
+        `${this.graphApiBaseUrl}/${postId}/comments`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ message: comment }),
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        return {
+          success: false,
+          error: errorData?.error?.message || "Failed to add comment",
+        };
+      }
+
+      const data = await response.json();
+      return { success: true, id: data.id };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
+
   // Health check for Facebook service
   async healthCheck(): Promise<{
     status: "healthy" | "unhealthy";
