@@ -60,7 +60,7 @@ export class ImageProcessor {
       }
       metadata = await sharp(inputBuffer).metadata();
     } catch (error) {
-      throw new Error(`Failed to read image metadata: ${error.message}`);
+      throw new Error(`Failed to read image metadata: ${(error as Error).message}`);
     }
 
     const originalSize = inputBuffer.length;
@@ -92,7 +92,7 @@ export class ImageProcessor {
       }
       sharpImage = sharp(inputBuffer);
     } catch (error) {
-      throw new Error(`Failed to initialize Sharp: ${error.message}`);
+      throw new Error(`Failed to initialize Sharp: ${(error as Error).message}`);
     }
 
     // Simulate dimension validation and resizing for now
@@ -120,7 +120,7 @@ export class ImageProcessor {
         mimeType = "image/webp";
         isWebP = true;
       } catch (error) {
-        throw new Error(`Failed to convert image to WebP: ${error.message}`);
+        throw new Error(`Failed to convert image to WebP: ${(error as Error).message}`);
       }
     } else {
       processedBuffer = inputBuffer;
@@ -239,7 +239,7 @@ export class ImageProcessor {
 
       return compressedBuffer;
     } catch (error) {
-      throw new Error(`Failed to compress image to WebP: ${error.message}`);
+      throw new Error(`Failed to compress image to WebP: ${(error as Error).message}`);
     }
   }
 

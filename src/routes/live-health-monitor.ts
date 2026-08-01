@@ -310,7 +310,7 @@ class HealthMonitorService {
         status: "unhealthy",
         lastCheck: new Date().toISOString(),
         responseTimeMs: responseTime,
-        details: `X API v2 service error: ${error.message}`,
+        details: `X API v2 service error: ${(error as Error).message}`,
         errorCount: 1,
         circuitBreaker: "open",
       };
@@ -374,7 +374,7 @@ class HealthMonitorService {
         status: "unhealthy",
         lastCheck: new Date().toISOString(),
         responseTimeMs: responseTime,
-        details: `Facebook Graph API service error: ${error.message}`,
+        details: `Facebook Graph API service error: ${(error as Error).message}`,
         errorCount: 1,
         circuitBreaker: "open",
       };
@@ -438,7 +438,7 @@ class HealthMonitorService {
         status: "unhealthy",
         lastCheck: new Date().toISOString(),
         responseTimeMs: responseTime,
-        details: `Supabase PostgreSQL service error: ${error.message}`,
+        details: `Supabase PostgreSQL service error: ${(error as Error).message}`,
         errorCount: 1,
         circuitBreaker: "open",
       };
@@ -500,7 +500,7 @@ class HealthMonitorService {
         status: "unhealthy",
         lastCheck: new Date().toISOString(),
         responseTimeMs: responseTime,
-        details: `Redis service error: ${error.message}`,
+        details: `Redis service error: ${(error as Error).message}`,
         errorCount: this.circuitBreakerCounts.get("redis") || 1,
         circuitBreaker: "open",
       };
@@ -564,7 +564,7 @@ class HealthMonitorService {
         status: "unhealthy",
         lastCheck: new Date().toISOString(),
         responseTimeMs: responseTime,
-        details: `Upstash Vector service error: ${error.message}`,
+        details: `Upstash Vector service error: ${(error as Error).message}`,
         errorCount: this.circuitBreakerCounts.get("upstashVector") || 1,
         circuitBreaker: "open",
       };
@@ -627,7 +627,7 @@ class HealthMonitorService {
         status: "unhealthy",
         lastCheck: new Date().toISOString(),
         responseTimeMs: responseTime,
-        details: `B2 storage service error: ${error.message}`,
+        details: `B2 storage service error: ${(error as Error).message}`,
         errorCount: this.circuitBreakerCounts.get("b2Storage") || 1,
         circuitBreaker: "open",
       };

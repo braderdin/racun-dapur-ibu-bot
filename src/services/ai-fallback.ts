@@ -74,7 +74,7 @@ export class AIFallbackEngine {
       console.log("✅ Tier 1 generation successful");
       return result;
     } catch (error) {
-      console.log("⚠️  Tier 1 failed:", error.message);
+      console.log("⚠️  Tier 1 failed:", (error as Error).message);
       if (!this.config.emergencyFallback) throw error;
     }
 
@@ -92,7 +92,7 @@ export class AIFallbackEngine {
       console.log("✅ Tier 2 generation successful");
       return result;
     } catch (error) {
-      console.log("⚠️  Tier 2 failed:", error.message);
+      console.log("⚠️  Tier 2 failed:", (error as Error).message);
       if (!this.config.emergencyFallback) throw error;
     }
 
@@ -107,9 +107,9 @@ export class AIFallbackEngine {
       console.log("✅ Tier 3 generation successful");
       return result;
     } catch (error) {
-      console.log("❌ All AI tiers failed:", error.message);
+      console.log("❌ All AI tiers failed:", (error as Error).message);
       throw new Error(
-        `AI generation failed after all fallback attempts: ${error.message}`,
+        `AI generation failed after all fallback attempts: ${(error as Error).message}`,
       );
     }
   }

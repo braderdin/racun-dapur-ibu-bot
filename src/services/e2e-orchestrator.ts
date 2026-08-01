@@ -12,9 +12,9 @@ import { Env } from "../types/env";
 import { CONSTANTS } from "../config/constants";
 import { logger } from "../utils/logger";
 import { ProductItem } from "../types/product";
-import { DealCurationService, DealCurationResult } from "./deal-curator";
-import { VectorDedupService } from "./vector-dedup";
-import { PersonaEngine, PersonaCopyOutput } from "./ai-persona-engine";
+import { DealCuratorService, DealCurationResult } from "./deal-curator";
+import { VectorDeductionService } from "./vector-dedup";
+import { AIPersonaEngine, PersonaCopyOutput } from "./ai-persona-engine";
 import { B2StorageService, UploadResult } from "./b2-storage";
 import { SupabaseService } from "./supabase";
 import { FacebookService } from "./facebook";
@@ -54,9 +54,9 @@ export interface E2EConfig {
 // ---------------------------------------------------------------------------
 
 export class E2EOrchestrator {
-  private dealCurator: DealCurationService;
-  private vectorDedup: VectorDedupService;
-  private personaEngine: PersonaEngine;
+  private dealCurator: DealCuratorService;
+  private vectorDedup: VectorDeductionService;
+  private personaEngine: AIPersonaEngine;
   private b2Storage: B2StorageService;
   private supabase: SupabaseService;
   private facebook: FacebookService;
@@ -74,9 +74,9 @@ export class E2EOrchestrator {
       ...config,
     };
 
-    this.dealCurator = new DealCurationService(env);
-    this.vectorDedup = new VectorDedupService(env);
-    this.personaEngine = new PersonaEngine(env);
+    this.dealCurator = new DealCuratorService(env);
+    this.vectorDedup = new VectorDeductionService(env);
+    this.personaEngine = new AIPersonaEngine(env);
     this.b2Storage = new B2StorageService(env);
     this.supabase = new SupabaseService(env);
     this.facebook = new FacebookService(env);

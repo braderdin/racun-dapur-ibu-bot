@@ -11,6 +11,9 @@
 
 import { CONSTANTS } from "../config/constants";
 import { ProductItem } from "../types/product";
+import { OpenRouterService } from "./openrouter";
+import { GeminiService } from "./gemini";
+import { HeuristicRuleEngine } from "./heuristic-rule-engine";
 
 export interface FallbackResult {
   hook: string;
@@ -131,9 +134,9 @@ export class AIFallbackRouter {
     this.activeRequests = 0;
 
     // Initialize service wrappers
-    this.openRouterService = new OpenRouterServiceWrapper();
-    this.geminiService = new GeminiServiceWrapper();
-    this.heuristicService = new HeuristicRuleEngineWrapper();
+    this.openRouterService = new OpenRouterService();
+    this.geminiService = new GeminiService();
+    this.heuristicService = new HeuristicRuleEngine();
 
     console.log(
       "🚀 AIFallbackRouter initialized with 3-tier fallback strategy",
