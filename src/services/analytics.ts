@@ -210,7 +210,7 @@ export class EdgeAnalyticsService {
 
       console.log("✅ Click event logged successfully");
     } catch (error) {
-      console.error("❌ Failed to log click event:", error.message);
+      console.error("❌ Failed to log click event:", (error as Error).message);
       throw error;
     }
   }
@@ -235,12 +235,12 @@ export class EdgeAnalyticsService {
         options.startDate || this.getDefaultStartDate(options.dateRange);
       const endDate = options.endDate || new Date();
 
-      const clicks = await this.supabaseService.getClicks(
+      const clicks = await this.supabaseService.getClicks({
         startDate,
         endDate,
-        options.shortCode,
-        options.source,
-      );
+        shortCode: options.shortCode,
+        source: options.source,
+      });
 
       // Process and aggregate the data
       const stats = await this.calculateAnalyticsStats(clicks, options);
@@ -257,7 +257,7 @@ export class EdgeAnalyticsService {
       console.log("✅ Analytics data processed successfully");
       return stats;
     } catch (error) {
-      console.error("❌ Failed to fetch analytics data:", error.message);
+      console.error("❌ Failed to fetch analytics data:", (error as Error).message);
       throw error;
     }
   }
@@ -283,15 +283,15 @@ export class EdgeAnalyticsService {
         options?.startDate || this.getDefaultStartDate("last_30_days");
       const endDate = options?.endDate || new Date();
 
-      const campaigns = await this.supabaseService.getCampaignReports(
+      const campaigns = await this.supabaseService.getCampaignReports({
         startDate,
         endDate,
-      );
+      });
 
       console.log("✅ Campaign reports generated successfully");
       return campaigns;
     } catch (error) {
-      console.error("❌ Failed to generate campaign reports:", error.message);
+      console.error("❌ Failed to generate campaign reports:", (error as Error).message);
       throw error;
     }
   }
@@ -315,16 +315,14 @@ export class EdgeAnalyticsService {
       );
       const endDate = new Date();
 
-      const popularLinks = await this.supabaseService.getPopularLinks(
-        startDate,
-        endDate,
-        options?.limit,
-      );
+      const popularLinks = await this.supabaseService.getPopularLinks({
+        limit: options?.limit,
+      });
 
       console.log("✅ Popular links retrieved successfully");
       return popularLinks;
     } catch (error) {
-      console.error("❌ Failed to fetch popular links:", error.message);
+      console.error("❌ Failed to fetch popular links:", (error as Error).message);
       throw error;
     }
   }
@@ -347,13 +345,12 @@ export class EdgeAnalyticsService {
         ...item,
         percentage: totalClicks > 0 ? (item.clicks / totalClicks) * 100 : 0,
       }));
-      n;
       console.log("✅ Geographic distribution retrieved successfully");
       return distributionWithPercentage;
     } catch (error) {
       console.error(
         "❌ Failed to fetch geographic distribution:",
-        error.message,
+        (error as Error).message,
       );
       throw error;
     }
@@ -371,7 +368,7 @@ export class EdgeAnalyticsService {
       cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 
       // Delete old data from Supabase
-      await this.supabaseService.cleanupOldClickEvents(cutoffDate);
+      await this.supabaseService.cleanupOldClickEvents(retentionDays);
 
       // Clear Redis cache
       await this.redisService.del(this.clickCacheKey);
@@ -382,12 +379,14 @@ export class EdgeAnalyticsService {
         this.hourlyStatsKeyPattern,
       );
       if (hourlyKeys.length > 0) {
-        await this.redisService.del(...hourlyKeys);
+        for (const key of hourlyKeys) {
+          await this.redisService.del(key);
+        }
       }
 
       console.log("✅ Old data cleanup completed");
     } catch (error) {
-      console.error("❌ Failed to cleanup old data:", error.message);
+      console.error("❌ Failed to cleanup old data:", (error as Error).message);
       throw error;
     }
   }
@@ -576,7 +575,7 @@ export class EdgeAnalyticsService {
     await this.incrementRedisCounter(osKey);
   }
 
-  private async incrementRedisCounter(key: ώρα): Promise<void> {
+  private async incrementRedisCounter(key: string): Promise<void> {
     const current = (await this.redisService.get(key)) || "0";
     await this.redisService.set(
       key,
