@@ -184,7 +184,7 @@ export class EdgeRateLimiter {
       },
       async ttl(key: string): Promise<number> {
         console.log(`⏱️ Redis TTL ${key}`);
-        return seconds;
+        return 0; // Simplified - would actually query Redis for TTL
       },
     };
   }
@@ -247,9 +247,10 @@ export class EdgeRateLimiter {
         Configurable per-API rate limits`,
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       return {
         status: "unhealthy",
-        details: `Rate limiter health check error: ${error.message}`,
+        details: `Rate limiter health check error: ${errorMessage}`,
       };
     }
   }
@@ -305,5 +306,4 @@ export default function createRateLimiter(
   return new EdgeRateLimiter(config);
 }
 
-// Export types for external use
-export type { RateLimitConfig, RateLimitResult };
+// Note: RateLimitConfig and RateLimitResult types already exported at the top of the file (lines 7-8)

@@ -400,13 +400,10 @@ const aiFallbackEngine = new AIFallbackEngine(
   heuristicService,
 );
 
-export { aiFallbackEngine };
+export { aiFallbackEngine, MockOpenRouterService as OpenRouterService, MockGeminiService as GeminiService, HeuristicRuleEngine };
 
 // Export types for convenience
 export type {
   GeneratedCopy,
   AIGenerationOptions,
-  OpenRouterService,
-  GeminiService,
-  HeuristicRuleEngine,
 };

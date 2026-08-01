@@ -1,4 +1,5 @@
-import { Env, GeneratedCopy } from "../types/env";
+import { Env } from "../types/env";
+import { GeneratedCopy } from "../types/product";
 
 export class TwitterService {
   private bearerToken: string;

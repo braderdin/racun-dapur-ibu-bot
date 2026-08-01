@@ -32,7 +32,7 @@ async function getDirectUrlFromDevVars() {
     }
     throw new Error("DIRECT_URL not found in .dev.vars file");
   } catch (error) {
-    console.error("❌ Failed to read .dev.vars file:", error.message);
+    console.error("FAIL Failed to read .dev.vars file:", error.message);
     throw error;
   }
 }
@@ -100,7 +100,7 @@ async function loadEnvFromDevVars() {
     // Validate required environment variables
     if (!DIRECT_URL) {
       throw new Error(
-        "❌ DATABASE_URL_DIRECT_UNPOOLED environment variable is required (set in .env.local or .dev.vars)",
+        "FAIL DATABASE_URL_DIRECT_UNPOOLED environment variable is required (set in .env.local or .dev.vars)",
       );
     }
 
@@ -112,12 +112,12 @@ async function loadEnvFromDevVars() {
       }
     }
 
-    console.log("✅ Environment variables loaded successfully");
+    console.log("OK2 Environment variables loaded successfully");
     console.log(
       "🔗 DATABASE_URL_DIRECT_UNPOOLED: " + DIRECT_URL.substring(0, 50) + "...",
     );
   } catch (error) {
-    console.error("❌ Failed to load environment variables:", error.message);
+    console.error("FAIL Failed to load environment variables:", error.message);
     throw error;
   }
 }
@@ -125,29 +125,29 @@ async function loadEnvFromDevVars() {
 // Split SQL into individual statements by semicolons outside of $$ blocks
 function splitSqlStatements(sql) {
   const statements = [];
-  let current = '';
+  let current = "";
   let inDollarBlock = false;
   let i = 0;
-  
+
   while (i < sql.length) {
-    if (sql.substring(i, i + 3) === '$$') {
+    if (sql.substring(i, i + 3) === "$$") {
       inDollarBlock = !inDollarBlock;
-      current += '$$';
+      current += "$$";
       i += 3;
-    } else if (sql[i] === ';' && !inDollarBlock) {
+    } else if (sql[i] === ";" && !inDollarBlock) {
       statements.push(current.trim());
-      current = '';
+      current = "";
       i++;
     } else {
       current += sql[i];
       i++;
     }
   }
-  
+
   if (current.trim()) {
     statements.push(current.trim());
   }
-  
+
   return statements;
 }
 
@@ -169,7 +169,7 @@ async function executeSqlFile(filePath) {
       .trim();
 
     if (cleanedSql.length === 0) {
-      console.log(`⚠️  No valid SQL found in ${filePath}`);
+      console.log(`WARN  No valid SQL found in ${filePath}`);
       return;
     }
 
@@ -182,12 +182,12 @@ async function executeSqlFile(filePath) {
     // This avoids issues with DO $$ blocks containing BEGIN/END
     // and allows each statement to be executed independently
     console.log(`  Executing SQL batch from ${path.basename(filePath)}`);
-    
+
     // Split SQL into individual statements by semicolons outside of $$ blocks
     const statements = splitSqlStatements(cleanedSql);
     let successCount = 0;
     let failCount = 0;
-    
+
     for (const stmt of statements) {
       const trimmed = stmt.trim();
       if (!trimmed) continue;
@@ -196,27 +196,29 @@ async function executeSqlFile(filePath) {
         successCount++;
       } catch (stmtError) {
         // Skip non-critical errors (e.g., IF NOT EXISTS for existing objects)
-        const msg = stmtError.message || '';
-        if (msg.includes('already exists') || 
-            msg.includes('does not exist') ||
-            msg.includes('relation') && msg.includes('already')) {
-          console.log(`  ⚠️  Skipped (expected): ${msg.substring(0, 100)}`);
+        const msg = stmtError.message || "";
+        if (
+          msg.includes("already exists") ||
+          msg.includes("does not exist") ||
+          (msg.includes("relation") && msg.includes("already"))
+        ) {
+          console.log(`  WARN  Skipped (expected): ${msg.substring(0, 100)}`);
           successCount++;
         } else {
-          console.error(`  ❌ Statement failed: ${msg.substring(0, 200)}`);
+          console.error(`  FAIL Statement failed: ${msg.substring(0, 200)}`);
           failCount++;
         }
       }
     }
-    
-    console.log(`  ✅ SQL batch executed (${successCount} succeeded, ${failCount} failed)`);
+
+    console.log(
+      `  OK2 SQL batch executed (${successCount} succeeded, ${failCount} failed)`,
+    );
 
     await client.end();
-    console.log(
-      `✅ Successfully executed ${path.basename(filePath)}`,
-    );
+    console.log(`OK2 Successfully executed ${path.basename(filePath)}`);
   } catch (error) {
-    console.error(`❌ Failed to execute ${filePath}:`, error.message);
+    console.error(`FAIL Failed to execute ${filePath}:`, error.message);
     throw error;
   }
 }
@@ -227,15 +229,15 @@ async function main() {
   const migrationsDir = path.join(process.cwd(), "supabase", "migrations");
 
   try {
-    console.log("🚀 Database Migration Helper Script started");
-    console.log(`📁 Migration directory: ${migrationsDir}`);
+    console.log("ROCKET Database Migration Helper Script started");
+    console.log(`FOLDER Migration directory: ${migrationsDir}`);
 
     // Read all migration files
     const files = await fs.readdir(migrationsDir);
     const sqlFiles = files.filter((file) => file.endsWith(".sql")).sort(); // Execute in alphabetical order (timestamp prefix)
 
     if (sqlFiles.length === 0) {
-      console.log("⚠️  No migration files found");
+      console.log("WARN  No migration files found");
       return;
     }
 
@@ -249,9 +251,9 @@ async function main() {
       console.log(""); // Add spacing between files
     }
 
-    console.log("🎉 All migrations executed successfully!");
+    console.log("SUCCESS All migrations executed successfully!");
   } catch (error) {
-    console.error("💥 Migration script failed:", error.message);
+    console.error("BANG Migration script failed:", error.message);
     process.exit(1);
   }
 }
@@ -267,6 +269,6 @@ const timeoutPromise = new Promise((_, reject) => {
 Promise.race([main(), timeoutPromise])
   .then(() => process.exit(0))
   .catch((error) => {
-    console.error("💥 Fatal error:", error.message);
+    console.error("BANG Fatal error:", error.message);
     process.exit(1);
   });

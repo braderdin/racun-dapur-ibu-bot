@@ -11,7 +11,14 @@ export const ProductItemSchema = z.object({
   affiliateUrl: z.string(),
   rating: z.string().optional(),
   soldCount: z.string().optional(),
+  category: z.string().optional(),
+  name: z.string().optional(),
+  stock: z.string().optional(),
+  description: z.string().optional(),
 });
+
+// ProductItem type derived from schema
+export type ProductItem = z.infer<typeof ProductItemSchema>;
 
 export const GeneratedCopySchema = z.object({
   tweetHook: z.string(),
@@ -40,6 +47,17 @@ export interface FacebookPostResponse {
 export interface FacebookCommentPayload {
   message: string;
   parent_comment_id?: string;
+}
+
+export interface GeneratedCopy {
+  hook: string;
+  body: string[];
+  cta: string;
+  hashtags: string[];
+  threadTarget: "single-tweet" | "thread-2";
+  platform: "lazada" | "shopee";
+  confidence: number;
+  fallbackChainUsed: "none" | "tier-2" | "tier-3";
 }
 
 export interface DualPostResult {

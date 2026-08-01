@@ -17,8 +17,9 @@ const CONFIG = {
 };
 
 class DeployWorker {
-  private projectDir: string;
-  private wranglerConfigPath: string;
+  constructor() {
+    this.projectDir = path.join(__dirname, "..");
+    this.wranglerConfigPath = path.join(this.projectDir, "wrangler.toml");
 
   constructor() {
     this.projectDir = path.join(__dirname, "..");
@@ -28,12 +29,12 @@ class DeployWorker {
       throw new Error(`wrangler.toml not found at ${this.wranglerConfigPath}`);
     }
 
-    console.log("🚀 Automated Cloudflare Worker Deployment Script Initialized");
-    console.log(`📁 Project Directory: ${this.projectDir}`);
-    console.log(`⚙️ Wrangler Config: ${this.wranglerConfigPath}`);
+    console.log("ROCKET Automated Cloudflare Worker Deployment Script Initialized");
+    console.log(`FOLDER Project Directory: ${this.projectDir}`);
+    console.log(`GEAR Wrangler Config: ${this.wranglerConfigPath}`);
   }
 
-  async deploy(): Promise<{ success: boolean; message: string; details?: any }> {
+  async deploy() {
     try {
       // Verify wrangler installation and configuration
       await this.verifyWranglerSetup();
@@ -52,8 +53,8 @@ class DeployWorker {
         throw new Error(`Health checks failed: ${healthCheck.message}`);
       }
 
-      console.log("✅ Deployment completed successfully");
-      console.log(`📊 Health check results: ${JSON.stringify(healthCheck.details, null, 2)}`);
+      console.log("OK2 Deployment completed successfully");
+      console.log(`REPORT Health check results: ${JSON.stringify(healthCheck.details, null, 2)}`);
 
       return {
         success: true,
@@ -65,7 +66,7 @@ class DeployWorker {
         },
       };
     } catch (error) {
-      console.error("❌ Deployment failed:", error.message);
+      console.error("FAIL Deployment failed:", error.message);
 
       return {
         success: false,
@@ -79,8 +80,8 @@ class DeployWorker {
     }
   }
 
-  private async verifyWranglerSetup(): Promise<void> {
-    console.log("🔍 Verifying Wrangler setup...");
+  async verifyWranglerSetup() {
+    console.log("[Deploy] Verifying Wrangler setup...");
 
     // Check if wrangler is available
     const wranglerResult = await this.executeCommand("npx wrangler --version");
@@ -99,10 +100,10 @@ class DeployWorker {
       throw new Error("wrangler.toml missing worker name");
     }
 
-    console.log("✅ Wrangler setup verification completed");
+    console.log("OK2 Wrangler setup verification completed");
   }
 
-  private async executeCommand(command: string): Promise<{ stdout: string; stderr: string; code: number }> {
+  async executeCommand(command) {
     return new Promise((resolve, reject) => {
       const [cmd, ...args] = command.split(" ");
 
@@ -132,22 +133,22 @@ class DeployWorker {
     });
   }
 
-  private async executeDeploymentWithRetries(): Promise<{ success: boolean; message: string }> {
-    let lastError: Error;
+  async executeDeploymentWithRetries() {
+    let lastError;
 
     for (let attempt = 1; attempt <= CONFIG.MAX_RETRIES; attempt++) {
-      console.log(`🚀 Deployment attempt ${attempt}/${CONFIG.MAX_RETRIES}...`);
+      console.log(`ROCKET Deployment attempt ${attempt}/${CONFIG.MAX_RETRIES}...`);
 
       try {
         // Execute wrangler deploy
         const result = await this.executeCommand("npx wrangler deploy");
 
         if (result.code === 0) {
-          console.log("✅ Deployment completed successfully");
+          console.log("OK2 Deployment completed successfully");
           return { success: true, message: "Deployment completed" };
         } else {
           lastError = new Error(`Deployment failed with exit code ${result.code}: ${result.stderr}`);
-          console.error(`❌ Deployment attempt ${attempt} failed: ${lastError.message}`);
+          console.error(`FAIL Deployment attempt ${attempt} failed: ${lastError.message}`);
 
           if (attempt < CONFIG.MAX_RETRIES) {
             console.log("⏱️ Waiting 30 seconds before retry...");
@@ -156,7 +157,7 @@ class DeployWorker {
         }
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        console.error(`❌ Deployment attempt ${attempt} failed: ${lastError.message}`);
+        console.error(`FAIL Deployment attempt ${attempt} failed: ${lastError.message}`);
 
         if (attempt < CONFIG.MAX_RETRIES) {
           console.log("⏱️ Waiting 30 seconds before retry...");
@@ -168,7 +169,7 @@ class DeployWorker {
     throw lastError || new Error("All deployment attempts failed");
   }
 
-  private async performHealthChecks(): Promise<{ success: boolean; message: string; details?: any }> {
+async performHealthChecks() {
     console.log("🏥 Performing health checks...");
 
     try {
@@ -195,11 +196,11 @@ class DeployWorker {
       for (const file of requiredFiles) {
         const filePath = path.join(distPath, file);
         if (!fs.existsSync(filePath)) {
-          console.warn(`⚠️ Required file not found: ${file}`);
+          console.warn(`WARN Required file not found: ${file}`);
         }
       }
 
-      console.log("✅ Health checks completed successfully");
+      console.log("OK2 Health checks completed successfully");
 
       return {
         success: true,
@@ -211,7 +212,7 @@ class DeployWorker {
         },
       };
     } catch (error) {
-      console.error("❌ Health checks failed:", error.message);
+      console.error("FAIL Health checks failed:", error.message);
 
       return {
         success: false,
@@ -223,12 +224,12 @@ class DeployWorker {
     }
   }
 
-  private delay(ms: number): Promise<void> {
+delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   // Generate deployment report
-  generateReport(deploymentResult: any, healthCheckResult: any): string {
+  generateReport(deploymentResult, healthCheckResult) {
     const timestamp = new Date().toISOString();
     const report = {
       timestamp,
@@ -252,7 +253,7 @@ async function main() {
     const result = await deployer.deploy();
 
     if (result.success) {
-      console.log("\n🎉 DEPLOYMENT SUCCESS! 🎉");
+      console.log("\nSUCCESS DEPLOYMENT SUCCESS! SUCCESS");
       console.log("\nDeployment Summary:", JSON.stringify(result.details, null, 2));
 
       // Generate deployment report
@@ -262,13 +263,13 @@ async function main() {
       );
 
       console.log(`\n📄 Deployment report saved to: ${reportPath}`);
-      console.log("\n✨ Ready for Phase 7: Production Launch! ✨");
+      console.log("\nOK Ready for Phase 7: Production Launch! OK");
 
       process.exit(0);
     } else {
-      console.error("\n💥 DEPLOYMENT FAILED! 💥");
+      console.error("\nBANG DEPLOYMENT FAILED! BANG");
       console.error("\nError Details:", JSON.stringify(result.details, null, 2));
-      console.log("\n🔧 Troubleshooting Steps:");
+      console.log("\nTOOL Troubleshooting Steps:");
       console.log("   1. Check wrangler configuration (wrangler.toml)");
       console.log("   2. Verify all required environment variables are set");
       console.log("   3. Ensure Cloudflare authentication is configured");
@@ -277,7 +278,7 @@ async function main() {
       process.exit(1);
     }
   } catch (error) {
-    console.error("\n💥 DEPLOYMENT FAILED! 💥");
+    console.error("\nBANG DEPLOYMENT FAILED! BANG");
     console.error("\nUnexpected Error:", error.message);
 
     process.exit(1);

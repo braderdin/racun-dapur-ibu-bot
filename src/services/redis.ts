@@ -125,4 +125,39 @@ export class RedisService {
     await this.makeRequest("DELETE", `/keys/${key}`, {});
     logger.debug("Redis anti-repeat removed", { productId }, "RedisService");
   }
+
+  async set(key: string, value: string, ttlSeconds?: number): Promise<void> {
+    await this.makeRequest("PUT", `/keys/${key}`, { value });
+    if (ttlSeconds) {
+      await this.makeRequest("POST", `/ex/${key}/${ttlSeconds}`, {});
+    }
+  }
+
+  async get(key: string): Promise<string | null> {
+    try {
+      const result = await this.makeRequest<{ value: string }>("GET", `/keys/${key}`);
+      return result?.value ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  async setEx(key: string, value: string, ttlSeconds: number): Promise<void> {
+    await this.makeRequest("PUT", `/keys/${key}`, { value });
+    await this.makeRequest("POST", `/ex/${key}/${ttlSeconds}`, {});
+  }
+
+  async del(key: string): Promise<void> {
+    await this.makeRequest("DELETE", `/keys/${key}`, {});
+  }
+
+  async incr(key: string): Promise<number> {
+    const result = await this.makeRequest<{ value: string }>("POST", `/incr/${key}`, {});
+    return parseInt(result?.value ?? "0", 10);
+  }
+
+  async keys(pattern: string): Promise<string[]> {
+    const result = await this.makeRequest<{ keys: string[] }>("GET", `/keys?match=${encodeURIComponent(pattern)}`);
+    return result?.keys ?? [];
+  }
 }

@@ -25,6 +25,10 @@ export interface Deal {
   seller?: string;
   stock?: number;
   createdAt: Date;
+  // AI-generated copy fields
+  body?: string[];
+  cta?: string;
+  hashtags?: string[];
 }
 
 export interface RotationConfig {

@@ -34,7 +34,7 @@ export class DualBuyAnalyticsService {
     );
   }
 
-  // 📈 Track dual buy button clicks with metadata
+  // 📈 Track dual buy button clicks with metadata & CTR analytics
   async trackClick(event: DualBuyClickEvent): Promise<void> {
     const {
       productId,
@@ -61,18 +61,71 @@ export class DualBuyAnalyticsService {
     };
 
     // Insert into Supabase click_logs table (using service role for writes)
-    const { error } = await this.supabase
+    const { error: logError } = await this.supabase
       .from("click_logs")
       .insert([clickData]);
 
-    if (error) {
-      console.error("Failed to track click:", error);
+    if (logError) {
+      console.error("Failed to track click:", logError);
       // Don't throw - analytics should not break user flow
-      return;
     }
+
+    // Update click_analytics table with CTR metrics
+    await this.updateClickAnalytics(productId, platform);
 
     // Also update the posted_products total_clicks counter
     await this.incrementProductClickCount(productId);
+  }
+
+  // 📊 Update click_analytics table with CTR calculation
+  private async updateClickAnalytics(
+    productId: string,
+    platform: "lazada" | "shopee",
+  ): Promise<void> {
+    try {
+      // Fetch current analytics row
+      const { data: existing } = await this.supabase
+        .from("click_analytics")
+        .select("*")
+        .eq("product_id", productId)
+        .eq("platform", platform)
+        .single();
+
+      const now = new Date().toISOString();
+
+      if (existing) {
+        // Increment click count and recalculate CTR
+        const newClickCount = (existing.click_count || 0) + 1;
+        const newImpressions = existing.impressions || 0;
+        const ctr =
+          newImpressions > 0 ? (newClickCount / newImpressions) * 100 : 0;
+
+        await this.supabase
+          .from("click_analytics")
+          .update({
+            click_count: newClickCount,
+            ctr: parseFloat(ctr.toFixed(2)),
+            last_click_at: now,
+            updated_at: now,
+          })
+          .eq("id", existing.id);
+      } else {
+        // Insert new analytics row
+        await this.supabase.from("click_analytics").insert({
+          product_id: productId,
+          platform,
+          click_count: 1,
+          impressions: 0,
+          ctr: 0,
+          last_click_at: now,
+          created_at: now,
+          updated_at: now,
+        });
+      }
+    } catch (error) {
+      console.error("Failed to update click analytics:", error);
+      // Non-critical — don't break user flow
+    }
   }
 
   // 🔄 Increment click count for product (optimistic update)

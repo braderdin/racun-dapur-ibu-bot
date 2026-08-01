@@ -10,7 +10,12 @@ import { DualEngineRotationManager } from "./services/dual-engine";
 import { RedisService } from "./services/redis";
 import { ShopeeApiService } from "./services/shopee";
 import { SupabaseService } from "./services/supabase";
-import { AIFallbackEngine } from "./services/ai-fallback";
+import {
+  AIFallbackEngine,
+  OpenRouterService,
+  GeminiService,
+  HeuristicRuleEngine,
+} from "./services/ai-fallback";
 import { EdgeAnalyticsService } from "./services/analytics";
 import { B2StorageService } from "./services/b2-storage";
 
@@ -18,6 +23,9 @@ import { B2StorageService } from "./services/b2-storage";
 let redisService: RedisService | null = null;
 let shopeeApiService: ShopeeApiService | null = null;
 let supabaseService: SupabaseService | null = null;
+let openRouterService: OpenRouterService | null = null;
+let geminiService: GeminiService | null = null;
+let heuristicService: HeuristicRuleEngine | null = null;
 let aiFallbackEngine: AIFallbackEngine | null = null;
 let dualEngineRotationManager: DualEngineRotationManager | null = null;
 let edgeAnalyticsService: EdgeAnalyticsService | null = null;
@@ -32,11 +40,20 @@ function getServices(env: any) {
   if (!supabaseService) {
     supabaseService = new SupabaseService(env);
   }
+  if (!openRouterService) {
+    openRouterService = new OpenRouterService();
+  }
+  if (!geminiService) {
+    geminiService = new GeminiService();
+  }
+  if (!heuristicService) {
+    heuristicService = new HeuristicRuleEngine();
+  }
   if (!aiFallbackEngine) {
     aiFallbackEngine = new AIFallbackEngine(
-      shopeeApiService,
-      new GeminiService(),
-      new HeuristicRuleEngine(),
+      openRouterService,
+      geminiService,
+      heuristicService,
     );
   }
   if (!dualEngineRotationManager) {
@@ -83,25 +100,17 @@ async function getImageProcessor() {
   return imageProcessor;
 }
 
-if (typeof CONSTANTS === "undefined") {
-  console.log(
-    "⚠️ Constant CONSTANTS.WORKER_MAX_WIDTH is not defined, using default 1920",
-  );
-  CONSTANTS.WORKER_MAX_WIDTH = 1920;
-}
-
-if (typeof CONSTANTS === "undefined") {
-  console.log(
-    "⚠️ Constant CONSTANTS.WORKER_MAX_HEIGHT is not defined, using default 1080",
-  );
-  CONSTANTS.WORKER_MAX_HEIGHT = 1080;
-}
-
-// Main Cloudflare Worker handler
 export default {
   async fetch(request: Request, env: any, ctx: any): Promise<Response> {
     const url = new URL(request.url);
-    const { redisService, shopeeApiService, supabaseService, aiFallbackEngine, dualEngineRotationManager, edgeAnalyticsService } = getServices(env);
+    const {
+      redisService,
+      shopeeApiService,
+      supabaseService,
+      aiFallbackEngine,
+      dualEngineRotationManager,
+      edgeAnalyticsService,
+    } = getServices(env);
 
     if (url.pathname === "/health") {
       return new Response(
@@ -132,9 +141,19 @@ export default {
     console.log("⏰ Scheduled cron job started");
 
     try {
-      const { dualEngineRotationManager, shopeeApiService, aiFallbackEngine, supabaseService } = getServices(env);
+      const {
+        dualEngineRotationManager,
+        shopeeApiService,
+        aiFallbackEngine,
+        supabaseService,
+      } = getServices(env);
       // Execute daily product curation
-      await executeDailyCuration(dualEngineRotationManager, shopeeApiService, aiFallbackEngine, supabaseService);
+      await executeDailyCuration(
+        dualEngineRotationManager,
+        shopeeApiService,
+        aiFallbackEngine,
+        supabaseService,
+      );
       console.log("✅ Daily curation completed successfully");
     } catch (error) {
       console.error("❌ Daily curation failed:", error);
@@ -194,7 +213,7 @@ async function handleCurationRequest(): Promise<Response> {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         timestamp: new Date().toISOString(),
       }),
       {
@@ -262,11 +281,19 @@ async function executeDailyCuration(
       deal.hashtags = aiCopy.hashtags;
 
       // Store in database
-      await supabaseService.storeProduct(deal);
+      await supabaseService.logFacebookPost({
+        productId: deal.id,
+        platform: deal.platform,
+        status: "published" as const,
+        timestamp: new Date().toISOString(),
+        source: "racun_dapur_ibu_bot",
+      });
 
       console.log(`✅ Deal processed and stored: ${deal.title}`);
     } catch (error) {
-      console.error(`❌ Failed to process deal ${deal.id}: ${error.message}`);
+      console.error(
+        `❌ Failed to process deal ${deal.id}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -369,64 +396,4 @@ async function executeDealCuration(): Promise<any[]> {
 
     return [...balancedShopee, ...balancedLazada];
   }
-}
-
-// Supporting classes for AI fallback engine
-class GeminiService {
-  async generateCopy(product: ProductItem): Promise<GeneratedCopy> {
-    return {
-      hook: `🤩 ${product.name} Alert: ${product.price} only!`,
-      body: [
-        `Limited time offer on ${product.name}. Originally $${(product.price * 1.5).toFixed(2)}, now just $${product.price}!`,
-        `Perfect choice for ${product.name}. Rating: ${product.rating}/5.`,
-      ],
-      cta: `Get Yours Now: [GEMINI_LINK]`,
-      hashtags: ["#GeminiDeals", "#AIRecommended", "#MalaysiaSellers"],
-      threadTarget: "single-tweet",
-      platform: product.platform || "lazada",
-      confidence: 0.8,
-      fallbackChainUsed: "tier-2",
-    };
-  }
-}
-
-class HeuristicRuleEngine {
-  async generateCopy(product: ProductItem): Promise<GeneratedCopy> {
-    return {
-      hook: `✅ Best ${product.category} Deal Found: $${product.price}`,
-      body: [
-        `Product: ${product.name}
-Price: $${product.price}
-Category: ${product.category}`,
-      ],
-      cta: `Click Here: [HEURISTIC_LINK]`,
-      hashtags: ["#Heuristic", "#RuleBased", "#SmartDeals"],
-      threadTarget: "single-tweet",
-      platform: product.platform || "balanced",
-      confidence: 0.6,
-      fallbackChainUsed: "tier-3",
-    };
-  }
-}
-
-interface ProductItem {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  imageUrl: string;
-  category: string;
-  rating: number;
-  platform?: "lazada" | "shopee" | "balanced";
-}
-
-interface GeneratedCopy {
-  hook: string;
-  body: string[];
-  cta: string;
-  hashtags: string[];
-  threadTarget: "single-tweet" | "thread-2";
-  platform: "lazada" | "shopee";
-  confidence: number;
-  fallbackChainUsed: "none" | "tier-2" | "tier-3";
 }

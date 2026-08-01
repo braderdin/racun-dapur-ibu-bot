@@ -58,9 +58,9 @@ class SecretsSyncer {
   }
 
   async syncSecrets() {
-    console.log("🚀 Starting Cloudflare Secrets Sync...");
+    console.log("ROCKET Starting Cloudflare Secrets Sync...");
     console.log(
-      `📁 Loaded ${Object.keys(this.envVars).length} environment variables`,
+      `FOLDER Loaded ${Object.keys(this.envVars).length} environment variables`,
     );
 
     // Filter out blacklisted secrets
@@ -68,7 +68,7 @@ class SecretsSyncer {
 
     if (secretsToSync.length === 0) {
       console.log(
-        "⚠️  No secrets to sync (all variables are blacklisted or invalid)",
+        "WARN  No secrets to sync (all variables are blacklisted or invalid)",
       );
       return;
     }
@@ -83,17 +83,17 @@ class SecretsSyncer {
     for (const [key, value] of secretsToSync) {
       try {
         await this.putSecret(key, value);
-        console.log(`✅ Secret synced: ${key}`);
+        console.log(`OK2 Secret synced: ${key}`);
         successCount++;
       } catch (error) {
-        console.error(`❌ Failed to sync secret ${key}:`, error.message);
+        console.error(`FAIL Failed to sync secret ${key}:`, error.message);
         errorCount++;
       }
     }
 
     console.log("\n--- Sync Summary ---");
-    console.log(`✅ Successfully synced: ${successCount} secrets`);
-    console.log(`❌ Failed: ${errorCount} secrets`);
+    console.log(`OK2 Successfully synced: ${successCount} secrets`);
+    console.log(`FAIL Failed: ${errorCount} secrets`);
 
     if (errorCount > 0) {
       throw new Error(`Failed to sync ${errorCount} secrets`);
@@ -136,7 +136,7 @@ class SecretsSyncer {
 
     // Key should not contain special characters that would break API calls
     if (!/^[A-Za-z0-9_]+$/.test(key)) {
-      console.log(`⚠️  Invalid key format (skipping): ${key}`);
+      console.log(`WARN  Invalid key format (skipping): ${key}`);
       return false;
     }
 
@@ -151,7 +151,7 @@ class SecretsSyncer {
 
     if (sensitivePatterns.some((pattern) => pattern.test(value))) {
       console.log(
-        `⚠️  Potentially sensitive content (skipping validation for): ${key}`,
+        `WARN  Potentially sensitive content (skipping validation for): ${key}`,
       );
     }
 
@@ -228,9 +228,9 @@ async function main() {
     // Execute sync
     await syncer.syncSecrets();
 
-    console.log("\n✅ Secrets sync completed successfully!");
+    console.log("\nOK2 Secrets sync completed successfully!");
   } catch (error) {
-    console.error("\n💥 Secrets sync failed:", error.message);
+    console.error("\nBANG Secrets sync failed:", error.message);
     console.error("Stack trace:", error.stack);
     process.exit(1);
   }
@@ -239,11 +239,11 @@ async function main() {
 if (require.main === module) {
   main()
     .then(() => {
-      console.log("\n🎉 Script completed successfully");
+      console.log("\nSUCCESS Script completed successfully");
       process.exit(0);
     })
     .catch((error) => {
-      console.error("\n💥 Script failed:", error.message);
+      console.error("\nBANG Script failed:", error.message);
       process.exit(1);
     });
 }

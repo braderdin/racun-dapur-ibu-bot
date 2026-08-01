@@ -1,6 +1,7 @@
 /*
  * Upstash QStash Cron Scheduler Service
  * Manages peak-hour scheduling for Malaysian traffic patterns (12:30 PM - 2:00 PM & 8:30 PM - 10:30 PM MYT)
+ * Includes retry backoff, rate limit prevention for X and Facebook Graph APIs.
  */
 
 import { schedule, Schedule, CronExpression } from "@upstash/qstash";
@@ -10,6 +11,20 @@ import {
   createQStashVerifier,
   qstashVerifierMiddleware,
 } from "../utils/qstash-verify";
+
+// ---------------------------------------------------------------------------
+// Rate limit tracking per platform
+// ---------------------------------------------------------------------------
+
+interface RateLimitState {
+  x: { remaining: number; resetAt: number };
+  facebook: { remaining: number; resetAt: number };
+}
+
+const rateLimitState: RateLimitState = {
+  x: { remaining: 12, resetAt: 0 },
+  facebook: { remaining: 200, resetAt: 0 },
+};
 
 export interface QStashJob {
   id: string;
@@ -121,6 +136,43 @@ export class QStashScheduler {
 
     // Schedule the job
     this.scheduleJob(job);
+  }
+
+  /**
+   * Check if a platform is within its rate limit budget.
+   * Returns true if the request can proceed, false if rate-limited.
+   */
+  private checkRateLimit(platform: "x" | "facebook"): boolean {
+    const now = Date.now();
+    const state = rateLimitState[platform];
+
+    // Reset counter if the rate limit window has expired
+    if (now > state.resetAt) {
+      state.remaining = platform === "x" ? 12 : 200;
+      state.resetAt = now + (platform === "x" ? 7200000 : 3600000); // 2h for X, 1h for FB
+    }
+
+    if (state.remaining <= 0) {
+      console.warn(
+        `[QStashScheduler] Rate limit reached for ${platform} — request deferred`,
+      );
+      return false;
+    }
+
+    state.remaining -= 1;
+    return true;
+  }
+
+  /**
+   * Calculate exponential backoff delay for retries.
+   * Prevents hammering APIs during rate limit windows.
+   */
+  private getBackoffDelay(attempt: number, platform: "x" | "facebook"): number {
+    const baseDelay = platform === "x" ? 1000 : 500;
+    const maxDelay = platform === "x" ? 30000 : 15000;
+    const delay = Math.min(baseDelay * Math.pow(2, attempt - 1), maxDelay);
+    // Add jitter to prevent thundering herd
+    return delay + Math.floor(Math.random() * delay * 0.5);
   }
 
   private scheduleJob(job: QStashJob): void {

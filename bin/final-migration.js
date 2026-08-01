@@ -13,7 +13,7 @@ function loadDirectUrl() {
   try {
     const devVarsPath = path.join(process.cwd(), ".dev.vars");
     if (!fs.existsSync(devVarsPath)) {
-      console.error("❌ .dev.vars file not found");
+      console.error("FAIL .dev.vars file not found");
       return null;
     }
 
@@ -33,20 +33,20 @@ function loadDirectUrl() {
 
     return null;
   } catch (error) {
-    console.error("❌ Failed to read .dev.vars:", error.message);
+    console.error("FAIL Failed to read .dev.vars:", error.message);
     return null;
   }
 }
 
 async function main() {
-  console.log("🚀 Phase 3 Database Migration");
+  console.log("ROCKET Phase 3 Database Migration");
   console.log("==============================");
 
   // Load DIRECT_URL
   const directUrl = loadDirectUrl();
 
   if (!directUrl) {
-    console.error("❌ DIRECT_URL not found in .dev.vars");
+    console.error("FAIL DIRECT_URL not found in .dev.vars");
     console.log("\n📋 Available environment variables:");
     if (fs.existsSync(path.join(process.cwd(), ".dev.vars"))) {
       const content = fs.readFileSync(
@@ -60,14 +60,14 @@ async function main() {
         }
       });
     }
-    console.log("\n🔧 To fix this, add DIRECT_URL to .dev.vars file:");
+    console.log("\nTOOL To fix this, add DIRECT_URL to .dev.vars file:");
     console.log(
       '   DIRECT_URL="postgresql://postgres:password@your-supabase-url:5432/postgres?pgbouncer=false"',
     );
     process.exit(1);
   }
 
-  console.log("✅ DIRECT_URL loaded: " + directUrl.substring(0, 50) + "...");
+  console.log("OK2 DIRECT_URL loaded: " + directUrl.substring(0, 50) + "...");
 
   // Set environment variable
   process.env.DIRECT_URL = directUrl;
@@ -82,7 +82,7 @@ async function main() {
 
   try {
     await client.connect();
-    console.log("✅ Connected to database");
+    console.log("OK2 Connected to database");
 
     // Execute migrations
     const migrationsDir = path.join(process.cwd(), "supabase", "migrations");
@@ -92,7 +92,7 @@ async function main() {
       .sort();
 
     if (files.length === 0) {
-      console.log("⚠️  No migration files found");
+      console.log("WARN  No migration files found");
       await client.end();
       return;
     }
@@ -116,11 +116,11 @@ async function main() {
         .filter((s) => !s.startsWith("/\*") || s.includes("*/"));
 
       if (statements.length === 0) {
-        console.log("⚠️  No valid SQL statements in", file);
+        console.log("WARN  No valid SQL statements in", file);
         continue;
       }
 
-      console.log("   📝 Executing", statements.length, "statements...");
+      console.log("   E2E Executing", statements.length, "statements...");
 
       for (let i = 0; i < statements.length; i++) {
         const stmt = statements[i];
@@ -137,19 +137,19 @@ async function main() {
         }
       }
 
-      console.log("✅", file, "completed successfully");
+      console.log("OK2", file, "completed successfully");
     }
 
     await client.end();
 
-    console.log("\n🎉 ALL MIGRATIONS COMPLETED SUCCESSFULLY!");
+    console.log("\nSUCCESS ALL MIGRATIONS COMPLETED SUCCESSFULLY!");
     console.log("================================================");
-    console.log("\n✅ Phase 3 deployment ready for execution!");
+    console.log("\nOK2 Phase 3 deployment ready for execution!");
     console.log("\n📋 Created schemas:");
     console.log("   • posted_products (dual-engine support)");
     console.log("   • link_clicks (click analytics)");
   } catch (error) {
-    console.error("\n❌ MIGRATION FAILED:", error.message);
+    console.error("\nFAIL MIGRATION FAILED:", error.message);
     process.exit(1);
   }
 }

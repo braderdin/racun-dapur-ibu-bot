@@ -12,9 +12,11 @@ import { createFacebookService } from "./services/facebook";
 
 export class WorkerRouter {
   private router: Router;
+  private env: any;
 
   constructor(env: any) {
     this.router = Router();
+    this.env = env;
     this.initializeRoutes(env);
   }
 
@@ -54,23 +56,25 @@ export class WorkerRouter {
   }
 
   private async handleHealth(req: Request, res: Response): Promise<Response> {
-    return await healthHandler(req, {} as any);
+    const webResponse = await healthHandler(req as any, {});
+    return res.status(webResponse.status).send(await webResponse.text());
   }
 
   private async handleSimpleHealth(
     req: Request,
     res: Response,
   ): Promise<Response> {
-    return await healthHandler(req, {} as any);
+    const webResponse = await healthHandler(req as any, {});
+    return res.status(webResponse.status).send(await webResponse.text());
   }
 
   private async handleRunBot(req: Request, res: Response): Promise<Response> {
     try {
-      const redisService = new RedisService(env);
-      const supabaseService = new SupabaseService(env);
+      const redisService = new RedisService(this.env);
+      const supabaseService = new SupabaseService(this.env);
 
       const startTime = Date.now();
-      await this.processBotWorkflow(env, redisService, supabaseService);
+      await this.processBotWorkflow(this.env, redisService, supabaseService);
 
       const processingTime = Date.now() - startTime;
 
@@ -94,12 +98,13 @@ export class WorkerRouter {
     res: Response,
   ): Promise<Response> {
     try {
-      const redisService = new RedisService(env);
-      const supabaseService = new SupabaseService(env);
+      const redisService = new RedisService(this.env);
+      const supabaseService = new SupabaseService(this.env);
 
-      const totalProducts = await supabaseService.getRecentProductsCount();
+      const recentProducts = await supabaseService.getRecentProducts();
+      const totalProducts = recentProducts.length;
       const redisStats = await redisService.getServiceStatus();
-      const workerStatus = await this.getWorkerServiceStatus(env);
+      const workerStatus = await this.getWorkerServiceStatus(this.env);
 
       return res.status(200).json({
         status: "running",
@@ -125,8 +130,8 @@ export class WorkerRouter {
       const { code } = req.params;
 
       const shortenerService = new ShortenerService(
-        new RedisService(env),
-        new SupabaseService(env),
+        new RedisService(this.env),
+        new SupabaseService(this.env),
       );
 
       const affiliateUrl = await shortenerService.getAffiliateUrl(code);
@@ -197,9 +202,8 @@ export class WorkerRouter {
         affiliateLink,
       } = req.body;
 
-      const env = req.app.get("env");
-      const facebookService = createFacebookService(env);
-      const supabaseService = new SupabaseService(env);
+      const facebookService = createFacebookService(this.env);
+      const supabaseService = new SupabaseService(this.env);
 
       const isFacebook =
         req.query.platform === "facebook" || !req.query.platform;
@@ -220,8 +224,8 @@ export class WorkerRouter {
           4.5,
           affiliateLink,
           new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-          env.FACEBOOK_PAGE_ACCESS_TOKEN,
-          env.FACEBOOK_PAGE_ID,
+          this.env.FACEBOOK_PAGE_ACCESS_TOKEN,
+          this.env.FACEBOOK_PAGE_ID,
         );
 
         await supabaseService.logFacebookPost({
@@ -263,15 +267,14 @@ export class WorkerRouter {
   private async handleDualPost(req: Request, res: Response): Promise<Response> {
     try {
       const dealData = req.body;
-      const env = req.app.get("env");
 
       console.log(
         `Handling dual-channel posting request for deal: ${dealData.id || dealData.productId}`,
       );
 
-      const redisService = new RedisService(env);
-      const supabaseService = new SupabaseService(env);
-      const b2StorageService = new B2StorageService(env);
+      const redisService = new RedisService(this.env);
+      const supabaseService = new SupabaseService(this.env);
+      const b2StorageService = new B2StorageService(this.env);
       const imageProcessor = new ImageProcessor();
 
       const dualPosterService = new DualPosterService(
@@ -314,7 +317,7 @@ export class WorkerRouter {
 
       const dualPostResult = await dualPosterService.executeDualPost(
         processedDeal,
-        env,
+        this.env,
       );
 
       const response: any = {
@@ -396,7 +399,7 @@ export class WorkerRouter {
     try {
       const { startDate, endDate, shortCode } = req.query;
 
-      const supabaseService = new SupabaseService(env);
+      const supabaseService = new SupabaseService(this.env);
       const analytics = await supabaseService.getLinkClickAnalytics(
         startDate as string,
         endDate as string,
@@ -424,7 +427,7 @@ export class WorkerRouter {
     try {
       const { startDate, endDate, shortCode } = req.query;
 
-      const supabaseService = new SupabaseService(env);
+      const supabaseService = new SupabaseService(this.env);
       const conversions = await supabaseService.getConversionAnalytics(
         startDate as string,
         endDate as string,

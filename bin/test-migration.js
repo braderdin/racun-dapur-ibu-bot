@@ -22,13 +22,13 @@ async function testConnection() {
   try {
     const client = await pool.connect();
     const result = await client.query("SELECT version()");
-    console.log("✅ Connection successful!");
+    console.log("OK2 Connection successful!");
     console.log("PostgreSQL version:", result.rows[0].version);
     client.release();
     await pool.end();
     return true;
   } catch (error) {
-    console.error("❌ Connection failed:", error.message);
+    console.error("FAIL Connection failed:", error.message);
     await pool.end();
     return false;
   }
@@ -40,7 +40,7 @@ if (require.main === module) {
       process.exit(success ? 0 : 1);
     })
     .catch((error) => {
-      console.error("💥 Fatal error:", error);
+      console.error("BANG Fatal error:", error);
       process.exit(1);
     });
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
 export type CatalogProduct = {
   id: string;
@@ -480,7 +480,7 @@ export type CatalogProduct = {
   shopee_peak_hour_seasonal_trend?: string;
   lazada_peak_hour_ramadan_special?: boolean;
   shopee_peak_hour_chinese_new_year?: boolean;
-  lazada_peak_hour_eid ?: boolean;
+  lazada_peak_hour_eid?: boolean;
   shopee_peak_hour_haida?: boolean;
   lazada_peak_hour_school_holiday?: boolean;
   shopee_peak_hour_school_holiday?: boolean;
@@ -568,11 +568,11 @@ export interface FilterCriteria {
 }
 
 export interface RealtimeEventPayload {
-  type: 'INSERT' | 'UPDATE' | 'DELETE';
-  table: 'posted_products';
+  type: "INSERT" | "UPDATE" | "DELETE";
+  table: "posted_products";
   event: {
     timestamp: string;
-    op: 'INSERT' | 'UPDATE' | 'DELETE';
+    op: "INSERT" | "UPDATE" | "DELETE";
   };
   new?: CatalogProduct;
   old?: CatalogProduct;
@@ -582,10 +582,10 @@ export interface CatalogStats {
   total_products?: number;
   category_stats?: Record<string, number>;
   budget_distribution?: {
-    '<20': number;
-    '20-50': number;
-    '50-100': number;
-    '>100': number;
+    "<20": number;
+    "20-50": number;
+    "50-100": number;
+    ">100": number;
   };
   active_deals?: number;
   flash_sales?: number;
@@ -626,71 +626,76 @@ export class CatalogService {
   constructor() {
     this.supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
   }
 
   // 🔍 FTS Search with Weighted Scoring
   async searchProducts(params: SearchParams): Promise<CatalogResponse> {
-    const {
-      query,
-      filters,
-      limit = 20,
-      offset = 0,
-    } = params;
+    const { query, filters, limit = 20, offset = 0 } = params;
 
     // Start building query
     let queryBuilder = this.supabase
-      .from('posted_products')
+      .from("posted_products")
       .select(
-        'id, sku, product_name, product_description, category, tags, '
-        + 'lazada_price, lazada_discount, lazada_image, '
-        + 'shopee_price, shopee_discount, shopee_image, '
-        + 'lazada_availability, shopee_availability, total_clicks, '
-        + 'lazada_peak_hour_percent, shopee_peak_hour_percent, '
-        + 'lazada_peak_hour_current_price, shopee_peak_hour_current_price, '
-        + 'lazada_peak_hour_end, shopee_peak_hour_end, '
-        + 'lazada_peak_hour_remaining, shopee_peak_hour_remaining'
+        "id, sku, product_name, product_description, category, tags, " +
+          "lazada_price, lazada_discount, lazada_image, " +
+          "shopee_price, shopee_discount, shopee_image, " +
+          "lazada_availability, shopee_availability, total_clicks, " +
+          "lazada_peak_hour_percent, shopee_peak_hour_percent, " +
+          "lazada_peak_hour_current_price, shopee_peak_hour_current_price, " +
+          "lazada_peak_hour_end, shopee_peak_hour_end, " +
+          "lazada_peak_hour_remaining, shopee_peak_hour_remaining",
       )
-      .eq('lazada_availability', 'available')
-      .eq('shopee_availability', 'available')
-      .order('total_clicks', { ascending: false });
+      .eq("lazada_availability", "available")
+      .eq("shopee_availability", "available")
+      .order("total_clicks", { ascending: false });
 
-    // Apply FTS if query provided
+    // Apply Postgres Native FTS if query provided
     if (query?.trim()) {
       const phrase = query.toLowerCase().trim();
 
-      // Use Supabase's text search for Malay/English support
+      // Use websearch_to_tsquery for better Malay/English relevance ranking
       queryBuilder = queryBuilder.textSearch(
-        'to_tsvector(COALESCE(lazada_product_name, \"\") || \" \" || COALESCE(shopee_product_name, \"\") )',
+        "to_tsvector('malay', COALESCE(product_name, '') || ' ' || COALESCE(product_description, ''))",
         phrase,
-        { type: 'plain' }
+        { type: "websearch" },
       );
 
-      // Also apply phrase matching as fallback/boost
+      // Also apply ilike fallback for partial matches
       queryBuilder = queryBuilder.or(
         `product_name.ilike.%${phrase}%`,
-        `shopee_product_name.ilike.%${phrase}%`,
-        `lazada_sku.ilike.%${phrase}%`,
-        `shopee_sku.ilike.%${phrase}%`,
+        `product_description.ilike.%${phrase}%`,
+        `sku.ilike.%${phrase}%`,
       );
     }
 
     // Apply filters
     if (filters) {
       if (filters.category) {
-        queryBuilder = queryBuilder.eq('category', filters.category);
+        queryBuilder = queryBuilder.eq("category", filters.category);
       }
 
       if (filters.discountMin) {
         queryBuilder = queryBuilder.or(
-          `lazada_discount.gte.${filters.discountMin}`,' + `shopee_discount.gte.${filters.discountMin}%'`
+          `lazada_discount.gte.${filters.discountMin}`,
+          `shopee_discount.gte.${filters.discountMin}`,
         );
       }
 
-      // Budget filter (post-processing)
-      if (filters.budget?.max) {
-        // Will apply after fetch for simplicity
+      // Server-side budget filter (avoids fetching unnecessary rows)
+      if (filters.budget?.min !== undefined) {
+        queryBuilder = queryBuilder.or(
+          `lazada_price.gte.${filters.budget.min}`,
+          `shopee_price.gte.${filters.budget.min}`,
+        );
+      }
+
+      if (filters.budget?.max !== undefined) {
+        queryBuilder = queryBuilder.or(
+          `lazada_price.lte.${filters.budget.max}`,
+          `shopee_price.lte.${filters.budget.max}`,
+        );
       }
     }
 
@@ -701,24 +706,8 @@ export class CatalogService {
 
     if (error) throw new Error(`Search failed: ${error.message}`);
 
-    // Apply budget filter client-side (for simplicity)
-    let filteredData = data || [];
-
-    if (filters?.budget?.max) {
-      filteredData = filteredData.filter(product => {
-        const lazadaPrice = product.lazada_price || Infinity;
-        const shopeePrice = product.shopee_price || Infinity;
-        const minPrice = filters.budget?.min || 0;
-
-        return (
-          (lazadaPrice <= filters.budget.max && lazadaPrice >= minPrice) ||
-          (shopeePrice <= filters.budget.max && shopeePrice >= minPrice)
-        );
-      });
-    }
-
     return {
-      data: filteredData as CatalogProduct[],
+      data: (data || []) as CatalogProduct[],
       pagination: {
         total: count || 0,
         limit,
@@ -734,35 +723,40 @@ export class CatalogService {
     const now = new Date().toISOString();
 
     const { data, error } = await this.supabase
-      .from('posted_products')
+      .from("posted_products")
       .select(
-        'id, sku, lazada_url, shopee_url, product_name, ' +
-        'product_description, category, lazada_price, shopee_price, ' +
-        'lazada_discount, shopee_discount, lazada_image, shopee_image, '
-        + 'lazada_availability, shopee_availability, total_clicks, '
-        + 'lazada_peak_hour_percent, shopee_peak_hour_percent, '
-        + 'lazada_peak_hour_end, shopee_peak_hour_end, '
-        + 'lazada_peak_hour_remaining, shopee_peak_hour_remaining'
+        "id, sku, lazada_url, shopee_url, product_name, " +
+          "product_description, category, lazada_price, shopee_price, " +
+          "lazada_discount, shopee_discount, lazada_image, shopee_image, " +
+          "lazada_availability, shopee_availability, total_clicks, " +
+          "lazada_peak_hour_percent, shopee_peak_hour_percent, " +
+          "lazada_peak_hour_end, shopee_peak_hour_end, " +
+          "lazada_peak_hour_remaining, shopee_peak_hour_remaining",
       )
-      .eq('lazada_availability', 'available')
-      .eq('shopee_availability', 'available')
-      .gte('total_clicks', 0)
-      .order('total_clicks', { ascending: false })
+      .eq("lazada_availability", "available")
+      .eq("shopee_availability", "available")
+      .gte("total_clicks", 0)
+      .order("total_clicks", { ascending: false })
       .limit(limit);
 
-    if (error) throw new Error(`Failed to fetch active deals: ${error.message}`);
+    if (error)
+      throw new Error(`Failed to fetch active deals: ${error.message}`);
 
     // Filter for flash sales
     const flashSaleProducts = (data || [])
-      .filter(product => {
+      .filter((product) => {
         const lazadaEnds = product.lazada_peak_hour_end;
         const shopeeEnds = product.shopee_peak_hour_end;
         const lazadaRemaining = product.lazada_peak_hour_remaining;
         const shopeeRemaining = product.shopee_peak_hour_remaining;
 
         return (
-          (lazadaEnds && new Date(lazadaEnds) > new Date() && lazadaRemaining > 0) ||
-          (shopeeEnds && new Date(shopeeEnds) > new Date() && shopeeRemaining > 0)
+          (lazadaEnds &&
+            new Date(lazadaEnds) > new Date() &&
+            lazadaRemaining > 0) ||
+          (shopeeEnds &&
+            new Date(shopeeEnds) > new Date() &&
+            shopeeRemaining > 0)
         );
       })
       .slice(0, 10); // Limit to top 10 flash sales
@@ -774,26 +768,27 @@ export class CatalogService {
   async getProductsByBudget(
     minPrice: number = 0,
     maxPrice: number = 1000,
-    limit: number = 50
+    limit: number = 50,
   ): Promise<CatalogProduct[]> {
     const { data, error } = await this.supabase
-      .from('posted_products')
+      .from("posted_products")
       .select(
-        'id, sku, lazada_url, shopee_url, product_name, ' +
-        'product_description, category, lazada_price, shopee_price, ' +
-        'lazada_discount, shopee_discount, lazada_image, shopee_image, '
-        + 'lazada_availability, shopee_availability, total_clicks'
+        "id, sku, lazada_url, shopee_url, product_name, " +
+          "product_description, category, lazada_price, shopee_price, " +
+          "lazada_discount, shopee_discount, lazada_image, shopee_image, " +
+          "lazada_availability, shopee_availability, total_clicks",
       )
-      .eq('lazada_availability', 'available')
-      .eq('shopee_availability', 'available')
-      .gte('total_clicks', 0)
+      .eq("lazada_availability", "available")
+      .eq("shopee_availability", "available")
+      .gte("total_clicks", 0)
       .limit(limit)
-      .order('total_clicks', { ascending: false });
+      .order("total_clicks", { ascending: false });
 
-    if (error) throw new Error(`Failed to fetch budget products: ${error.message}`);
+    if (error)
+      throw new Error(`Failed to fetch budget products: ${error.message}`);
 
     // Client-side filter by price range
-    return (data || []).filter(product => {
+    return (data || []).filter((product) => {
       const lazadaPrice = product.lazada_price || Infinity;
       const shopeePrice = product.shopee_price || Infinity;
 
@@ -807,34 +802,36 @@ export class CatalogService {
   // 📊 Get catalog statistics
   async getCatalogStats(): Promise<CatalogStats> {
     const { data, error } = await this.supabase
-      .from('posted_products')
+      .from("posted_products")
       .select(
-        'id, category, lazada_price, shopee_price, ' +
-        'lazada_peak_hour_percent, shopee_peak_hour_percent, '
-        + 'lazada_peak_hour_end, shopee_peak_hour_end, '
-        + 'lazada_peak_hour_remaining, shopee_peak_hour_remaining, '
-        + 'total_clicks'
+        "id, category, lazada_price, shopee_price, " +
+          "lazada_peak_hour_percent, shopee_peak_hour_percent, " +
+          "lazada_peak_hour_end, shopee_peak_hour_end, " +
+          "lazada_peak_hour_remaining, shopee_peak_hour_remaining, " +
+          "total_clicks",
       )
-      .eq('lazada_availability', 'available')
-      .eq('shopee_availability', 'available');
+      .eq("lazada_availability", "available")
+      .eq("shopee_availability", "available");
 
-    if (error) throw new Error(`Failed to fetch catalog stats: ${error.message}`);
+    if (error)
+      throw new Error(`Failed to fetch catalog stats: ${error.message}`);
 
     const products = data as CatalogProduct[];
 
     // Calculate statistics
     const categoryStats: Record<string, number> = {};
-    const budgetDistribution = { '<20': 0, '20-50': 0, '50-100': 0, '>100': 0 };
+    const budgetDistribution = { "<20": 0, "20-50": 0, "50-100": 0, ">100": 0 };
     let activeDeals = 0;
     let flashSales = 0;
 
-    products.forEach(product => {
+    products.forEach((product) => {
       const lazadaPrice = product.lazada_price || 0;
       const shopeePrice = product.shopee_price || 0;
 
       // Category count
       if (product.category) {
-        categoryStats[product.category] = (categoryStats[product.category] || 0) + 1;
+        categoryStats[product.category] =
+          (categoryStats[product.category] || 0) + 1;
       }
 
       // Budget distribution
@@ -842,10 +839,10 @@ export class CatalogService {
       const shopeePriceVal = shopeePrice || Infinity;
       const minPrice = Math.min(lazadaPrice, shopeePrice);
 
-      if (minPrice < 20) budgetDistribution['<20']++;
-      else if (minPrice < 50) budgetDistribution['20-50']++;
-      else if (minPrice < 100) budgetDistribution['50-100']++;
-      else budgetDistribution['>100']++;
+      if (minPrice < 20) budgetDistribution["<20"]++;
+      else if (minPrice < 50) budgetDistribution["20-50"]++;
+      else if (minPrice < 100) budgetDistribution["50-100"]++;
+      else budgetDistribution[">100"]++;
 
       // Flash sales
       const lazadaEnds = product.lazada_peak_hour_end;
@@ -853,13 +850,20 @@ export class CatalogService {
       const lazadaRemaining = product.lazada_peak_hour_remaining;
       const shopeeRemaining = product.shopee_peak_hour_remaining;
 
-      if ((lazadaEnds && new Date(lazadaEnds) > new Date() && lazadaRemaining > 0) ||
-          (shopeeEnds && new Date(shopeeEnds) > new Date() && shopeeRemaining > 0)) {
+      if (
+        (lazadaEnds &&
+          new Date(lazadaEnds) > new Date() &&
+          lazadaRemaining > 0) ||
+        (shopeeEnds && new Date(shopeeEnds) > new Date() && shopeeRemaining > 0)
+      ) {
         flashSales++;
       }
 
       // Active deals (any available product)
-      if (product.lazada_availability === 'available' || product.shopee_availability === 'available') {
+      if (
+        product.lazada_availability === "available" ||
+        product.shopee_availability === "available"
+      ) {
         activeDeals++;
       }
     });
@@ -876,13 +880,13 @@ export class CatalogService {
   // 📦 Get single product by ID
   async getProductById(productId: string): Promise<CatalogProduct | null> {
     const { data, error } = await this.supabase
-      .from('posted_products')
-      .select('*')
-      .eq('id', productId)
+      .from("posted_products")
+      .select("*")
+      .eq("id", productId)
       .single();
 
     if (error) {
-      if (error.code === 'PGRST116') return null;
+      if (error.code === "PGRST116") return null;
       throw new Error(`Failed to fetch product: ${error.message}`);
     }
 
@@ -891,32 +895,30 @@ export class CatalogService {
 
   // 🔄 Subscribe to product changes
   subscribeToChanges(
-    callback: (payload: RealtimeEventPayload) => void
+    callback: (payload: RealtimeEventPayload) => void,
   ): () => void {
-    const channel = this.supabase
-      .channel('catalog-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*', // INSERT, UPDATE, DELETE
-          schema: 'public',
-          table: 'posted_products',
-        },
-        (payload) => {
-          const realtimePayload: RealtimeEventPayload = {
-            type: payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE',
-            table: payload.table,
-            event: {
-              timestamp: new Date().toISOString(),
-              op: payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE',
-            },
-            new: payload.new as CatalogProduct | null,
-            old: payload.old as CatalogProduct | null,
-          };
+    const channel = this.supabase.channel("catalog-changes").on(
+      "postgres_changes",
+      {
+        event: "*", // INSERT, UPDATE, DELETE
+        schema: "public",
+        table: "posted_products",
+      },
+      (payload) => {
+        const realtimePayload: RealtimeEventPayload = {
+          type: payload.eventType as "INSERT" | "UPDATE" | "DELETE",
+          table: payload.table,
+          event: {
+            timestamp: new Date().toISOString(),
+            op: payload.eventType as "INSERT" | "UPDATE" | "DELETE",
+          },
+          new: payload.new as CatalogProduct | null,
+          old: payload.old as CatalogProduct | null,
+        };
 
-          callback(realtimePayload);
-        }
-      );
+        callback(realtimePayload);
+      },
+    );
 
     channel.subscribe();
 
@@ -928,11 +930,12 @@ export class CatalogService {
   // 🛠️ Get preview data for development
   async getPreviewData(): Promise<any> {
     const { data, error } = await this.supabase
-      .from('posted_products')
-      .select('*')
+      .from("posted_products")
+      .select("*")
       .limit(10);
 
-    if (error) throw new Error(`Failed to fetch preview data: ${error.message}`);
+    if (error)
+      throw new Error(`Failed to fetch preview data: ${error.message}`);
 
     return data;
   }

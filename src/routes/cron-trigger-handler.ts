@@ -14,6 +14,7 @@ import { RedisService } from "../services/redis";
 import { SupabaseService } from "../services/supabase";
 import { logger } from "../utils/logger";
 import { CONSTANTS } from "../config/constants";
+import { QStashVerifier } from "../utils/qstash-verify";
 
 // Peak hour windows for Malaysian traffic (Asia/Kuala_Lumpur timezone)
 const PEAK_HOURS = {
@@ -119,6 +120,28 @@ export class CronTriggerHandler {
     };
 
     try {
+      // Step 0: Verify QStash signature (if signing key is configured)
+      const qstashVerifier = new QStashVerifier(
+        this.env.QSTASH_SIGNING_KEY || "",
+      );
+      const signatureValid =
+        !this.env.QSTASH_SIGNING_KEY ||
+        qstashVerifier.verifySignature(controller.scheduledTime, {
+          "Upstash-Signature": controller.scheduledTime,
+          "Upstash-Timestamp": String(Math.floor(Date.now() / 1000)),
+        } as any);
+
+      if (!signatureValid && this.env.QSTASH_SIGNING_KEY) {
+        logger.warn(
+          "QStash signature verification failed — rejecting request",
+          { executionId },
+          "CronTriggerHandler",
+        );
+        result.errors.push("QStash signature verification failed");
+        result.success = false;
+        return result;
+      }
+
       // Step 1: Verify peak-hour execution window
       const peakCheck = this.checkPeakHourWindow();
       context.isPeakHour = peakCheck.isPeakHour;

@@ -1,4 +1,5 @@
-import { Env, ProductItem } from "../types/env";
+import { Env } from "../types/env";
+import { ProductItem } from "../types/product";
 import { CONSTANTS } from "../config/constants";
 import { logger } from "../utils/logger";
 

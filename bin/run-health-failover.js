@@ -263,7 +263,7 @@ class HealthChecker {
     }
 
     const embed = {
-      title: "⚠️ System Health Alert — Failover Triggered",
+      title: "WARN System Health Alert — Failover Triggered",
       description: `Overall status: **${failoverInfo.overallStatus}**`,
       color: failoverInfo.overallStatus === "degraded" ? 15158332 : 16776960,
       fields: [
@@ -343,7 +343,11 @@ class HealthChecker {
 
     this.results.forEach((r) => {
       const icon =
-        r.status === "healthy" ? "✅" : r.status === "degraded" ? "⚠️" : "❌";
+        r.status === "healthy"
+          ? "OK2"
+          : r.status === "degraded"
+            ? "WARN"
+            : "FAIL";
       console.log(`  ${icon} ${r.name}: ${r.status} (${r.responseTimeMs}ms)`);
       if (r.error) {
         console.log(`     Error: ${r.error}`);

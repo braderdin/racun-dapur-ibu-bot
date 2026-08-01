@@ -31,7 +31,7 @@ function getDirectUrlFromDevVars() {
     }
     throw new Error("DIRECT_URL not found in .dev.vars file");
   } catch (error) {
-    console.error("❌ Failed to read .dev.vars file:", error.message);
+    console.error("FAIL Failed to read .dev.vars file:", error.message);
     throw error;
   }
 }
@@ -95,14 +95,14 @@ function loadEnvFromDevVars() {
     // Validate required environment variables
     if (!DIRECT_URL) {
       throw new Error(
-        "❌ DIRECT_URL environment variable is required (set in .env.local or .dev.vars)",
+        "FAIL DIRECT_URL environment variable is required (set in .env.local or .dev.vars)",
       );
     }
 
-    console.log("✅ Environment variables loaded successfully");
+    console.log("OK2 Environment variables loaded successfully");
     console.log("🔗 DIRECT_URL: " + DIRECT_URL.substring(0, 50) + "...");
   } catch (error) {
-    console.error("❌ Failed to load environment variables:", error.message);
+    console.error("FAIL Failed to load environment variables:", error.message);
     throw error;
   }
 }
@@ -129,7 +129,7 @@ function executeSqlFile(filePath) {
         .filter((stmt) => stmt.length > 0 && !stmt.startsWith("--"));
 
       if (statements.length === 0) {
-        console.log(`⚠️  No valid SQL statements found in ${filePath}`);
+        console.log(`WARN  No valid SQL statements found in ${filePath}`);
         resolve();
         return;
       }
@@ -148,14 +148,14 @@ function executeSqlFile(filePath) {
 
         await client.end();
         console.log(
-          `✅ Successfully executed ${statements.length} statements from ${filePath}`,
+          `OK2 Successfully executed ${statements.length} statements from ${filePath}`,
         );
         resolve();
       }
 
       executeStatements().catch((error) => reject(error));
     } catch (error) {
-      console.error(`❌ Failed to execute ${filePath}:`, error.message);
+      console.error(`FAIL Failed to execute ${filePath}:`, error.message);
       reject(error);
     }
   });
@@ -167,15 +167,15 @@ async function main() {
   const migrationsDir = path.join(process.cwd(), "supabase", "migrations");
 
   try {
-    console.log("🚀 Database Migration Helper Script started");
-    console.log(`📁 Migration directory: ${migrationsDir}`);
+    console.log("ROCKET Database Migration Helper Script started");
+    console.log(`FOLDER Migration directory: ${migrationsDir}`);
 
     // Read all migration files
     const files = fs.readdirSync(migrationsDir);
     const sqlFiles = files.filter((file) => file.endsWith(".sql")).sort(); // Execute in alphabetical order (timestamp prefix)
 
     if (sqlFiles.length === 0) {
-      console.log("⚠️  No migration files found");
+      console.log("WARN  No migration files found");
       return;
     }
 
@@ -189,9 +189,9 @@ async function main() {
       console.log(""); // Add spacing between files
     }
 
-    console.log("🎉 All migrations executed successfully!");
+    console.log("SUCCESS All migrations executed successfully!");
   } catch (error) {
-    console.error("💥 Migration script failed:", error.message);
+    console.error("BANG Migration script failed:", error.message);
     process.exit(1);
   }
 }
@@ -207,7 +207,7 @@ const timeoutPromise = new Promise((_, reject) => {
 Promise.race([main(), timeoutPromise])
   .then(() => process.exit(0))
   .catch((error) => {
-    console.error("💥 Fatal error:", error.message);
+    console.error("BANG Fatal error:", error.message);
     process.exit(1);
   });
 

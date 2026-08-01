@@ -17,8 +17,6 @@ const CONFIG = {
 };
 
 class E2ETestSuiteRunner {
-  private testPath: string;
-
   constructor() {
     this.testPath = path.join(process.cwd(), CONFIG.E2E_TEST_PATH);
 
@@ -26,13 +24,13 @@ class E2ETestSuiteRunner {
       throw new Error(`E2E test path not found: ${this.testPath}`);
     }
 
-    console.log("🚀 E2E Test Suite Runner Initialized");
-    console.log(`📁 Test Path: ${this.testPath}`);
+    console.log("ROCKET E2E Test Suite Runner Initialized");
+    console.log(`FOLDER Test Path: ${this.testPath}`);
   }
 
-  async runAllTests(): Promise<{ success: boolean; message: string; details?: any }> {
+  async runAllTests() {
     try {
-      console.log("🧪 Starting E2E Test Suite Execution...");
+      console.log("TEST Starting E2E Test Suite Execution...");
 
       // Discover all test files
       const testFiles = await this.discoverTestFiles();
@@ -41,9 +39,9 @@ class E2ETestSuiteRunner {
         throw new Error("No E2E test files found");
       }
 
-      console.log(`📝 Found ${testFiles.length} E2E test files:\`;
+      console.log("[E2E] Found " + testFiles.length + " E2E test files");
       testFiles.forEach((file, index) => {
-        console.log(`   ${index + 1}. \${file}");
+        console.log("   " + (index + 1) + ". " + file);
       });
 
       // Execute tests sequentially
@@ -58,7 +56,7 @@ class E2ETestSuiteRunner {
       console.log(`\n📄 E2E Test Report saved to: \${CONFIG.REPORT_PATH}`);
 
       if (report.summary.failedTests === 0) {
-        console.log("\n🎉 ALL E2E TESTS PASSED! 🎉");
+        console.log("\nSUCCESS ALL E2E TESTS PASSED! SUCCESS");
         console.log("\nTest Summary:", JSON.stringify(report.summary, null, 2));
         return {
           success: true,
@@ -66,10 +64,10 @@ class E2ETestSuiteRunner {
           details: report,
         };
       } else {
-        console.error("\n💥 SOME E2E TESTS FAILED! 💥");
+        console.error("\nBANG SOME E2E TESTS FAILED! BANG");
         console.error("\nTest Summary:", JSON.stringify(report.summary, null, 2));
         console.error("\nFailed Tests:", JSON.stringify(report.failedTests, null, 2));
-        console.log("\n🔧 Recommended Actions:");
+        console.log("\nTOOL Recommended Actions:");
         console.log("   1. Review failed test outputs for error details");
         console.log("   2. Check environment configuration and dependencies");
         console.log("   3. Verify worker deployment and service connectivity");
@@ -82,7 +80,7 @@ class E2ETestSuiteRunner {
         };
       }
     } catch (error) {
-      console.error("❌ E2E Test Suite Execution Failed:", error.message);
+      console.error("FAIL E2E Test Suite Execution Failed:", error.message);
 
       return {
         success: false,
@@ -96,12 +94,12 @@ class E2ETestSuiteRunner {
     }
   }
 
-  private async discoverTestFiles(): Promise<string[]> {
+async discoverTestFiles() {
     console.log("🔍 Discovering E2E test files...");
 
-    const testFiles: string[] = [];
+    const testFiles[] = [];
 
-    function discoverRecursive(dirPath: string): void {
+    function discoverRecursive(dirPath) {
       const items = fs.readdirSync(dirPath);
 
       for (const item of items) {
@@ -123,16 +121,16 @@ class E2ETestSuiteRunner {
     // Sort test files for consistent execution order
     testFiles.sort();
 
-    console.log(`✅ Discovered ${testFiles.length} E2E test files";
+    console.log(`OK2 Discovered ${testFiles.length} E2E test files";
     return testFiles;
   }
 
-  private async executeTestsSequentially(testFiles: string[]): Promise<any[]> {
-    const results: any[] = [];
+async executeTestsSequentially(testFiles) {
+    const results = [];
 
     for (let i = 0; i < testFiles.length; i++) {
       const testFile = testFiles[i];
-      console.log(`\n🧪 Executing test ${i + 1}/${testFiles.length}: \${testFile}");
+      console.log("\nTEST Executing test " + (i + 1) + "/" + testFiles.length + ": " + testFile);
 
       try {
         const result = await this.executeSingleTest(testFile);
@@ -142,10 +140,10 @@ class E2ETestSuiteRunner {
           status: "PASSED",
           executionTimeMs: result.executionTimeMs || 0,
         });
-        console.log(`✅ Test completed successfully (Execution time: \${result.executionTimeMs || 0}ms)");
+        console.log("OK2 Test completed successfully (Execution time: " + (result.executionTimeMs || 0) + "ms)");
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`❌ Test failed: \${errorMessage}");
+        console.error("FAIL Test failed: " + errorMessage);
 
         results.push({
           file: testFile,
@@ -165,22 +163,22 @@ class E2ETestSuiteRunner {
     return results;
   }
 
-  private async executeSingleTest(testFile: string): Promise<any> {
+async executeSingleTest(testFile) {
     const startTime = Date.now();
 
     // Try different test execution methods
-    let result: any = null;
-    let lastError: Error | null = null;
+    let result = null;
+    let lastError | null = null;
 
     // Method 1: Try as TypeScript file with npx ts-node
     if (testFile.endsWith(".ts")) {
       try {
-        result = await this.executeCommand(`npx ts-node \${testFile}`);
-        console.log(`✅ Test executed successfully as TypeScript";
+        result = await this.executeCommand("npx ts-node " + testFile);
+        console.log("OK2 Test executed successfully as TypeScript");
         return { ...result, executionTimeMs: Date.now() - startTime };
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        console.warn(`⚠️ TypeScript test execution failed: \${lastError.message}`);
+        console.warn("WARN TypeScript test execution failed: " + lastError.message);
       }
     }
 
@@ -188,12 +186,12 @@ class E2ETestSuiteRunner {
     const jsFile = testFile.replace(/\.ts$/,".js");
     if (fs.existsSync(jsFile)) {
       try {
-        result = await this.executeCommand(`node \${jsFile}`);
-        console.log(`✅ Test executed successfully as JavaScript";
+        result = await this.executeCommand("node " + jsFile);
+        console.log("OK2 Test executed successfully as JavaScript");
         return { ...result, executionTimeMs: Date.now() - startTime };
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        console.warn(`⚠️ JavaScript test execution failed: \${lastError.message}`);
+        console.warn("WARN JavaScript test execution failed: " + lastError.message);
       }
     }
 
@@ -203,12 +201,12 @@ class E2ETestSuiteRunner {
       try {
         const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
         if (packageJson.scripts?.test) {
-          result = await this.executeCommand(`npm test`);
-          console.log(`✅ Test executed successfully via npm test";
+          result = await this.executeCommand("npm test");
+          console.log("OK2 Test executed successfully via npm test");
           return { ...result, executionTimeMs: Date.now() - startTime };
         }
       } catch (error) {
-        console.warn(`⚠️ npm test execution failed: \${error.message}`);
+        console.warn("WARN npm test execution failed: " + error.message);
       }
     }
 
@@ -217,10 +215,10 @@ class E2ETestSuiteRunner {
       throw lastError;
     }
 
-    throw new Error(`No test execution method available for: \${testFile}`);
+    throw new Error("No test execution method available for: " + testFile);
   }
 
-  private async executeCommand(command: string): Promise<any> {
+async executeCommand(command) {
     return new Promise((resolve, reject) => {
       const [cmd, ...args] = command.split(" ");
 
@@ -262,11 +260,11 @@ class E2ETestSuiteRunner {
     });
   }
 
-  private delay(ms: number): Promise<void> {
+delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  private generateTestReport(testFiles: string[], testResults: any[]): any {
+generateTestReport(testFiles[], testResults[]) {
     const passedTests = testResults.filter((r) => r.status === "PASSED");
     const failedTests = testResults.filter((r) => r.status === "FAILED");
 
@@ -308,16 +306,16 @@ async function main() {
     const result = await runner.runAllTests();
 
     if (result.success) {
-      console.log("\n🎉 E2E TEST SUITE EXECUTION SUCCESSFUL! 🎉");
+      console.log("\nSUCCESS E2E TEST SUITE EXECUTION SUCCESSFUL! SUCCESS");
       console.log("\nExecution Summary:", JSON.stringify(result.details?.summary, null, 2));
-      console.log("\n✨ E2E test suite ready for Phase 7 Production Launch! ✨");
+      console.log("\nOK E2E test suite ready for Phase 7 Production Launch! OK");
 
       process.exit(0);
     } else {
-      console.error("\n💥 E2E TEST SUITE EXECUTION FAILED! 💥");
+      console.error("\nBANG E2E TEST SUITE EXECUTION FAILED! BANG");
       console.error("\nExecution Summary:", JSON.stringify(result.details?.summary, null, 2));
       console.error("\nFailed Test Details:", JSON.stringify(result.details?.failedTests, null, 2));
-      console.log("\n🔧 Next Steps:");
+      console.log("\nTOOL Next Steps:");
       console.log("   1. Review failed test outputs for specific errors");
       console.log("   2. Check environment configuration and service connectivity");
       console.log("   3. Verify worker deployment and routing");
@@ -326,7 +324,7 @@ async function main() {
       process.exit(1);
     }
   } catch (error) {
-    console.error("\n💥 E2E TEST SUITE EXECUTION FAILED! 💥");
+    console.error("\nBANG E2E TEST SUITE EXECUTION FAILED! BANG");
     console.error("\nUnexpected Error:", error.message);
 
     process.exit(1);

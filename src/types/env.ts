@@ -126,6 +126,52 @@ export const securityConfigSchema = z.object({
   YDB_API_KEY: z.string().optional(),
   LAZADA_API_SECRET: z.string().optional(),
   SHOPEE_API_SECRET: z.string().optional(),
+
+  // Lazada API Credentials
+  LAZADA_APP_KEY: z.string().optional(),
+  LAZADA_APP_SECRET: z.string().optional(),
+
+  // Shopee API Credentials
+  SHOPEE_API_KEY: z.string().optional(),
+  SHOPEE_SHOP_ID: z.string().optional(),
+
+  // Facebook API Credentials
+  FACEBOOK_PAGE_ACCESS_TOKEN: z.string().optional(),
+  FACEBOOK_APP_SECRET: z.string().optional(),
+  FACEBOOK_APP_ID: z.string().optional(),
+
+  // Twitter/X API Credentials
+  TWITTER_API_KEY: z.string().optional(),
+  TWITTER_API_SECRET: z.string().optional(),
+  TWITTER_ACCESS_TOKEN: z.string().optional(),
+  TWITTER_ACCESS_SECRET: z.string().optional(),
+
+  // Cloaking & Link Masking
+  CLOAK_DOMAIN: z.string().optional(),
+  CLOAK_UTM_SOURCE: z.string().optional(),
+  CLOAK_UTM_CAMPAIGN: z.string().optional(),
+  CLOAK_EXPIRY_DAYS: z.string().optional(),
+
+  // Trend Analysis
+  TREND_HISTORY_DAYS: z.string().optional(),
+  TREND_FLASH_SALE_THRESHOLD: z.string().optional(),
+  TREND_ATL_CONFIDENCE: z.string().optional(),
+
+  // Realtime Notifier
+  NEXT_PUBLIC_SUPABASE_URL: z.string().optional(),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional(),
+  REALTIME_CHANNEL: z.string().optional(),
+  REALTIME_FLUSH_MS: z.string().optional(),
+  REALTIME_MAX_QUEUE: z.string().optional(),
+
+  // Twitter/X Configuration
+  TWITTER_TWEET1_MAX: z.string().optional(),
+  TWITTER_TWEET2_MAX: z.string().optional(),
+  TWITTER_DELAY_BETWEEN: z.string().optional(),
+  TWITTER_AUTO_REPLY_DELAY: z.string().optional(),
+
+  // Proxy Rotation Seed
+  PROXY_ROTATION_SEED: z.string().optional(),
 });
 
 /**
@@ -255,6 +301,8 @@ export const envSchema = z.object({
  * Provides TypeScript type safety for all environment variables.
  */
 export type EnvConfig = z.infer<typeof envSchema>;
+
+export type Env = EnvConfig;
 
 /**
  * Validates environment configuration against all schemas.
