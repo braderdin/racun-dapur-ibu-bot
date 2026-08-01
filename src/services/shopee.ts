@@ -122,7 +122,8 @@ export class ShopeeApiService {
       );
       return response;
     } catch (error) {
-      console.log("⚠️  Shopee API failed, returning mock data:", error.message);
+      const errMessage = error instanceof Error ? error.message : String(error);
+      console.log("⚠️  Shopee API failed, returning mock data:", errMessage);
       return this.getMockProducts(request);
     }
   }
@@ -138,9 +139,10 @@ export class ShopeeApiService {
       console.log("✅ Successfully fetched product details");
       return product;
     } catch (error) {
+      const errMessage = error instanceof Error ? error.message : String(error);
       console.log(
         "⚠️  Failed to fetch product details, using fallback:",
-        error.message,
+        errMessage,
       );
       return this.getMockProductById(productId);
     }

@@ -225,14 +225,15 @@ export class AIFallbackRouter {
 
           return result;
         } catch (error) {
-          console.warn("⚠️ Tier 1 failed:", error.message);
-          await this.handleTierFailure(Tier.TIER_1, error);
+          const errMessage = error instanceof Error ? error.message : String(error);
+          console.warn("⚠️ Tier 1 failed:", errMessage);
+          await this.handleTierFailure(Tier.TIER_1, error instanceof Error ? error : new Error(errMessage));
 
           // Try fallback if enabled
           if (this.config.emergencyFallback) {
             console.log("🔄 Fallback triggered - attempting Tier 2");
           } else {
-            throw error;
+            throw error instanceof Error ? error : new Error(errMessage);
           }
         }
       }
@@ -257,8 +258,9 @@ export class AIFallbackRouter {
 
           return result;
         } catch (error) {
-          console.warn("⚠️ Tier 2 failed:", error.message);
-          await this.handleTierFailure(Tier.TIER_2, error);
+          const errMessage = error instanceof Error ? error.message : String(error);
+          console.warn("⚠️ Tier 2 failed:", errMessage);
+          await this.handleTierFailure(Tier.TIER_2, error instanceof Error ? error : new Error(errMessage));
 
           if (
             this.config.emergencyFallback &&
@@ -266,7 +268,7 @@ export class AIFallbackRouter {
           ) {
             console.log("🔄 Fallback triggered - attempting Tier 3");
           } else {
-            throw error;
+            throw error instanceof Error ? error : new Error(errMessage);
           }
         }
       }
@@ -291,10 +293,11 @@ export class AIFallbackRouter {
 
           return result;
         } catch (error) {
-          console.error("❌ All tiers failed:", error.message);
+          const errMessage = error instanceof Error ? error.message : String(error);
+          console.error("❌ All tiers failed:", errMessage);
           this.updateStats(false, Date.now() - startTime);
           throw new Error(
-            `Complete failure across all AI tiers: ${error.message}`,
+            `Complete failure across all AI tiers: ${errMessage}`,
           );
         }
       }
@@ -306,8 +309,9 @@ export class AIFallbackRouter {
 
       throw new Error("No AI tier available and emergency fallback disabled");
     } catch (error) {
+      const errMessage = error instanceof Error ? error.message : String(error);
       this.updateStats(false, Date.now() - startTime);
-      throw error;
+      throw error instanceof Error ? error : new Error(errMessage);
     }
   }
 
@@ -542,7 +546,7 @@ export class AIFallbackRouter {
 
             console.log(`✅ Health check passed for ${tier}`);
           } catch (error) {
-            console.warn(`⚠️ Health check failed for ${tier}:`, error.message);
+            console.warn(`⚠️ Health check failed for ${tier}:`, error instanceof Error ? error.message : String(error));
           }
         }
       }
@@ -554,7 +558,7 @@ export class AIFallbackRouter {
     } catch (error) {
       return {
         status: "unhealthy",
-        details: `AIFallbackRouter health check error: ${error.message}`,
+        details: `AIFallbackRouter health check error: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   }

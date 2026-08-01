@@ -197,8 +197,9 @@ export class DualEngineRotationManager {
       );
       return balancedDeals;
     } catch (error) {
-      console.error("❌ Deals curation failed:", error.message);
-      throw error;
+      const errMessage = error instanceof Error ? error.message : String(error);
+      console.error("❌ Deals curation failed:", errMessage);
+      throw error instanceof Error ? error : new Error(errMessage);
     }
   }
 
@@ -270,7 +271,8 @@ export class DualEngineRotationManager {
         this.platformStatus.set(platform, status);
       }
 
-      console.log(`❌ ${platform} API failed:`, error.message);
+      const errMessage = error instanceof Error ? error.message : String(error);
+      console.log(`❌ ${platform} API failed:`, errMessage);
 
       // Return empty array for now
       return [];
@@ -394,7 +396,7 @@ export class DualEngineRotationManager {
 
       console.log("💾 Rotation state saved to Redis");
     } catch (error) {
-      console.error("❌ Failed to save rotation state:", error.message);
+      console.error("❌ Failed to save rotation state:", error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -418,7 +420,7 @@ export class DualEngineRotationManager {
         console.log("📥 Rotation state loaded from Redis");
       }
     } catch (error) {
-      console.error("❌ Failed to load rotation state:", error.message);
+      console.error("❌ Failed to load rotation state:", error instanceof Error ? error.message : String(error));
       // Initialize with default schedule if loading fails
       this.rotationSchedule = this.initializeRotationSchedule();
     }
@@ -460,7 +462,7 @@ export class DualEngineRotationManager {
       } catch (error) {
         console.error(
           `❌ ${platform} platform health check failed:`,
-          error.message,
+          error instanceof Error ? error.message : String(error),
         );
 
         const status = this.platformStatus.get(platform);

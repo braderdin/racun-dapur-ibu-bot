@@ -130,8 +130,9 @@ export class B2StorageService {
 
       return uploadResult;
     } catch (error) {
-      console.error("❌ Failed to upload product image:", error.message);
-      throw error;
+      const errMessage = error instanceof Error ? error.message : String(error);
+      console.error("❌ Failed to upload product image:", errMessage);
+      throw error instanceof Error ? error : new Error(errMessage);
     }
   }
 

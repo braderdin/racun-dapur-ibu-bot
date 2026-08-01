@@ -220,10 +220,10 @@ export class DualPosterService {
 
       return result;
     } catch (error) {
-      console.error(`❌ Dual-post pipeline failed for deal ${deal.id}:`, error);
+      console.error(`❌ Dual-post pipeline failed for deal ${deal.id}:`, error instanceof Error ? error.message : String(error));
 
       // Log failure to database
-      await this.logDualPost(deal, result, error.message);
+      await this.logDualPost(deal, result, error instanceof Error ? error.message : String(error));
 
       // Determine retry strategy
       if (this.isRetryableError(error)) {
@@ -288,12 +288,12 @@ export class DualPosterService {
         error: facebookResult.error,
       };
     } catch (error) {
-      console.error(`❌ Facebook posting failed for deal ${deal.id}:`, error);
+      console.error(`❌ Facebook posting failed for deal ${deal.id}:`, error instanceof Error ? error.message : String(error));
       return {
         success: false,
         postId: undefined,
         commentId: undefined,
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       };
     }
   }
@@ -338,7 +338,7 @@ export class DualPosterService {
       };
     } catch (error) {
       console.warn(
-        `⚠️ Image processing failed for deal ${deal.id}, using original URL:", error`,
+        `⚠️ Image processing failed for deal ${deal.id}, using original URL:", error instanceof Error ? error.message : String(error),
       );
       // Return original URL as fallback
       return {
@@ -364,7 +364,7 @@ export class DualPosterService {
       const cached = await this.redisService.get(cacheKey);
       return !!cached;
     } catch (error) {
-      console.warn("⚠️ Failed to check anti-repeat cache:", error);
+      console.warn("⚠️ Failed to check anti-repeat cache:", error instanceof Error ? error.message : String(error));
       return false; // If cache fails, assume not posted
     }
   }
@@ -388,7 +388,7 @@ export class DualPosterService {
         }),
       );
     } catch (error) {
-      console.warn("⚠️ Failed to set anti-repeat cache:", error);
+      console.warn("⚠️ Failed to set anti-repeat cache:", error instanceof Error ? error.message : String(error));
       // Cache failure shouldn't break the flow
     }
   }
@@ -428,7 +428,7 @@ export class DualPosterService {
       // Log to Supabase
       await this.supabaseService.logFacebookPost(logData);
     } catch (error) {
-      console.error("❌ Failed to log dual-post result:", error);
+      console.error("❌ Failed to log dual-post result:", error instanceof Error ? error.message : String(error));
       // Don't throw - logging failure shouldn't break the main flow
     }
   }
@@ -496,7 +496,7 @@ export class DualPosterService {
     } catch (error) {
       return {
         status: "unhealthy",
-        details: `Health check error: ${error.message}`,
+        details: `Health check error: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   }
