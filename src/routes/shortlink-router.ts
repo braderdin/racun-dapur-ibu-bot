@@ -4,7 +4,7 @@
  * Handles redirects like racun.ibu.my/airfryer -> affiliate URLs while logging metadata
  */
 
-import { ENV } from "../types/env";
+import { Env } from "../types/env";
 import { logger } from "../utils/logger";
 
 export interface ShortlinkRoute {

@@ -4,7 +4,7 @@
  * Includes retry backoff, rate limit prevention for X and Facebook Graph APIs.
  */
 
-import { schedule, Schedule, CronExpression } from "@upstash/qstash";
+import { Schedule, CronExpression } from "@upstash/qstash";
 import { CONSTANTS } from "../config/constants";
 import { QSTASH_CURRENT_SIGNING_KEY } from "../config/env";
 import {
@@ -47,7 +47,7 @@ export class QStashScheduler {
     this.verificationEnabled = !!this.qstashSigningKey;
 
     // Initialize QStash schedule with current signing key
-    this.schedule = schedule({
+    this.schedule = new Schedule({
       baseUrl: "https://qstash.upstash.io/v1",
       currentSigningKey: this.qstashSigningKey,
     });

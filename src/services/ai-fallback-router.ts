@@ -12,8 +12,6 @@
 import { CONSTANTS } from "../config/constants";
 import { ProductItem } from "../types/product";
 import { OpenRouterService } from "./openrouter";
-import { GeminiService } from "./gemini";
-import { HeuristicRuleEngine } from "./heuristic-rule-engine";
 
 export interface FallbackResult {
   hook: string;
@@ -135,8 +133,6 @@ export class AIFallbackRouter {
 
     // Initialize service wrappers
     this.openRouterService = new OpenRouterService();
-    this.geminiService = new GeminiService();
-    this.heuristicService = new HeuristicRuleEngine();
 
     console.log(
       "🚀 AIFallbackRouter initialized with 3-tier fallback strategy",
@@ -151,8 +147,7 @@ export class AIFallbackRouter {
   }
 
   private openRouterService: OpenRouterService;
-  private geminiService: GeminiService;
-  private heuristicService: HeuristicService;
+
 
   /**
    * Phase 6: Enqueue request for 24/7 autonomous processing.

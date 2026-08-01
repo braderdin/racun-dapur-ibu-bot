@@ -15,6 +15,8 @@ export const ProductItemSchema = z.object({
   name: z.string().optional(),
   stock: z.string().optional(),
   description: z.string().optional(),
+  platform: z.enum(["lazada", "shopee"]).optional(),
+  explanation: z.string().optional(),
 });
 
 // ProductItem type derived from schema
@@ -57,7 +59,7 @@ export interface GeneratedCopy {
   threadTarget: "single-tweet" | "thread-2";
   platform: "lazada" | "shopee";
   confidence: number;
-  fallbackChainUsed: "none" | "tier-2" | "tier-3";
+  fallbackChainUsed: "none" | "tier-1" | "tier-2" | "tier-3" | "emergency";
 }
 
 export interface DualPostResult {

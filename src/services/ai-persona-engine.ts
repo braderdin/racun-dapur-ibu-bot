@@ -36,6 +36,7 @@ export interface PersonaCopyOutput {
   hashtags: string[];
   tone: string;
   confidence: number;
+  fallbackChainUsed?: "none" | "tier-1" | "tier-2" | "tier-3" | "emergency";
 }
 
 export interface TwitterThreadOutput {
