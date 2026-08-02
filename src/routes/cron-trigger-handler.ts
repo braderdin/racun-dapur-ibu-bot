@@ -81,7 +81,10 @@ export class CronTriggerHandler {
     this.supabaseService = new SupabaseService(env);
     this.maxRetries = 3;
     this.circuitBreakerCount = 0;
-    this.circuitBreakerThreshold = parseInt(env.CIRCUIT_BREAKER_THRESHOLD || "5", 10);
+    this.circuitBreakerThreshold = parseInt(
+      env.CIRCUIT_BREAKER_THRESHOLD || "5",
+      10,
+    );
   }
 
   /**

@@ -225,9 +225,13 @@ export class AIFallbackRouter {
 
           return result;
         } catch (error) {
-          const errMessage = error instanceof Error ? error.message : String(error);
+          const errMessage =
+            error instanceof Error ? error.message : String(error);
           console.warn("⚠️ Tier 1 failed:", errMessage);
-          await this.handleTierFailure(Tier.TIER_1, error instanceof Error ? error : new Error(errMessage));
+          await this.handleTierFailure(
+            Tier.TIER_1,
+            error instanceof Error ? error : new Error(errMessage),
+          );
 
           // Try fallback if enabled
           if (this.config.emergencyFallback) {
@@ -258,9 +262,13 @@ export class AIFallbackRouter {
 
           return result;
         } catch (error) {
-          const errMessage = error instanceof Error ? error.message : String(error);
+          const errMessage =
+            error instanceof Error ? error.message : String(error);
           console.warn("⚠️ Tier 2 failed:", errMessage);
-          await this.handleTierFailure(Tier.TIER_2, error instanceof Error ? error : new Error(errMessage));
+          await this.handleTierFailure(
+            Tier.TIER_2,
+            error instanceof Error ? error : new Error(errMessage),
+          );
 
           if (
             this.config.emergencyFallback &&
@@ -293,7 +301,8 @@ export class AIFallbackRouter {
 
           return result;
         } catch (error) {
-          const errMessage = error instanceof Error ? error.message : String(error);
+          const errMessage =
+            error instanceof Error ? error.message : String(error);
           console.error("❌ All tiers failed:", errMessage);
           this.updateStats(false, Date.now() - startTime);
           throw new Error(
@@ -546,7 +555,10 @@ export class AIFallbackRouter {
 
             console.log(`✅ Health check passed for ${tier}`);
           } catch (error) {
-            console.warn(`⚠️ Health check failed for ${tier}:`, error instanceof Error ? error.message : String(error));
+            console.warn(
+              `⚠️ Health check failed for ${tier}:`,
+              error instanceof Error ? error.message : String(error),
+            );
           }
         }
       }

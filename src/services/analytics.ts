@@ -257,7 +257,10 @@ export class EdgeAnalyticsService {
       console.log("✅ Analytics data processed successfully");
       return stats;
     } catch (error) {
-      console.error("❌ Failed to fetch analytics data:", (error as Error).message);
+      console.error(
+        "❌ Failed to fetch analytics data:",
+        (error as Error).message,
+      );
       throw error;
     }
   }
@@ -291,7 +294,10 @@ export class EdgeAnalyticsService {
       console.log("✅ Campaign reports generated successfully");
       return campaigns;
     } catch (error) {
-      console.error("❌ Failed to generate campaign reports:", (error as Error).message);
+      console.error(
+        "❌ Failed to generate campaign reports:",
+        (error as Error).message,
+      );
       throw error;
     }
   }
@@ -322,7 +328,10 @@ export class EdgeAnalyticsService {
       console.log("✅ Popular links retrieved successfully");
       return popularLinks;
     } catch (error) {
-      console.error("❌ Failed to fetch popular links:", (error as Error).message);
+      console.error(
+        "❌ Failed to fetch popular links:",
+        (error as Error).message,
+      );
       throw error;
     }
   }

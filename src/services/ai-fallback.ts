@@ -406,4 +406,9 @@ const aiFallbackEngine = new AIFallbackEngine(
   heuristicService,
 );
 
-export { aiFallbackEngine, MockOpenRouterService as OpenRouterService, MockGeminiService as GeminiService, HeuristicRuleEngine };
+export {
+  aiFallbackEngine,
+  MockOpenRouterService as OpenRouterService,
+  MockGeminiService as GeminiService,
+  HeuristicRuleEngine,
+};

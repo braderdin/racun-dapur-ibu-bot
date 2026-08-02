@@ -12,6 +12,7 @@ import { SupabaseService } from "./supabase";
 import { B2StorageService } from "./b2-storage";
 import { ImageProcessor } from "../utils/image-processor";
 import { OpenRouterService } from "./openrouter";
+import { GeneratedCopy } from "../types/product";
 import { FacebookService } from "./facebook";
 import { TwitterService } from "./twitter";
 
@@ -97,13 +98,7 @@ export class DualPosterService {
 
     // Initialize services with dependency injection
     this.openRouterService = new OpenRouterService();
-    this.facebookService = new FacebookService(
-      redisService,
-      supabaseService,
-      b2StorageService,
-      imageProcessor,
-      this.openRouterService,
-    );
+    this.facebookService = new FacebookService();
     this.twitterService = new TwitterService();
   }
 
@@ -154,18 +149,15 @@ export class DualPosterService {
       if (this.config.enableTwitterPosting) {
         postingPromises.push(
           this.twitterService
-            .postToX(
-              deal,
-              dualCopy.twitterCopy,
-              processedImage,
-              env.X_ACCESS_TOKEN,
-              env.X_CLIENT_ID,
+            .postAffiliateThread(
+              dualCopy.twitterCopy as import("../types/product").GeneratedCopy,
+              processedImage.webpUrl,
             )
             .then((twitterResult) => {
               result.twitter = {
-                success: twitterResult.success,
-                postId: twitterResult.postId,
-                error: twitterResult.error,
+                success: twitterResult,
+                postId: twitterResult ? "posted" : undefined,
+                error: twitterResult ? undefined : "Failed to post to X",
               };
             }),
         );
@@ -220,10 +212,16 @@ export class DualPosterService {
 
       return result;
     } catch (error) {
-      console.error(`❌ Dual-post pipeline failed for deal ${deal.id}:`, error instanceof Error ? error.message : String(error));
+      console.error(
+        `❌ Dual-post pipeline failed for deal ${deal.id}: ${error instanceof Error ? error.message : String(error)}`,
+      );
 
       // Log failure to database
-      await this.logDualPost(deal, result, error instanceof Error ? error.message : String(error));
+      await this.logDualPost(
+        deal,
+        result,
+        error instanceof Error ? error.message : String(error),
+      );
 
       // Determine retry strategy
       if (this.isRetryableError(error)) {
@@ -288,7 +286,9 @@ export class DualPosterService {
         error: facebookResult.error,
       };
     } catch (error) {
-      console.error(`❌ Facebook posting failed for deal ${deal.id}:`, error instanceof Error ? error.message : String(error));
+      console.error(
+        `❌ Facebook posting failed for deal ${deal.id}: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return {
         success: false,
         postId: undefined,
@@ -326,10 +326,14 @@ export class DualPosterService {
         "social_post.jpg",
       );
 
-      await this.b2StorageService.uploadFile(
-        storageKey,
+      await this.b2StorageService.uploadProductImage(
         processedImage.buffer,
-        "image/webp",
+        deal.id,
+        {
+          platform: deal.platform,
+          category: deal.category,
+          originalFileName: "social_post.webp",
+        },
       );
 
       return {
@@ -338,7 +342,7 @@ export class DualPosterService {
       };
     } catch (error) {
       console.warn(
-        `⚠️ Image processing failed for deal ${deal.id}, using original URL:", error instanceof Error ? error.message : String(error),
+        `⚠️ Image processing failed for deal ${deal.id}, using original URL: ${error instanceof Error ? error.message : String(error)}`,
       );
       // Return original URL as fallback
       return {
@@ -364,7 +368,9 @@ export class DualPosterService {
       const cached = await this.redisService.get(cacheKey);
       return !!cached;
     } catch (error) {
-      console.warn("⚠️ Failed to check anti-repeat cache:", error instanceof Error ? error.message : String(error));
+      console.warn(
+        `⚠️ Failed to check anti-repeat cache: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return false; // If cache fails, assume not posted
     }
   }
@@ -378,7 +384,6 @@ export class DualPosterService {
       const cacheKey = `deal_posted:${dealId}`;
       await this.redisService.setEx(
         cacheKey,
-        432000,
         JSON.stringify({
           // 5 days TTL
           postedAt: result.processedAt.toISOString(),
@@ -386,9 +391,12 @@ export class DualPosterService {
           twitterSuccess: result.twitter?.success || false,
           facebookSuccess: result.facebook?.success || false,
         }),
+        432000,
       );
     } catch (error) {
-      console.warn("⚠️ Failed to set anti-repeat cache:", error instanceof Error ? error.message : String(error));
+      console.warn(
+        `⚠️ Failed to set anti-repeat cache: ${error instanceof Error ? error.message : String(error)}`,
+      );
       // Cache failure shouldn't break the flow
     }
   }
@@ -403,24 +411,14 @@ export class DualPosterService {
       const logData = {
         productId: deal.id,
         platform: deal.platform,
-        twitterPostId: result.twitter?.postId,
-        twitterStatus: result.twitter?.success
-          ? "published"
-          : result.twitter?.error
-            ? "failed"
-            : "pending",
-        twitterError: result.twitter?.error,
-        facebookPostId: result.facebook?.postId,
-        facebookCommentId: result.facebook?.commentId,
-        facebookStatus: result.facebook?.success
+        postId: result.facebook?.postId,
+        commentId: result.facebook?.commentId,
+        status: (result.facebook?.success
           ? "published"
           : result.facebook?.error
             ? "failed"
-            : "pending",
-        facebookError: result.facebook?.error,
-        overallStatus: result.overallSuccess ? "success" : "failed",
-        errorMessage,
-        processingTimeMs: Date.now() - new Date(result.processedAt).getTime(),
+            : "pending") as "published" | "failed" | "pending",
+        errorMessage: result.facebook?.error,
         timestamp: new Date().toISOString(),
         source: "dual_poster_service",
       };
@@ -428,7 +426,9 @@ export class DualPosterService {
       // Log to Supabase
       await this.supabaseService.logFacebookPost(logData);
     } catch (error) {
-      console.error("❌ Failed to log dual-post result:", error instanceof Error ? error.message : String(error));
+      console.error(
+        `❌ Failed to log dual-post result: ${error instanceof Error ? error.message : String(error)}`,
+      );
       // Don't throw - logging failure shouldn't break the main flow
     }
   }

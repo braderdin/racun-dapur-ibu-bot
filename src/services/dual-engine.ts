@@ -396,7 +396,10 @@ export class DualEngineRotationManager {
 
       console.log("💾 Rotation state saved to Redis");
     } catch (error) {
-      console.error("❌ Failed to save rotation state:", error instanceof Error ? error.message : String(error));
+      console.error(
+        "❌ Failed to save rotation state:",
+        error instanceof Error ? error.message : String(error),
+      );
     }
   }
 
@@ -420,7 +423,10 @@ export class DualEngineRotationManager {
         console.log("📥 Rotation state loaded from Redis");
       }
     } catch (error) {
-      console.error("❌ Failed to load rotation state:", error instanceof Error ? error.message : String(error));
+      console.error(
+        "❌ Failed to load rotation state:",
+        error instanceof Error ? error.message : String(error),
+      );
       // Initialize with default schedule if loading fails
       this.rotationSchedule = this.initializeRotationSchedule();
     }

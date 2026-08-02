@@ -240,7 +240,11 @@ export class B2StorageService {
     };
   }
 
-  async healthCheck(): Promise<{ status: string; details: string; timestamp: string }> {
+  async healthCheck(): Promise<{
+    status: string;
+    details: string;
+    timestamp: string;
+  }> {
     return {
       status: this.config.length > 0 ? "healthy" : "unhealthy",
       details: `B2 storage service operational with ${this.config.length} accounts`,

@@ -130,7 +130,9 @@ export class WorkerRouter {
     res: Response,
   ): Promise<Response> {
     try {
-      const code = Array.isArray(req.params.code) ? req.params.code[0] : req.params.code;
+      const code = Array.isArray(req.params.code)
+        ? req.params.code[0]
+        : req.params.code;
 
       const shortenerService = new ShortenerService(
         new RedisService(this.env),

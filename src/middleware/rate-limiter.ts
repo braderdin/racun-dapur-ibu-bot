@@ -247,7 +247,8 @@ export class EdgeRateLimiter {
         Configurable per-API rate limits`,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       return {
         status: "unhealthy",
         details: `Rate limiter health check error: ${errorMessage}`,
