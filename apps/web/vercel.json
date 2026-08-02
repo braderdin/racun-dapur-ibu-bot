@@ -1,18 +1,5 @@
 {
-  "version": 3,
-  "name": "racun-dapur-ibu-web",
-  "framework": "nextjs",
-  "outputDirectory": ".next",
-  "buildCommand": "npm run build",
-  "installCommand": "npm install",
-  "env": {
-    "NEXT_PUBLIC_SUPABASE_URL": "@supabase_env:NEXT_PUBLIC_SUPABASE_URL",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@supabase_env:NEXT_PUBLIC_SUPABASE_ANON_KEY",
-    "SUPABASE_SERVICE_ROLE_KEY": "@supabase_env:SUPABASE_SERVICE_ROLE_KEY",
-    "API_KEY": "@env:API_KEY",
-    "NEXT_PUBLIC_API_URL": "@env:NEXT_PUBLIC_API_URL",
-    "APP_VERSION": "@env:APP_VERSION"
-  },
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "headers": [
     {
       "source": "/(.*)",
@@ -61,31 +48,13 @@
       ]
     },
     {
-      "source": "/(.*)\.\{json,yml,yaml\}$",
+      "source": "/(.*)\\.(json|yml|yaml)$",
       "headers": [
         {
           "key": "Content-Type",
           "value": "application/json"
         }
       ]
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(api|routes)/(.*)",
-      "dest": "/api/$2"
-    },
-    {
-      "src": "/_next/static/(.*)",
-      "dest": "/.next/static/$1"
-    },
-    {
-      "src": "/favicon\.ico",
-      "dest": "/public/favicon.ico"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/.next/server/PagesRouteHandler.ts"
     }
   ],
   "rewrites": [
@@ -96,29 +65,6 @@
     {
       "source": "/api/analytics",
       "destination": "/api/analytics-ingest"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/.next/server/pages.tsx"
     }
-  ],
-  "images": {
-    "domains": ["picsum.photos", "images.unsplash.com", ".*\.supabase\.co"],
-    "formats": [
-      "image/avif",
-      "image/webp",
-      "image/apng",
-      "image/jpeg",
-      "image/png",
-      "image/svg+xml"
-    ]
-  },
-  "experimental": {
-    "optimizedPackages": ["@radix-ui/react"],
-    "nextLegacyRedirects": true
-  },
-  "overrides": {
-    "tailwindcss": ">=3.0.0",
-    "autoprefixer": ">=10.0.0"
-  }
+  ]
 }
