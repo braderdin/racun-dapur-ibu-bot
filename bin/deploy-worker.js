@@ -25,7 +25,9 @@ class DeployWorker {
       throw new Error(`wrangler.toml not found at ${this.wranglerConfigPath}`);
     }
 
-    console.log("ROCKET Automated Cloudflare Worker Deployment Script Initialized");
+    console.log(
+      "ROCKET Automated Cloudflare Worker Deployment Script Initialized",
+    );
     console.log(`FOLDER Project Directory: ${this.projectDir}`);
     console.log(`GEAR Wrangler Config: ${this.wranglerConfigPath}`);
   }
@@ -50,7 +52,9 @@ class DeployWorker {
       }
 
       console.log("OK2 Deployment completed successfully");
-      console.log(`REPORT Health check results: ${JSON.stringify(healthCheck.details, null, 2)}`);
+      console.log(
+        `REPORT Health check results: ${JSON.stringify(healthCheck.details, null, 2)}`,
+      );
 
       return {
         success: true,
@@ -92,7 +96,7 @@ class DeployWorker {
       throw new Error("wrangler.toml missing [env] section");
     }
 
-    if (!configContent.includes("name = \"racun-dapur-ibu-bot\"")) {
+    if (!configContent.includes('name = "racun-dapur-ibu-bot"')) {
       throw new Error("wrangler.toml missing worker name");
     }
 
@@ -133,7 +137,9 @@ class DeployWorker {
     let lastError;
 
     for (let attempt = 1; attempt <= CONFIG.MAX_RETRIES; attempt++) {
-      console.log(`ROCKET Deployment attempt ${attempt}/${CONFIG.MAX_RETRIES}...`);
+      console.log(
+        `ROCKET Deployment attempt ${attempt}/${CONFIG.MAX_RETRIES}...`,
+      );
 
       try {
         // Execute wrangler deploy
@@ -143,8 +149,12 @@ class DeployWorker {
           console.log("OK2 Deployment completed successfully");
           return { success: true, message: "Deployment completed" };
         } else {
-          lastError = new Error(`Deployment failed with exit code ${result.code}: ${result.stderr}`);
-          console.error(`FAIL Deployment attempt ${attempt} failed: ${lastError.message}`);
+          lastError = new Error(
+            `Deployment failed with exit code ${result.code}: ${result.stderr}`,
+          );
+          console.error(
+            `FAIL Deployment attempt ${attempt} failed: ${lastError.message}`,
+          );
 
           if (attempt < CONFIG.MAX_RETRIES) {
             console.log("⏱️ Waiting 30 seconds before retry...");
@@ -153,7 +163,9 @@ class DeployWorker {
         }
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        console.error(`FAIL Deployment attempt ${attempt} failed: ${lastError.message}`);
+        console.error(
+          `FAIL Deployment attempt ${attempt} failed: ${lastError.message}`,
+        );
 
         if (attempt < CONFIG.MAX_RETRIES) {
           console.log("⏱️ Waiting 30 seconds before retry...");
@@ -165,7 +177,7 @@ class DeployWorker {
     throw lastError || new Error("All deployment attempts failed");
   }
 
-async performHealthChecks() {
+  async performHealthChecks() {
     console.log("🏥 Performing health checks...");
 
     try {
@@ -220,7 +232,7 @@ async performHealthChecks() {
     }
   }
 
-delay(ms) {
+  delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
@@ -231,7 +243,10 @@ delay(ms) {
       timestamp,
       deployment: deploymentResult,
       healthCheck: healthCheckResult,
-      status: deploymentResult.success && healthCheckResult.success ? "SUCCESS" : "FAILED",
+      status:
+        deploymentResult.success && healthCheckResult.success
+          ? "SUCCESS"
+          : "FAILED",
     };
 
     const reportPath = path.join(this.projectDir, "deployment-report.json");
@@ -250,12 +265,15 @@ async function main() {
 
     if (result.success) {
       console.log("\nSUCCESS DEPLOYMENT SUCCESS! SUCCESS");
-      console.log("\nDeployment Summary:", JSON.stringify(result.details, null, 2));
+      console.log(
+        "\nDeployment Summary:",
+        JSON.stringify(result.details, null, 2),
+      );
 
       // Generate deployment report
       const reportPath = deployer.generateReport(
         result.details?.deploymentResult,
-        result.details?.healthCheckResult
+        result.details?.healthCheckResult,
       );
 
       console.log(`\n📄 Deployment report saved to: ${reportPath}`);
@@ -264,7 +282,10 @@ async function main() {
       process.exit(0);
     } else {
       console.error("\nBANG DEPLOYMENT FAILED! BANG");
-      console.error("\nError Details:", JSON.stringify(result.details, null, 2));
+      console.error(
+        "\nError Details:",
+        JSON.stringify(result.details, null, 2),
+      );
       console.log("\nTOOL Troubleshooting Steps:");
       console.log("   1. Check wrangler configuration (wrangler.toml)");
       console.log("   2. Verify all required environment variables are set");
