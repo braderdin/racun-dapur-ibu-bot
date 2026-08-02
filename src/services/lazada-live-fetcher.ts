@@ -10,8 +10,10 @@ export class LazadaLiveFetcher {
   constructor(env: Env) {
     this.appKey = env.LAZADA_APP_KEY || "";
     this.appSecret = env.LAZADA_APP_SECRET || "";
-    this.memberId = (env as any).LAZADA_MEMBER_ID || process.env.LAZADA_MEMBER_ID || "";
-    this.userToken = (env as any).LAZADA_USER_TOKEN || process.env.LAZADA_USER_TOKEN || "";
+    this.memberId =
+      (env as any).LAZADA_MEMBER_ID || process.env.LAZADA_MEMBER_ID || "";
+    this.userToken =
+      (env as any).LAZADA_USER_TOKEN || process.env.LAZADA_USER_TOKEN || "";
   }
 
   /**

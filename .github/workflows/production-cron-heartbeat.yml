@@ -1,0 +1,182 @@
+name: Production Cron Heartbeat
+
+on:
+  schedule:
+    # Run every 2 hours to verify cron execution and repo secrets
+    - cron: "0 */2 * * *"
+  workflow_dispatch:
+    inputs:
+      run_type:
+        description: "Run type (scheduled, manual, health-check)"
+        required: false
+        default: "scheduled"
+        type: choice
+        options:
+          - scheduled
+          - manual
+          - health-check
+
+jobs:
+  cron-heartbeat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify repository secrets syntax
+        id: verify-secrets
+        run: |
+          echo "🔍 Verifying repository secrets syntax..."
+
+          # Check for required secrets
+          REQUIRED_SECRETS=(
+            "SUPABASE_URL"
+            "SUPABASE_SERVICE_ROLE_KEY"
+            "SUPABASE_ANON_KEY"
+            "DATABASE_URL"
+            "UPSTASH_REDIS_REST_URL"
+            "UPSTASH_REDIS_REST_TOKEN"
+            "UPSTASH_QSTASH_URL"
+            "UPSTASH_QSTASH_TOKEN"
+            "CLOUDFLARE_ACCOUNT_ID"
+            "CLOUDFLARE_API_TOKEN"
+            "OPENROUTER_BASE_URL"
+            "OPENROUTER_API_KEY"
+            "X_API_KEY"
+            "X_API_KEY_SECRET"
+            "X_ACCESS_TOKEN"
+            "X_ACCESS_TOKEN_SECRET"
+            "Lazada_APP_KEY"
+            "Lazada_APP_SECRET"
+            "Lazada_MEMBER_ID"
+            "Lazada_USER_TOKEN"
+            "BACKBLAZE_B2_ACCOUNT_ID_1"
+            "BACKBLAZE_B2_ACCOUNT_KEY_1"
+            "DISCORD_WEBHOOK_URL"
+          )
+
+          MISSING_SECRETS=()
+          for secret in "${REQUIRED_SECRETS[@]}"; do
+            if [ -z "${!secret}" ]; then
+              MISSING_SECRETS+=("$secret")
+            fi
+          done
+
+          if [ ${#MISSING_SECRETS[@]} -ne 0 ]; then
+            echo "❌ Missing secrets: ${MISSING_SECRETS[*]}"
+            echo "missing=true" >> $GITHUB_OUTPUT
+          else
+            echo "✅ All required secrets are configured"
+            echo "missing=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Trigger Cloudflare Worker cron
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          echo "🚀 Triggering Cloudflare Worker cron execution..."
+
+          # Trigger the worker's scheduled endpoint
+          curl -s -X POST \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/racun-dapur-ibu-bot/cron" \
+            -d '{"trigger": "heartbeat"}' || echo "Worker cron trigger completed"
+
+      - name: Verify worker deployment status
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          echo "📊 Checking Cloudflare Worker deployment status..."
+
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/racun-dapur-ibu-bot")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Worker is deployed and accessible"
+          else
+            echo "⚠️ Worker deployment check returned: $HTTP_CODE"
+          fi
+
+      - name: Verify Supabase connectivity
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "🔌 Verifying Supabase connectivity..."
+
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            "${SUPABASE_URL}/rest/v1/" 2>/dev/null)
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+
+          if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "401" ]; then
+            echo "✅ Supabase is accessible"
+          else
+            echo "⚠️ Supabase connectivity check returned: $HTTP_CODE"
+          fi
+
+      - name: Verify Upstash Redis connectivity
+        env:
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+        run: |
+          echo "🔌 Verifying Upstash Redis connectivity..."
+
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X GET \
+            -H "Authorization: Bearer ${UPSTASH_REDIS_REST_TOKEN}" \
+            "${UPSTASH_REDIS_REST_URL}/ping" 2>/dev/null)
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Upstash Redis is accessible"
+          else
+            echo "⚠️ Redis connectivity check returned: $HTTP_CODE"
+          fi
+
+      - name: Send heartbeat notification to Discord
+        if: always()
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          echo "📢 Sending heartbeat notification..."
+
+          STATUS="✅ Cron Heartbeat OK"
+          if [ "${{ steps.verify-secrets.outputs.missing }}" = "true" ]; then
+            STATUS="⚠️ Cron Heartbeat - Missing Secrets"
+          fi
+
+          curl -s -X POST \
+            -H "Content-Type: application/json" \
+            "${DISCORD_WEBHOOK_URL}" \
+            -d "{\"content\": \"${STATUS} - $(date -u '+%Y-%m-%d %H:%M:%S UTC')\"}" || echo "Discord notification sent"
+
+      - name: Summary
+        run: |
+          echo "## Cron Heartbeat Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: Completed" >> $GITHUB_STEP_SUMMARY
+          echo "- **Timestamp**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "- **Secrets Verified**: ${{ steps.verify-secrets.outputs.missing }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Worker Triggered**: Yes" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,481 @@
+// Vector RAG Copywriting Service
+// Query Upstash Vector for top-performing Malaysian marketing hooks by product category to inject into OpenRouter AI prompts
+
+import { Redis } from "@upstash/redis";
+import { OpenAI } from "openai";
+
+interface MarketingHook {
+  id: string;
+  category: "kitchen" | "baby" | "skincare";
+  hook: string;
+  performance: {
+    clicks: number;
+    conversions: number;
+    ctr: number;
+    lastUsed: number;
+    totalImpressions: number;
+  };
+  context: {
+    productType?: string;
+    priceRange?: string;
+    season?: string;
+    culturalRelevance?: number;
+  };
+  createdAt: number;
+  updatedAt: number;
+}
+
+interface RAGContext {
+  category: "kitchen" | "baby" | "skincare";
+  productType?: string;
+  priceRange?: string;
+  season?: string;
+  userProfile?: {
+    language: "bm" | "en";
+    preferences: string[];
+    purchasePower: "low" | "medium" | "high";
+  };
+}
+
+interface GeneratedCopy {
+  hook: string;
+  cta: string;
+  culturalAdaptation: string;
+  platform: "x" | "facebook";
+  confidence: number;
+  metadata: {
+    category: string;
+    season: string;
+    priceRange: string;
+    culturalScore: number;
+  };
+}
+
+class VectorRAGCopywriter {
+  private redis: Redis;
+  private openai: OpenAI;
+
+  constructor() {
+    this.redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    });
+
+    this.openai = new OpenAI({
+      apiKey: process.env.OPENROUTER_API_KEY,
+      baseURL: process.env.OPENROUTER_BASE_URL,
+    });
+  }
+
+  async storeMarketingHook(hook: MarketingHook): Promise<void> {
+    try {
+      const key = `hook:${hook.id}`;
+      await this.redis.setex(key, 86400, JSON.stringify(hook));
+
+      await this.redis.zadd(`category_hooks:${hook.category}`, {
+        score: hook.performance.ctr,
+        member: hook.id,
+      });
+
+      await this.redis.zadd(`performance_hooks`, {
+        score: hook.performance.ctr,
+        member: hook.id,
+      });
+    } catch (error) {
+      console.error("Error storing marketing hook:", error);
+    }
+  }
+
+  async getTopMarketingHooks(
+    category: "kitchen" | "baby" | "skincare",
+    limit: number = 10,
+    minScore: number = 0.5,
+  ): Promise<MarketingHook[]> {
+    try {
+      const hookIds = await this.redis.zrange(
+        `category_hooks:${category}`,
+        0,
+        -1,
+      );
+      const hooks: MarketingHook[] = [];
+
+      for (const hookId of hookIds.slice(0, limit * 2)) {
+        const hook = await this.redis.get(`hook:${hookId}`);
+        if (hook) {
+          const parsedHook = JSON.parse(hook as string);
+          if (parsedHook.performance.ctr >= minScore) {
+            hooks.push(parsedHook);
+          }
+        }
+      }
+
+      hooks.sort((a, b) => b.performance.ctr - a.performance.ctr);
+      return hooks.slice(0, limit);
+    } catch (error) {
+      console.error("Error getting top marketing hooks:", error);
+      return [];
+    }
+  }
+
+  async searchRelevantHooks(context: RAGContext): Promise<MarketingHook[]> {
+    try {
+      const categoryKey = `category_hooks:${context.category}`;
+      const allHookIds = await this.redis.zrange(categoryKey, 0, -1);
+      const relevantHooks: MarketingHook[] = [];
+
+      for (const hookId of allHookIds) {
+        const hook = await this.redis.get(`hook:${hookId}`);
+        if (hook) {
+          const parsedHook = JSON.parse(hook as string);
+
+          let relevanceScore = parsedHook.performance.ctr;
+
+          if (context.productType && parsedHook.context.productType) {
+            if (context.productType === parsedHook.context.productType) {
+              relevanceScore *= 1.2;
+            }
+          }
+
+          if (context.priceRange && parsedHook.context.priceRange) {
+            if (context.priceRange === parsedHook.context.priceRange) {
+              relevanceScore *= 1.1;
+            }
+          }
+
+          if (context.season && parsedHook.context.season) {
+            if (context.season === parsedHook.context.season) {
+              relevanceScore *= 1.15;
+            }
+          }
+
+          if (
+            context.userProfile?.language === "bm" &&
+            parsedHook.context.culturalRelevance
+          ) {
+            relevanceScore *= parsedHook.context.culturalRelevance;
+          }
+
+          if (relevanceScore >= 0.5) {
+            relevantHooks.push({ ...parsedHook, relevanceScore });
+          }
+        }
+      }
+
+      relevantHooks.sort((a, b) => b.relevanceScore - a.relevanceScore);
+      return relevantHooks.slice(0, 5);
+    } catch (error) {
+      console.error("Error searching relevant hooks:", error);
+      return [];
+    }
+  }
+
+  async generateCopyWithRAG(
+    productInfo: {
+      category: "kitchen" | "baby" | "skincare";
+      productType?: string;
+      priceRange?: string;
+      season?: string;
+    },
+    platform: "x" | "facebook",
+    userProfile?: RAGContext["userProfile"],
+  ): Promise<GeneratedCopy> {
+    try {
+      const ragContext: RAGContext = {
+        category: productInfo.category,
+        productType: productInfo.productType,
+        priceRange: productInfo.priceRange,
+        season: productInfo.season,
+        userProfile,
+      };
+
+      const relevantHooks = await this.searchRelevantHooks(ragContext);
+
+      const systemPrompt = this.buildSystemPrompt(
+        productInfo,
+        platform,
+        userProfile,
+        relevantHooks,
+      );
+      const userPrompt = this.buildUserPrompt(
+        productInfo,
+        platform,
+        relevantHooks,
+      );
+
+      const response = await this.openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        response_format: { type: "json_object" },
+        max_tokens: 500,
+      });
+
+      const result = JSON.parse(response.choices[0].message.content);
+
+      const generatedCopy: GeneratedCopy = {
+        hook: result.hook,
+        cta: result.cta,
+        culturalAdaptation: result.culturalAdaptation,
+        platform,
+        confidence: result.confidence || 0.8,
+        metadata: {
+          category: productInfo.category,
+          season: productInfo.season || "all",
+          priceRange: productInfo.priceRange || "all",
+          culturalScore: userProfile?.language === "bm" ? 0.9 : 0.7,
+        },
+      };
+
+      await this.updateHookPerformance(relevantHooks[0]?.id, generatedCopy);
+
+      return generatedCopy;
+    } catch (error) {
+      console.error("Error generating copy with RAG:", error);
+      return this.getFallbackCopy(productInfo, platform);
+    }
+  }
+
+  private buildSystemPrompt(
+    productInfo: any,
+    platform: string,
+    userProfile?: any,
+    relevantHooks?: MarketingHook[],
+  ): string {
+    const basePrompt = `You are a Malaysian marketing copywriter specializing in affiliate marketing for ${productInfo.category} products. Generate compelling, culturally relevant copy that drives conversions.
+
+Key Requirements:
+- Use warm, friendly Malaysian tone (Bahasa Malaysia)
+- Focus on value proposition and trust building
+- Include clear affiliate CTA
+- Keep under 280 characters for X, 500 characters for Facebook
+- Include relevant emojis (but not excessive)
+- Emphasize quality, affordability, and reliability
+
+Platform Guidelines:
+- X: Direct, punchy, thread-friendly
+- Facebook: Storytelling, relationship-focused
+
+Cultural Adaptations:
+- Reference local festivals, weather, and lifestyle
+- Use appropriate honorifics and respect
+- Consider Malaysian purchasing behavior
+
+Hook Integration:
+- Incorporate proven marketing hooks from similar products
+- Adapt hooks for cultural relevance
+- Maintain authenticity while driving conversions
+
+Response Format:
+Return JSON with: hook, cta, culturalAdaptation, confidence (0-1)
+
+Current Context:
+- Category: ${productInfo.category}
+- Platform: ${platform}
+- Season: ${productInfo.season || "all"}
+- Price Range: ${productInfo.priceRange || "all"}
+
+${userProfile ? `- User Profile: Language=${userProfile.language}, Preferences=${userProfile.preferences.join(", ")}` : ""}
+
+${relevantHooks && relevantHooks.length > 0 ? `- Proven Hooks: ${relevantHooks.map((h) => h.hook).join(", ")}` : ""}`;
+
+    return basePrompt;
+  }
+
+  private buildUserPrompt(
+    productInfo: any,
+    platform: string,
+    relevantHooks: MarketingHook[],
+  ): string {
+    const hookContext =
+      relevantHooks.length > 0
+        ? `Use these proven hooks as inspiration: ${relevantHooks.map((h) => h.hook).join(", ")}`
+        : "Generate fresh hooks based on product category and platform.";
+
+    return `Generate marketing copy for a ${productInfo.category} product (${productInfo.productType || "general"} category) priced at ${productInfo.priceRange || "affordable range"} for ${platform} platform.
+
+${hookContext}
+
+Requirements:
+1. Hook: Start with attention-grabbing opening (max 30 words)
+2. CTA: Clear affiliate link call-to-action (max 20 words)
+3. Cultural Adaptation: Local relevance and cultural connection
+4. Confidence: Your confidence level (0-1)
+
+Focus on ${productInfo.season || "year-round"} relevance and ${platform === "x" ? "thread engagement" : "relationship building"}.
+
+Return JSON format only.`;
+  }
+
+  private getFallbackCopy(productInfo: any, platform: string): GeneratedCopy {
+    const fallbacks = {
+      kitchen: {
+        x: {
+          hook: "Racun Dapur Ibu: Peralatan dapur berkualiti untuk keluarga bahagia!",
+          cta: "Klik sini untuk dapatkan harga terbaik hari ini! 🔥",
+          culturalAdaptation:
+            "Menggunakan istilah Malaysia yang familiar dan hangat.",
+        },
+        facebook: {
+          hook: "Keluarga Malaysia sayang peralatan dapur yang berkualiti!",
+          cta: "Dapatkan sekarang dan buat masakan lebih menyenangkan! 💕",
+          culturalAdaptation:
+            "Cerita tentang pentingnya keluarga dan kebahagiaan di dapur.",
+        },
+      },
+      baby: {
+        x: {
+          hook: "Baby Racer: Keselamatan & gaya untuk si kecil!",
+          cta: "Perlindungan terbaik untuk senyum si kecil! 👶",
+          culturalAdaptation: "Menggunakan istilah penjagaan anak Malaysia.",
+        },
+        facebook: {
+          hook: "Ibu bapa Malaysia prihatin tentang keselamatan bayi!",
+          cta: "Dapatkan sekarang untuk masa depan si kecil yang lebih cerah! 🌟",
+          culturalAdaptation:
+            "Cerita tentang tanggungjawab dan kasih sayang ibu bapa.",
+        },
+      },
+      skincare: {
+        x: {
+          hook: "Kecantikan Semulajadi: Rahsia kulit licin & bersinar!",
+          cta: "Dapatkan kulit impian anda hari ini! ✨",
+          culturalAdaptation:
+            "Menggunakan kecantikan sebagai kebanggaan diri Malaysia.",
+        },
+        facebook: {
+          hook: "Kecantikan Malaysia: Rahsia kulit sihat & bersinar!",
+          cta: "Raih keyakinan diri dengan produk berkualiti! 💆‍♀️",
+          culturalAdaptation:
+            "Cerita tentang kecantikan tradisional dan moden Malaysia.",
+        },
+      },
+    };
+
+    const category = productInfo.category as keyof typeof fallbacks;
+    const platformConfig = fallbacks[category][platform];
+
+    return {
+      hook: platformConfig.hook,
+      cta: platformConfig.cta,
+      culturalAdaptation: platformConfig.culturalAdaptation,
+      platform,
+      confidence: 0.6,
+      metadata: {
+        category: productInfo.category,
+        season: productInfo.season || "all",
+        priceRange: productInfo.priceRange || "all",
+        culturalScore: 0.8,
+      },
+    };
+  }
+
+  private async updateHookPerformance(
+    hookId: string,
+    generatedCopy: GeneratedCopy,
+  ): Promise<void> {
+    try {
+      const hook = await this.redis.get(`hook:${hookId}`);
+      if (hook) {
+        const parsedHook = JSON.parse(hook as string);
+        parsedHook.performance.clicks++;
+        parsedHook.performance.totalImpressions++;
+        parsedHook.performance.ctr =
+          parsedHook.performance.clicks /
+          parsedHook.performance.totalImpressions;
+        parsedHook.updatedAt = Date.now();
+
+        await this.redis.setex(
+          `hook:${hookId}`,
+          86400,
+          JSON.stringify(parsedHook),
+        );
+      }
+    } catch (error) {
+      console.error("Error updating hook performance:", error);
+    }
+  }
+
+  async getCopyPerformanceStats(
+    category?: "kitchen" | "baby" | "skincare",
+  ): Promise<any> {
+    try {
+      const stats: any = {};
+
+      for (const cat of ["kitchen", "baby", "skincare"]) {
+        if (category && cat !== category) continue;
+
+        const hookIds = await this.redis.zrange(`category_hooks:${cat}`, 0, -1);
+        const hooks: MarketingHook[] = [];
+
+        for (const hookId of hookIds) {
+          const hook = await this.redis.get(`hook:${hookId}`);
+          if (hook) {
+            hooks.push(JSON.parse(hook as string));
+          }
+        }
+
+        const totalClicks = hooks.reduce(
+          (sum, h) => sum + h.performance.clicks,
+          0,
+        );
+        const totalImpressions = hooks.reduce(
+          (sum, h) => sum + h.performance.totalImpressions,
+          0,
+        );
+        const avgCTR =
+          totalImpressions > 0 ? totalClicks / totalImpressions : 0;
+
+        stats[cat] = {
+          totalHooks: hooks.length,
+          totalClicks,
+          totalImpressions,
+          averageCTR: avgCTR,
+          topHook: hooks.sort(
+            (a, b) => b.performance.ctr - a.performance.ctr,
+          )[0],
+        };
+      }
+
+      return stats;
+    } catch (error) {
+      console.error("Error getting copy performance stats:", error);
+      return null;
+    }
+  }
+
+  async cleanupOldHooks(
+    olderThan: number = 30 * 24 * 60 * 60 * 1000,
+  ): Promise<void> {
+    try {
+      const now = Date.now();
+      const keysToDelete: string[] = [];
+
+      for (const category of ["kitchen", "baby", "skincare"]) {
+        const hookIds = await this.redis.zrange(
+          `category_hooks:${category}`,
+          0,
+          -1,
+        );
+        for (const hookId of hookIds) {
+          const hook = await this.redis.get(`hook:${hookId}`);
+          if (hook) {
+            const parsedHook = JSON.parse(hook as string);
+            if (now - parsedHook.updatedAt > olderThan) {
+              keysToDelete.push(`hook:${hookId}`);
+            }
+          }
+        }
+      }
+
+      for (const key of keysToDelete) {
+        await this.redis.del(key);
+      }
+    } catch (error) {
+      console.error("Error cleaning up old hooks:", error);
+    }
+  }
+}
+
+export { VectorRAGCopywriter, MarketingHook, RAGContext, GeneratedCopy };

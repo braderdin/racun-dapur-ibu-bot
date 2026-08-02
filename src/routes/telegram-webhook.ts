@@ -7,7 +7,7 @@ export class TelegramWebhookHandler {
 
   constructor(env: Env) {
     this.env = env;
-    this.postDeletionService = new PostDeletionService(env);
+    this.postDeletionService = new PostDeletionService();
   }
 
   /**
@@ -76,18 +76,26 @@ export class TelegramWebhookHandler {
         `Processing delete post request for ${platform} post ${postId} by user ${userId}`,
       );
 
+      // Map platform to service format
+      const servicePlatform = platform === "twitter" ? "x" : "facebook";
+
       // Delete the post using PostDeletionService
-      const deleteResult = await this.postDeletionService.deletePost(
+      const deleteResult = await this.postDeletionService.deletePost({
+        id: `deletion:${Date.now()}:${Math.random().toString(36).substr(2, 9)}`,
+        platform: servicePlatform,
         postId,
-        platform,
         userId,
-        {
+        reason: "Manual delete via Telegram webhook",
+        timestamp: Date.now(),
+        status: "pending",
+        metadata: {
           source: "telegram_webhook",
           action: "manual_delete",
-          timestamp: Date.now(),
           userId,
         },
-      );
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
 
       if (!deleteResult.success) {
         throw new Error(`Failed to delete post: ${deleteResult.error}`);
@@ -297,7 +305,10 @@ export class TelegramWebhookHandler {
         postId = parts[1] || "unknown";
         commentId = parts[2] || "unknown";
         // Infer platform from postId prefix
-        platform = postId.startsWith("tw_") || postId.startsWith("tweet_") ? "twitter" : "facebook";
+        platform =
+          postId.startsWith("tw_") || postId.startsWith("tweet_")
+            ? "twitter"
+            : "facebook";
       }
 
       return {

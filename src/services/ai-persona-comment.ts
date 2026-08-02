@@ -44,7 +44,8 @@ export class AIPersonaCommentEngine {
       };
 
       const result = await this.openRouter.generateCopy(product);
-      const comment = result.hook + " " + result.body.join(" ") + " " + result.cta;
+      const comment =
+        result.hook + " " + result.body.join(" ") + " " + result.cta;
 
       if (!comment) {
         throw new Error("Failed to generate comment");

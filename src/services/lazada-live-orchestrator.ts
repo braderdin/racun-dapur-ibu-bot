@@ -4,7 +4,7 @@ import { LazadaImageProxy } from "../utils/lazada-image-proxy";
 import { TwitterCommenter } from "./twitter-commenter";
 import { FacebookCommenter } from "./facebook-commenter";
 import { TelegramInteractiveAudit } from "./telegram-interactive-audit";
-import { Redis } from "../services/redis";
+import { RedisService } from "./redis";
 
 export class LazadaLiveOrchestrator {
   private lazadaFetcher: LazadaLiveFetcher;
@@ -12,7 +12,7 @@ export class LazadaLiveOrchestrator {
   private twitterCommenter: TwitterCommenter;
   private facebookCommenter: FacebookCommenter;
   private telegramAudit: TelegramInteractiveAudit;
-  private redis: Redis;
+  private redis: RedisService;
   private env: Env;
 
   constructor(env: Env) {
@@ -22,7 +22,7 @@ export class LazadaLiveOrchestrator {
     this.twitterCommenter = new TwitterCommenter(env);
     this.facebookCommenter = new FacebookCommenter(env);
     this.telegramAudit = new TelegramInteractiveAudit(env);
-    this.redis = new Redis(env);
+    this.redis = new RedisService(env);
   }
 
   /**
@@ -139,7 +139,7 @@ export class LazadaLiveOrchestrator {
             price: productData.price,
             discountRate: productData.discountRate,
             rating: productData.rating,
-            stockStatus: productData.stockStatus,
+            stock: productData.stock,
           },
           {
             commentId: twitterResult?.tweetId || `comment_${Date.now()}`, // Use twitterResult.tweetId if available
@@ -224,7 +224,7 @@ export class LazadaLiveOrchestrator {
         } catch (error) {
           errors.push({
             productId,
-            error: error.message,
+            error: (error as Error).message,
           });
         }
       });
@@ -240,7 +240,7 @@ export class LazadaLiveOrchestrator {
         successful: results.length,
         errors: errors.length,
         results,
-        errors,
+        errorDetails: errors,
         timestamp: Date.now(),
       };
     } catch (error) {

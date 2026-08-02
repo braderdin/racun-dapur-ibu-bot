@@ -1,15 +1,18 @@
 import { Env } from "../types/env";
-import { Telegram } from "../services/telegram";
+import { TelegramNotifierService } from "./telegram-notifier";
 import { LazadaLinkCloaker } from "./link-cloaker-lazada";
 
 export class TelegramInteractiveAudit {
-  private telegram: Telegram;
+  private telegram: TelegramNotifierService;
   private linkCloaker: LazadaLinkCloaker;
   private env: Env;
 
   constructor(env: Env) {
     this.env = env;
-    this.telegram = new Telegram(env);
+    this.telegram = new TelegramNotifierService(
+      env.TELEGRAM_BOT_TOKEN || "",
+      env.TELEGRAM_CHAT_ID || "",
+    );
     this.linkCloaker = new LazadaLinkCloaker(env);
   }
 
@@ -38,23 +41,26 @@ export class TelegramInteractiveAudit {
       );
 
       // Send to Telegram with visual elements
-      const telegramResponse = await this.telegram.sendMessage(auditMessage, {
-        parseMode: "Markdown",
-        disableWebPagePreview: false,
-        replyMarkup: this.generateInlineKeyboard(postData, commentData),
+      const success = await this.telegram.sendAuditReport({
+        productTitle: postData.productTitle || "Unknown",
+        price: postData.price || "N/A",
+        discount: postData.discountRate || "0%",
+        platform: postData.platform || "Lazada",
+        imageUrl: imageUrl || "",
+        shortlinkUrl: commentData.affiliateLink || "N/A",
+        twitterCopy: postData.twitterCopy || "N/A",
+        facebookCopy: postData.facebookCopy || "N/A",
+        twitterPostUrl: postData.twitterPostUrl,
+        facebookPostUrl: postData.facebookPostUrl,
       });
 
-      if (!telegramResponse) {
+      if (!success) {
         throw new Error("Failed to send Telegram visual audit");
       }
 
-      console.log(
-        `Telegram visual audit sent successfully: ${telegramResponse.message_id}`,
-      );
+      console.log("Telegram visual audit sent successfully");
       return {
         success: true,
-        messageId: telegramResponse.message_id,
-        chatId: telegramResponse.chat.id,
         postData,
         commentData,
         imageUrl,
@@ -179,32 +185,26 @@ export class TelegramInteractiveAudit {
     imageUrl: string,
   ): Promise<any> {
     try {
-      const caption = this.formatVisualAuditMessage(
-        postData,
-        commentData,
-        imageUrl,
-      );
+      const success = await this.telegram.sendAuditReport({
+        productTitle: postData.productTitle || "Unknown",
+        price: postData.price || "N/A",
+        discount: postData.discountRate || "0%",
+        platform: postData.platform || "Lazada",
+        imageUrl: imageUrl,
+        shortlinkUrl: commentData.affiliateLink || "N/A",
+        twitterCopy: postData.twitterCopy || "N/A",
+        facebookCopy: postData.facebookCopy || "N/A",
+        twitterPostUrl: postData.twitterPostUrl,
+        facebookPostUrl: postData.facebookPostUrl,
+      });
 
-      const telegramResponse = await this.telegram.sendPhoto(
-        imageUrl,
-        caption,
-        {
-          parseMode: "Markdown",
-          replyMarkup: this.generateInlineKeyboard(postData, commentData),
-        },
-      );
-
-      if (!telegramResponse) {
+      if (!success) {
         throw new Error("Failed to send Telegram audit with image");
       }
 
-      console.log(
-        `Telegram audit with image sent successfully: ${telegramResponse.message_id}`,
-      );
+      console.log("Telegram audit with image sent successfully");
       return {
         success: true,
-        messageId: telegramResponse.message_id,
-        chatId: telegramResponse.chat.id,
         hasImage: true,
         postData,
         commentData,
@@ -232,25 +232,24 @@ export class TelegramInteractiveAudit {
         `⚠️ IMMEDIATE ACTION REQUIRED\n` +
         `Please check the post status and take appropriate action.`;
 
-      const telegramResponse = await this.telegram.sendMessage(
-        emergencyMessage,
-        {
-          parseMode: "Markdown",
-          disableWebPagePreview: true,
-        },
-      );
+      const success = await this.telegram.sendAuditReport({
+        productTitle: postData.productTitle || "Unknown",
+        price: postData.price || "N/A",
+        discount: "EMERGENCY",
+        platform: postData.platform || "Lazada",
+        imageUrl: "",
+        shortlinkUrl: "N/A",
+        twitterCopy: emergencyMessage,
+        facebookCopy: emergencyMessage,
+      });
 
-      if (!telegramResponse) {
+      if (!success) {
         throw new Error("Failed to send Telegram emergency alert");
       }
 
-      console.log(
-        `Telegram emergency alert sent successfully: ${telegramResponse.message_id}`,
-      );
+      console.log("Telegram emergency alert sent successfully");
       return {
         success: true,
-        messageId: telegramResponse.message_id,
-        chatId: telegramResponse.chat.id,
         isEmergency: true,
         postData,
         error,

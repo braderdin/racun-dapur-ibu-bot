@@ -1,437 +1,485 @@
-import { Env } from "../types/env";
-import { SupabaseService } from "../services/supabase";
+// Emergency Post Deletion Service
+// API wrapper service that calls Twitter API v2 delete endpoint and Facebook Graph API delete endpoint when triggered by Telegram emergency actions
 
-export class PostDeletionService {
-  private supabase: SupabaseService;
-  private env: Env;
+import { Redis } from "@upstash/redis";
 
-  constructor(env: Env) {
-    this.env = env;
-    this.supabase = new SupabaseService(env);
+interface PostDeletionRequest {
+  id: string;
+  platform: "x" | "facebook";
+  postId: string;
+  userId: string;
+  reason: string;
+  timestamp: number;
+  status: "pending" | "processing" | "completed" | "failed";
+  metadata: {
+    originalContent?: string;
+    generatedCopy?: string;
+    apiResponse?: any;
+    error?: string;
+    source?: string;
+    action?: string;
+    userId?: string;
+  };
+  createdAt: number;
+  updatedAt: number;
+}
+
+interface DeletionResult {
+  success: boolean;
+  platform: "x" | "facebook";
+  postId: string;
+  deletedAt: number;
+  apiResponse?: any;
+  error?: string;
+}
+
+interface XAPIDeleteResponse {
+  data: {
+    deleted: boolean;
+    id: string;
+    media_id?: string;
+    title?: string;
+  };
+}
+
+interface FacebookAPIDeleteResponse {
+  success: boolean;
+  id: string;
+}
+
+class PostDeletionService {
+  private redis: Redis;
+  private xApiToken: string;
+  private facebookApiToken: string;
+  private facebookPageId: string;
+
+  constructor() {
+    this.redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    });
+
+    this.xApiToken = process.env.X_API_BEARER_TOKEN || "";
+    this.facebookApiToken = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "";
+    this.facebookPageId = process.env.FACEBOOK_PAGE_ID || "";
   }
 
-  /**
-   * Make a REST API call to Supabase
-   */
-  private async supabaseQuery(
-    table: string,
-    query: string,
-    method: "GET" | "POST" | "PATCH" | "DELETE" = "GET",
-    body?: any,
-  ): Promise<{ data: any; error: any }> {
+  async deletePost(request: PostDeletionRequest): Promise<DeletionResult> {
     try {
-      const url = `${this.env.SUPABASE_URL}/rest/v1/${table}${query}`;
-      const response = await fetch(url, {
-        method,
-        headers: {
-          apikey: this.env.SUPABASE_SERVICE_ROLE_KEY,
-          Authorization: `Bearer ${this.env.SUPABASE_SERVICE_ROLE_KEY}`,
-          "Content-Type": "application/json",
-          Prefer: "return=minimal",
+      const deletionId = `deletion:${Date.now()}:${Math.random().toString(36).substr(2, 9)}`;
+
+      const deletionRequest: PostDeletionRequest = {
+        id: deletionId,
+        platform: request.platform,
+        postId: request.postId,
+        userId: request.userId,
+        reason: request.reason,
+        timestamp: Date.now(),
+        status: "processing",
+        metadata: {
+          originalContent: request.metadata?.originalContent,
+          generatedCopy: request.metadata?.generatedCopy,
         },
-        body: body ? JSON.stringify(body) : undefined,
-      });
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      await this.cacheDeletionRequest(deletionId, deletionRequest);
+
+      const result = await this.executeDeletion(deletionRequest);
+
+      deletionRequest.status = result.success ? "completed" : "failed";
+      deletionRequest.metadata.apiResponse = result.apiResponse;
+      if (!result.success) {
+        deletionRequest.metadata.error = result.error;
+      }
+      deletionRequest.updatedAt = Date.now();
+
+      await this.updateDeletionRequest(deletionId, deletionRequest);
+
+      await this.logDeletion(deletionRequest);
+
+      return result;
+    } catch (error) {
+      console.error("Error deleting post:", error);
+      return {
+        success: false,
+        platform: request.platform,
+        postId: request.postId,
+        deletedAt: Date.now(),
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
+
+  private async executeDeletion(
+    request: PostDeletionRequest,
+  ): Promise<DeletionResult> {
+    switch (request.platform) {
+      case "x":
+        return await this.deleteXPost(request);
+      case "facebook":
+        return await this.deleteFacebookPost(request);
+      default:
+        throw new Error(`Unsupported platform: ${request.platform}`);
+    }
+  }
+
+  private async deleteXPost(
+    request: PostDeletionRequest,
+  ): Promise<DeletionResult> {
+    try {
+      const response = await fetch(
+        `https://api.twitter.com/2/tweets/${request.postId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${this.xApiToken}`,
+            "Content-Type": "application/json",
+          },
+        },
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
-        return {
-          data: null,
-          error: { message: errorText, status: response.status },
-        };
-      }
-
-      const data = await response.json();
-      return { data, error: null };
-    } catch (error) {
-      return { data: null, error: { message: error.message } };
-    }
-  }
-
-  /**
-   * Delete a specific Tweet or Facebook post programmatically
-   * @param postId - The post ID to delete
-   * @param platform - Platform ("twitter" or "facebook")
-   * @param userId - User ID requesting deletion
-   * @param metadata - Additional metadata for deletion
-   * @returns Deletion result
-   */
-  async deletePost(
-    postId: string,
-    platform: "twitter" | "facebook",
-    userId: string,
-    metadata?: any,
-  ): Promise<any> {
-    try {
-      if (!postId || !platform || !userId) {
-        throw new Error("Missing required parameters for post deletion");
-      }
-
-      console.log(
-        `Processing delete request for ${platform} post ${postId} by user ${userId}`,
-      );
-
-      // Validate post exists and user has permission
-      const validationResult = await this.validateDeletionPermission(
-        postId,
-        platform,
-        userId,
-      );
-      if (!validationResult.canDelete) {
-        throw new Error(`Deletion not allowed: ${validationResult.reason}`);
-      }
-
-      // Perform platform-specific deletion
-      const deletionResult = await this.performDeletion(
-        postId,
-        platform,
-        userId,
-        metadata,
-      );
-
-      if (!deletionResult.success) {
         throw new Error(
-          `Failed to delete ${platform} post: ${deletionResult.error}`,
+          `X API error: ${response.status} ${response.statusText} - ${errorText}`,
         );
       }
 
-      // Log deletion to audit trail
-      await this.logDeletion(
-        postId,
-        platform,
-        userId,
-        metadata,
-        deletionResult,
-      );
-
-      console.log(
-        `${platform} post ${postId} deleted successfully by user ${userId}`,
-      );
-      return {
-        success: true,
-        postId,
-        platform,
-        userId,
-        timestamp: Date.now(),
-        deletionResult,
-      };
-    } catch (error) {
-      console.error(`Error deleting ${platform} post ${postId}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Validate deletion permission
-   * @param postId - Post ID
-   * @param platform - Platform
-   * @param userId - User ID
-   * @returns Validation result
-   */
-  private async validateDeletionPermission(
-    postId: string,
-    platform: "twitter" | "facebook",
-    userId: string,
-  ): Promise<{ canDelete: boolean; reason?: string }> {
-    try {
-      // Check if post exists in database
-      const postExists = await this.checkPostExists(postId, platform);
-      if (!postExists) {
-        return { canDelete: false, reason: "Post not found in database" };
-      }
-
-      // Check if user has permission (admin or original poster)
-      const userPermission = await this.checkUserPermission(
-        postId,
-        platform,
-        userId,
-      );
-      if (!userPermission.hasPermission) {
-        return { canDelete: false, reason: userPermission.reason };
-      }
-
-      // Check if post is already deleted
-      const postStatus = await this.getPostStatus(postId, platform);
-      if (postStatus === "deleted") {
-        return { canDelete: false, reason: "Post already deleted" };
-      }
-
-      return { canDelete: true };
-    } catch (error) {
-      console.error("Error validating deletion permission:", error);
-      return { canDelete: false, reason: "Validation error" };
-    }
-  }
-
-  /**
-   * Check if post exists in database
-   * @param postId - Post ID
-   * @param platform - Platform
-   * @returns True if post exists
-   */
-  private async checkPostExists(
-    postId: string,
-    platform: "twitter" | "facebook",
-  ): Promise<boolean> {
-    try {
-      const table = platform === "twitter" ? "twitter_posts" : "facebook_posts";
-      const { data, error } = await this.supabaseQuery(
-        table,
-        `?id=eq.${postId}&select=id&limit=1`,
-      );
-
-      return !!data && data.length > 0 && !error;
-    } catch (error) {
-      console.error("Error checking post existence:", error);
-      return false;
-    }
-  }
-
-  /**
-   * Check user permission for deletion
-   * @param postId - Post ID
-   * @param platform - Platform
-   * @param userId - User ID
-   * @returns Permission result
-   */
-  private async checkUserPermission(
-    postId: string,
-    platform: "twitter" | "facebook",
-    userId: string,
-  ): Promise<{ hasPermission: boolean; reason?: string }> {
-    try {
-      const table = platform === "twitter" ? "twitter_posts" : "facebook_posts";
-      const { data, error } = await this.supabaseQuery(
-        table,
-        `?id=eq.${postId}&select=user_id,status&limit=1`,
-      );
-
-      if (error || !data || data.length === 0) {
-        return { hasPermission: false, reason: "Post not found" };
-      }
-
-      const post = data[0];
-
-      // Check if user is admin (in production, check against admin roles)
-      const isAdmin = await this.checkIfUserIsAdmin(userId);
-      if (isAdmin) {
-        return { hasPermission: true };
-      }
-
-      // Check if user is the original poster
-      if (post.user_id === userId) {
-        return { hasPermission: true };
-      }
-
-      // Check if post is already published
-      if (post.status === "published") {
-        return { hasPermission: false, reason: "Cannot delete published post" };
-      }
-
-      return { hasPermission: true };
-    } catch (error) {
-      console.error("Error checking user permission:", error);
-      return { hasPermission: false, reason: "Permission check error" };
-    }
-  }
-
-  /**
-   * Check if user is admin
-   * @param userId - User ID
-   * @returns True if user is admin
-   */
-  private async checkIfUserIsAdmin(userId: string): Promise<boolean> {
-    try {
-      const { data, error } = await this.supabaseQuery(
-        "admin_users",
-        `?user_id=eq.${userId}&select=user_id&limit=1`,
-      );
-
-      return !!data && data.length > 0 && !error;
-    } catch (error) {
-      console.error("Error checking admin status:", error);
-      return false;
-    }
-  }
-
-  /**
-   * Get post status
-   * @param postId - Post ID
-   * @param platform - Platform
-   * @returns Post status
-   */
-  private async getPostStatus(
-    postId: string,
-    platform: "twitter" | "facebook",
-  ): Promise<string> {
-    try {
-      const table = platform === "twitter" ? "twitter_posts" : "facebook_posts";
-      const { data, error } = await this.supabaseQuery(
-        table,
-        `?id=eq.${postId}&select=status&limit=1`,
-      );
-
-      return data?.[0]?.status || "unknown";
-    } catch (error) {
-      console.error("Error getting post status:", error);
-      return "unknown";
-    }
-  }
-
-  /**
-   * Perform platform-specific deletion
-   * @param postId - Post ID
-   * @param platform - Platform
-   * @param userId - User ID
-   * @param metadata - Metadata
-   * @returns Deletion result
-   */
-  private async performDeletion(
-    postId: string,
-    platform: "twitter" | "facebook",
-    userId: string,
-    metadata?: any,
-  ): Promise<any> {
-    try {
-      switch (platform) {
-        case "twitter":
-          return await this.deleteTwitterPost(postId, userId, metadata);
-        case "facebook":
-          return await this.deleteFacebookPost(postId, userId, metadata);
-        default:
-          throw new Error(`Unsupported platform: ${platform}`);
-      }
-    } catch (error) {
-      console.error("Error performing deletion:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * Delete Twitter post
-   * @param postId - Post ID
-   * @param userId - User ID
-   * @param metadata - Metadata
-   * @returns Deletion result
-   */
-  private async deleteTwitterPost(
-    postId: string,
-    userId: string,
-    metadata?: any,
-  ): Promise<any> {
-    try {
-      // In production, integrate with Twitter API v2
-      // For now, return success with mock response
-      console.log(`Would delete Twitter post ${postId} via Twitter API v2`);
+      const result: XAPIDeleteResponse = await response.json();
 
       return {
-        success: true,
-        platform: "twitter",
-        postId,
+        success: result.data?.deleted || false,
+        platform: "x",
+        postId: request.postId,
         deletedAt: Date.now(),
-        deletedBy: userId,
-        metadata,
+        apiResponse: result,
       };
     } catch (error) {
-      console.error("Error deleting Twitter post:", error);
-      return { success: false, error: error.message };
+      console.error("Error deleting X post:", error);
+      return {
+        success: false,
+        platform: "x",
+        postId: request.postId,
+        deletedAt: Date.now(),
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
     }
   }
 
-  /**
-   * Delete Facebook post
-   * @param postId - Post ID
-   * @param userId - User ID
-   * @param metadata - Metadata
-   * @returns Deletion result
-   */
   private async deleteFacebookPost(
-    postId: string,
-    userId: string,
-    metadata?: any,
-  ): Promise<any> {
+    request: PostDeletionRequest,
+  ): Promise<DeletionResult> {
     try {
-      // In production, integrate with Facebook Graph API
-      // For now, return success with mock response
-      console.log(
-        `Would delete Facebook post ${postId} via Facebook Graph API`,
+      const response = await fetch(
+        `${process.env.META_GRAPH_API_URL}/${request.postId}?access_token=${this.facebookApiToken}`,
+        {
+          method: "DELETE",
+        },
       );
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `Facebook Graph API error: ${response.status} ${response.statusText} - ${errorText}`,
+        );
+      }
+
+      const result: FacebookAPIDeleteResponse = await response.json();
+
       return {
-        success: true,
+        success: result.success || false,
         platform: "facebook",
-        postId,
+        postId: request.postId,
         deletedAt: Date.now(),
-        deletedBy: userId,
-        metadata,
+        apiResponse: result,
       };
     } catch (error) {
       console.error("Error deleting Facebook post:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * Log deletion to audit trail
-   * @param postId - Post ID
-   * @param platform - Platform
-   * @param userId - User ID
-   * @param metadata - Metadata
-   * @param deletionResult - Deletion result
-   */
-  private async logDeletion(
-    postId: string,
-    platform: "twitter" | "facebook",
-    userId: string,
-    metadata: any,
-    deletionResult: any,
-  ): Promise<void> {
-    try {
-      const auditRecord = {
-        post_id: postId,
-        platform,
-        user_id: userId,
-        action: "delete",
-        timestamp: Date.now(),
-        metadata,
-        deletion_result: deletionResult,
-        status: "completed",
+      return {
+        success: false,
+        platform: "facebook",
+        postId: request.postId,
+        deletedAt: Date.now(),
+        error: error instanceof Error ? error.message : "Unknown error",
       };
-
-      // In production, save to audit log table
-      console.log(`Deletion logged: ${JSON.stringify(auditRecord)}`);
-    } catch (error) {
-      console.error("Error logging deletion:", error);
     }
   }
 
-  /**
-   * Get deletion history for a post
-   * @param postId - Post ID
-   * @returns Deletion history
-   */
-  async getDeletionHistory(postId: string): Promise<any[]> {
+  async getDeletionRequest(
+    deletionId: string,
+  ): Promise<PostDeletionRequest | null> {
     try {
-      // In production, fetch from audit log table
-      console.log(`Would fetch deletion history for post ${postId}`);
-      return [];
+      const cached = await this.redis.get(`deletion:${deletionId}`);
+      if (cached) {
+        return JSON.parse(cached as string);
+      }
+      return null;
+    } catch (error) {
+      console.error("Error getting deletion request:", error);
+      return null;
+    }
+  }
+
+  async getDeletionHistory(
+    userId: string,
+    limit: number = 10,
+  ): Promise<PostDeletionRequest[]> {
+    try {
+      const keys = await this.redis.keys("deletion:*");
+      const deletions: PostDeletionRequest[] = [];
+
+      for (const key of keys.slice(0, 100)) {
+        const deletion = await this.redis.get(key);
+        if (deletion) {
+          const parsed = JSON.parse(deletion as string);
+          if (parsed.userId === userId) {
+            deletions.push(parsed);
+          }
+        }
+      }
+
+      deletions.sort((a, b) => b.timestamp - a.timestamp);
+      return deletions.slice(0, limit);
     } catch (error) {
       console.error("Error getting deletion history:", error);
       return [];
     }
   }
 
-  /**
-   * Get deletion statistics
-   * @returns Deletion statistics
-   */
-  getDeletionStats(): any {
-    return {
-      platform: "Post Deletion Service",
-      supportedPlatforms: ["twitter", "facebook"],
-      deletionActions: ["delete", "validate", "audit"],
-      rateLimit: "5 deletions per minute",
-      auditLogging: true,
-      permissionControl: true,
-    };
+  async getAllDeletions(limit: number = 10): Promise<PostDeletionRequest[]> {
+    try {
+      const keys = await this.redis.keys("deletion:*");
+      const deletions: PostDeletionRequest[] = [];
+
+      for (const key of keys.slice(0, 100)) {
+        const deletion = await this.redis.get(key);
+        if (deletion) {
+          deletions.push(JSON.parse(deletion as string));
+        }
+      }
+
+      deletions.sort((a, b) => b.timestamp - a.timestamp);
+      return deletions.slice(0, limit);
+    } catch (error) {
+      console.error("Error getting all deletions:", error);
+      return [];
+    }
+  }
+
+  private async cacheDeletionRequest(
+    deletionId: string,
+    request: PostDeletionRequest,
+  ): Promise<void> {
+    try {
+      await this.redis.setex(
+        `deletion:${deletionId}`,
+        86400,
+        JSON.stringify(request),
+      );
+    } catch (error) {
+      console.error("Error caching deletion request:", error);
+    }
+  }
+
+  private async updateDeletionRequest(
+    deletionId: string,
+    request: PostDeletionRequest,
+  ): Promise<void> {
+    try {
+      await this.redis.setex(
+        `deletion:${deletionId}`,
+        86400,
+        JSON.stringify(request),
+      );
+    } catch (error) {
+      console.error("Error updating deletion request:", error);
+    }
+  }
+
+  private async logDeletion(request: PostDeletionRequest): Promise<void> {
+    try {
+      const logEntry = {
+        deletionId: request.id,
+        userId: request.userId,
+        platform: request.platform,
+        postId: request.postId,
+        reason: request.reason,
+        timestamp: request.timestamp,
+        status: request.status,
+        success: request.status === "completed",
+      };
+
+      await this.redis.lpush("deletion_log", JSON.stringify(logEntry));
+      await this.redis.expire("deletion_log", 86400);
+    } catch (error) {
+      console.error("Error logging deletion:", error);
+    }
+  }
+
+  async getDeletionStats(): Promise<any> {
+    try {
+      const keys = await this.redis.keys("deletion:*");
+      const stats: any = {
+        totalDeletions: keys.length,
+        byPlatform: { x: 0, facebook: 0 },
+        byStatus: { pending: 0, processing: 0, completed: 0, failed: 0 },
+        successRate: 0,
+        lastUpdated: Date.now(),
+      };
+
+      let successfulDeletions = 0;
+
+      for (const key of keys.slice(0, 100)) {
+        const deletion = await this.redis.get(key);
+        if (deletion) {
+          const parsed = JSON.parse(deletion as string);
+          stats.byPlatform[parsed.platform] =
+            (stats.byPlatform[parsed.platform] || 0) + 1;
+          stats.byStatus[parsed.status] =
+            (stats.byStatus[parsed.status] || 0) + 1;
+
+          if (parsed.status === "completed") {
+            successfulDeletions++;
+          }
+        }
+      }
+
+      stats.successRate =
+        stats.totalDeletions > 0
+          ? (successfulDeletions / stats.totalDeletions) * 100
+          : 0;
+
+      return stats;
+    } catch (error) {
+      console.error("Error getting deletion stats:", error);
+      return null;
+    }
+  }
+
+  async cleanupOldDeletions(
+    olderThan: number = 7 * 24 * 60 * 60 * 1000,
+  ): Promise<void> {
+    try {
+      const now = Date.now();
+      const keysToDelete: string[] = [];
+
+      for (const key of await this.redis.keys("deletion:*")) {
+        const deletion = await this.redis.get(key);
+        if (deletion) {
+          const parsed = JSON.parse(deletion as string);
+          if (now - parsed.timestamp > olderThan) {
+            keysToDelete.push(key);
+          }
+        }
+      }
+
+      for (const key of keysToDelete) {
+        await this.redis.del(key);
+      }
+    } catch (error) {
+      console.error("Error cleaning up old deletions:", error);
+    }
+  }
+
+  async validateDeletionPermission(
+    userId: string,
+    postId: string,
+    platform: "x" | "facebook",
+  ): Promise<{ isValid: boolean; reason?: string }> {
+    try {
+      const postInfo = await this.getPostInfo(postId);
+      if (!postInfo) {
+        return { isValid: false, reason: "Post not found" };
+      }
+
+      if (postInfo.platform !== platform) {
+        return { isValid: false, reason: "Platform mismatch" };
+      }
+
+      const userRole = await this.getUserRole(userId);
+      if (!["admin", "moderator", "owner"].includes(userRole)) {
+        return { isValid: false, reason: "Insufficient permissions" };
+      }
+
+      return { isValid: true };
+    } catch (error) {
+      console.error("Error validating deletion permission:", error);
+      return {
+        isValid: false,
+        reason: error instanceof Error ? error.message : "Validation error",
+      };
+    }
+  }
+
+  private async getPostInfo(postId: string): Promise<any | null> {
+    try {
+      const cacheKey = `post:${postId}`;
+      const cached = await this.redis.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached as string);
+      }
+      return null;
+    } catch (error) {
+      console.error("Error getting post info:", error);
+      return null;
+    }
+  }
+
+  private async getUserRole(userId: string): Promise<string> {
+    try {
+      const cacheKey = `user_role:${userId}`;
+      const cached = await this.redis.get(cacheKey);
+      if (cached) {
+        return cached as string;
+      }
+      return "user";
+    } catch (error) {
+      console.error("Error getting user role:", error);
+      return "user";
+    }
+  }
+
+  async emergencyDeleteAllPosts(
+    userId: string,
+    reason: string,
+  ): Promise<{ success: boolean; deletedCount: number; errors: string[] }> {
+    try {
+      const errors: string[] = [];
+      let deletedCount = 0;
+
+      const userDeletions = await this.getDeletionHistory(userId);
+      for (const deletion of userDeletions) {
+        if (deletion.status === "completed") {
+          continue;
+        }
+
+        const result = await this.deletePost(deletion);
+        if (result.success) {
+          deletedCount++;
+        } else {
+          errors.push(
+            `${deletion.platform} post ${deletion.postId}: ${result.error}`,
+          );
+        }
+      }
+
+      return {
+        success: errors.length === 0,
+        deletedCount,
+        errors,
+      };
+    } catch (error) {
+      console.error("Error in emergency delete all posts:", error);
+      return {
+        success: false,
+        deletedCount: 0,
+        errors: [error instanceof Error ? error.message : "Unknown error"],
+      };
+    }
   }
 }
+
+export { PostDeletionService };
+export type { PostDeletionRequest, DeletionResult };

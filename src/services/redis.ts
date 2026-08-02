@@ -178,4 +178,24 @@ export class RedisService {
     );
     return result?.keys ?? [];
   }
+
+  // Alias methods for compatibility
+  async setex(key: string, ttlSeconds: number, value: string): Promise<void> {
+    await this.setEx(key, value, ttlSeconds);
+  }
+
+  async sadd(key: string, ...members: string[]): Promise<number> {
+    // Upstash Redis doesn't have native SET operations via REST API
+    // We'll store as a JSON array
+    const existing = await this.get(key);
+    const set = existing ? new Set(JSON.parse(existing)) : new Set();
+    members.forEach(m => set.add(m));
+    await this.set(key, JSON.stringify([...set]));
+    return set.size;
+  }
+
+  async expire(key: string, ttlSeconds: number): Promise<number> {
+    await this.makeRequest("POST", `/ex/${key}/${ttlSeconds}`, {});
+    return 1;
+  }
 }

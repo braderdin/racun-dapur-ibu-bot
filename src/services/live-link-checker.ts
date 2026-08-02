@@ -1,13 +1,13 @@
 import { Env } from "../types/env";
-import { Redis } from "../services/redis";
+import { RedisService } from "./redis";
 
 export class LiveLinkChecker {
-  private redis: Redis;
+  private redis: RedisService;
   private env: Env;
 
   constructor(env: Env) {
     this.env = env;
-    this.redis = new Redis(env);
+    this.redis = new RedisService(env);
   }
 
   /**
@@ -119,7 +119,7 @@ export class LiveLinkChecker {
         productId,
         cloakedLink,
         status: "error",
-        message: error.message,
+        message: (error as Error).message,
         httpStatus: 0,
         responseTime: 0,
         timestamp: Date.now(),
@@ -159,7 +159,7 @@ export class LiveLinkChecker {
         } catch (error) {
           errors.push({
             link,
-            error: error.message,
+            error: (error as Error).message,
           });
         }
       });
