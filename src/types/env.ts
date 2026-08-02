@@ -147,12 +147,16 @@ export const securityConfigSchema = z.object({
   FB_PAGE_ACCESS_TOKEN: z.string().optional(),
   FB_COMMENT_DELAY_MS: z.string().optional(),
   FB_COMMENT_MAX_RETRIES: z.string().optional(),
+  FB_COMMENT_RETRY_DELAY_MS: z.string().optional(),
 
   // Twitter/X API Credentials
   TWITTER_API_KEY: z.string().optional(),
   TWITTER_API_SECRET: z.string().optional(),
   TWITTER_ACCESS_TOKEN: z.string().optional(),
   TWITTER_ACCESS_SECRET: z.string().optional(),
+
+  // Discord Webhook
+  DISCORD_WEBHOOK_URL: z.string().optional(),
 
   // Cloaking & Link Masking
   CLOAK_DOMAIN: z.string().optional(),
@@ -198,6 +202,10 @@ export const securityConfigSchema = z.object({
   // Recommendations Configuration
   RECOMMENDATIONS_TOP_K: z.string().optional(),
   RECOMMENDATIONS_SIMILARITY: z.string().optional(),
+
+  // Upstash Vector Circuit Breaker
+  UPSTASH_VECTOR_CIRCUIT_BREAKER_THRESHOLD: z.string().optional(),
+  UPSTASH_VECTOR_CIRCUIT_BREAKER_TIMEOUT: z.string().optional(),
   RECOMMENDATIONS_CACHE_TTL: z.string().optional(),
   RECOMMENDATIONS_CATEGORY_BOOST: z.string().optional(),
 

@@ -12,13 +12,15 @@ import { Env } from "../types/env";
 import { CONSTANTS } from "../config/constants";
 import { logger } from "../utils/logger";
 import { ProductItem } from "../types/product";
-import { DealCuratorService, DealCurationResult } from "./deal-curator";
-import { VectorDeductionService } from "./vector-dedup";
+import { DealCuratorService, DealCurationResult, DealCuratorConfig } from "./deal-curator";
+import { UpstashVectorService } from "./upstash-vector";
 import { AIPersonaEngine, PersonaCopyOutput } from "./ai-persona-engine";
+import { AIFallbackRouter } from "./ai-fallback-router";
 import { B2StorageService, UploadResult } from "./b2-storage";
 import { SupabaseService } from "./supabase";
 import { FacebookService } from "./facebook";
 import { TwitterService } from "./twitter";
+import { RedisService } from "./redis";
 
 // ---------------------------------------------------------------------------
 // Interfaces
@@ -55,7 +57,7 @@ export interface E2EConfig {
 
 export class E2EOrchestrator {
   private dealCurator: DealCuratorService;
-  private vectorDedup: VectorDeductionService;
+  private vectorDedup: UpstashVectorService;
   private personaEngine: AIPersonaEngine;
   private b2Storage: B2StorageService;
   private supabase: SupabaseService;
@@ -74,9 +76,29 @@ export class E2EOrchestrator {
       ...config,
     };
 
-    this.dealCurator = new DealCuratorService(env);
-    this.vectorDedup = new VectorDeductionService(env);
-    this.personaEngine = new AIPersonaEngine(env);
+    this.vectorDedup = new UpstashVectorService(env);
+    const dealCuratorConfig: DealCuratorConfig = {
+      minDiscountPercent: 30,
+      minRating: 3.5,
+      inStockOnly: true,
+      platforms: this.config.platforms,
+      antiRepeatTtlSeconds: 432000,
+      maxDealsPerRun: 50,
+    };
+    this.dealCurator = new DealCuratorService(env, this.vectorDedup, new RedisService(env), dealCuratorConfig);
+    const fallbackRouter = new AIFallbackRouter({
+      preferTier1: true,
+      maxRetriesPerTier: 2,
+      emergencyFallback: true,
+      enableCircuitBreaker: true,
+      circuitBreakerThreshold: 3,
+      circuitBreakerTimeoutMs: 300000,
+      rateLimitPerMinute: 5,
+      requestDelayMs: 3000,
+      maxConcurrentRequests: 10,
+      requestQueueSize: 100,
+    });
+    this.personaEngine = new AIPersonaEngine(env, fallbackRouter);
     this.b2Storage = new B2StorageService(env);
     this.supabase = new SupabaseService(env);
     this.facebook = new FacebookService(env);

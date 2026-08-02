@@ -63,13 +63,13 @@ export class ShortenerService {
     }
 
     // Store the mapping
-    await this.redisService.setex(
+    await this.redisService.setEx(
       `shortcode:${shortCode}`,
-      86400,
       affiliateUrl,
+      86400,
     ); // 24 hours
     if (productId) {
-      await this.redisService.setex(`product:${productId}`, 86400, shortCode); // 24 hours
+      await this.redisService.setEx(`product:${productId}`, shortCode, 86400); // 24 hours
     }
 
     // Log to database for analytics

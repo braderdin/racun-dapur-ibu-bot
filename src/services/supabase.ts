@@ -23,9 +23,11 @@ export class SupabaseService {
     }
   }
 
-  async healthCheck(): Promise<{ status: string; timestamp: string }> {
+  async healthCheck(): Promise<{ status: "healthy" | "unhealthy" | "degraded"; details: string; timestamp: string }> {
+    const isConnected = this.url && this.serviceKey;
     return {
-      status: this.url && this.serviceKey ? "connected" : "disconnected",
+      status: isConnected ? "healthy" : "unhealthy",
+      details: isConnected ? "Supabase PostgreSQL connection healthy" : "Supabase not configured",
       timestamp: new Date().toISOString(),
     };
   }
@@ -41,6 +43,54 @@ export class SupabaseService {
       status: health.status,
       timestamp: health.timestamp,
     };
+  }
+
+  // -----------------------------------------------------------------------
+  // Public method for ShortenerService compatibility
+  // -----------------------------------------------------------------------
+
+  async logLinkClick(data: {
+    shortCode: string;
+    affiliateUrl: string;
+    productId?: string;
+    metadata?: any;
+    conversionResult?: boolean;
+  }): Promise<void> {
+    try {
+      if (!this.url || !this.serviceKey) return;
+
+      const payload = {
+        short_code: data.shortCode,
+        affiliate_url: data.affiliateUrl,
+        product_id: data.productId || null,
+        metadata: data.metadata || {},
+        conversion_result: data.conversionResult || false,
+        created_at: new Date().toISOString(),
+      };
+
+      const response = await fetch(`${this.url}/rest/v1/link_clicks`, {
+        method: "POST",
+        headers: {
+          apikey: this.serviceKey,
+          Authorization: `Bearer ${this.serviceKey}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        console.error("Supabase logLinkClick error:", await response.text());
+      }
+
+      logger.debug(
+        "Supabase logLinkClick success",
+        { shortCode: data.shortCode },
+        "SupabaseService",
+      );
+    } catch (error) {
+      logger.error("Error logging link click to Supabase:", { error }, "SupabaseService");
+    }
   }
 
   async getRecentProducts(limit: number = 50): Promise<any[]> {
@@ -501,6 +551,74 @@ export class SupabaseService {
     } catch (error) {
       logger.error("Error cleaning up old click events from Supabase:", { error }, "SupabaseService");
       return 0;
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // Public method for E2E orchestrator compatibility
+  // -----------------------------------------------------------------------
+
+  async upsertProduct(product: ProductItem): Promise<void> {
+    try {
+      if (!this.url || !this.serviceKey) return;
+
+      const productId = `product_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const timestamp = new Date().toISOString();
+
+      const payload = {
+        product_id: productId,
+        title: product.title,
+        price: parseFloat(product.price) || 0,
+        original_price: product.originalPrice,
+        discount_rate: product.discountRate,
+        image_url: product.imageUrl,
+        affiliate_url: product.affiliateUrl,
+        rating: product.rating,
+        sold_count: product.soldCount,
+        lazada_product_id: product.id,
+        lazada_item_id: product.id,
+        tweet_id: null,
+        reply_tweet_id: null,
+        posted_at: timestamp,
+        x_user_id: null,
+        x_username: null,
+        x_display_name: null,
+        copy_used: JSON.stringify({
+          tweetHook: product.title,
+          tweetReply: product.affiliateUrl,
+        }),
+        tags_used: [],
+        sentiment_score: null,
+        image_storage_used: JSON.stringify({
+          account: 1,
+          bucket: "default",
+          object: `${productId}.jpg`,
+        }),
+      };
+
+      const response = await fetch(`${this.url}/rest/v1/posted_products`, {
+        method: "POST",
+        headers: {
+          apikey: this.serviceKey,
+          Authorization: `Bearer ${this.serviceKey}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+          "on-conflict": "merge",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        console.error("Supabase POST error:", await response.text());
+      }
+
+      logger.debug(
+        "Supabase upsertProduct success",
+        { productId },
+        "SupabaseService",
+      );
+    } catch (error) {
+      logger.error("Error upserting product to Supabase:", { error }, "SupabaseService");
     }
   }
 }

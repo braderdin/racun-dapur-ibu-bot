@@ -151,6 +151,18 @@ export class VectorDeductionService {
     }
   }
 
+  // -----------------------------------------------------------------------
+  // Public method for E2E orchestrator compatibility
+  // -----------------------------------------------------------------------
+
+  async checkDuplicate(product: ProductItem): Promise<{ isDuplicate: boolean; similarity: number }> {
+    const results = await this.searchSimilar(product, this.config.similarityThreshold);
+    if (results.length > 0 && results[0].similarity >= this.config.similarityThreshold) {
+      return { isDuplicate: true, similarity: results[0].similarity };
+    }
+    return { isDuplicate: false, similarity: 0 };
+  }
+
   async upsert(
     vectorId: string,
     embedding: number[],

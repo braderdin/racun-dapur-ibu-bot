@@ -152,10 +152,6 @@ export class AIFallbackRouter {
     console.log(`   Rate limit: ${this.config.rateLimitPerMinute} req/min`);
   }
 
-  private openRouterService: OpenRouterService;
-  private geminiService: GeminiServiceWrapper;
-  private heuristicService: HeuristicRuleEngineWrapper;
-
   /**
    * Phase 6: Enqueue request for 24/7 autonomous processing.
    * Respects maxConcurrentRequests limit and requestQueueSize cap.

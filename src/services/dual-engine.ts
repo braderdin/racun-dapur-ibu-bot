@@ -38,6 +38,7 @@ export interface RotationConfig {
   api_timeout_seconds: number;
   max_retry_attempts: number;
   enable_circuit_breaker: boolean;
+  rotationType: "strict_50_50" | "balanced" | "priority_based";
 }
 
 export interface PlatformStatus {
@@ -80,6 +81,7 @@ export class DualEngineRotationManager {
       api_timeout_seconds: 30,
       max_retry_attempts: 3,
       enable_circuit_breaker: true,
+      rotationType: "strict_50_50",
       ...config,
     };
 
@@ -209,6 +211,10 @@ export class DualEngineRotationManager {
     if (this.config.rotationType === "strict_50_50") {
       return isEvenSlot ? "lazada" : "shopee";
     } else if (this.config.rotationType === "priority_based") {
+      // If prefer_platform is "balanced", fall back to slot-based logic
+      if (this.config.prefer_platform === "balanced") {
+        return isEvenSlot ? "lazada" : "shopee";
+      }
       return this.config.prefer_platform;
     } else {
       return isEvenSlot ? "lazada" : "shopee";

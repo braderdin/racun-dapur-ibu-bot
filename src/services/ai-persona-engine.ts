@@ -412,6 +412,32 @@ export class AIPersonaEngine {
     const parsed = parseFloat(cleaned);
     return isNaN(parsed) ? 0 : parsed;
   }
+
+  // -----------------------------------------------------------------------
+  // Public method for E2E orchestrator compatibility
+  // -----------------------------------------------------------------------
+
+  async generateCopy(product: ProductItem, platform: "twitter" | "facebook" | "both" = "both"): Promise<PersonaCopyOutput | { twitter: TwitterThreadOutput; facebook: PersonaCopyOutput }> {
+    // For E2E pipeline, we'll use a simplified version without hooks
+    const emptyHooks: HookEntry[] = [];
+    
+    if (platform === "both") {
+      return this.generateDualPlatformCopy(product, emptyHooks);
+    } else if (platform === "facebook") {
+      return this.generateFacebookCopy(product, emptyHooks);
+    } else {
+      const twitter = await this.generateTwitterThread(product, emptyHooks);
+      return {
+        platform: "twitter",
+        hook: twitter.tweet1.hook,
+        body: twitter.tweet1.body,
+        cta: twitter.tweet1.cta,
+        hashtags: twitter.tweet1.hashtags,
+        tone: twitter.tweet1.tone,
+        confidence: twitter.confidence,
+      };
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------

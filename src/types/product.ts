@@ -60,6 +60,9 @@ export interface GeneratedCopy {
   platform: "lazada" | "shopee";
   confidence: number;
   fallbackChainUsed: "none" | "tier-1" | "tier-2" | "tier-3" | "emergency";
+  // Twitter thread specific properties (for backward compatibility)
+  tweetHook?: string;
+  tweetReply?: string;
 }
 
 export interface DualPostResult {

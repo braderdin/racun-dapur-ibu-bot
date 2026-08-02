@@ -14,7 +14,8 @@
     "format": "npx prettier --write .",
     "clean": "rm -rf .wrangler dist",
     "prepublishOnly": "npm run build",
-    "migrate": "node bin/db-migrate.js"
+    "migrate": "node bin/db-migrate.js",
+    "check-all": "node bin/check-all.js"
   },
   "keywords": [],
   "author": "",

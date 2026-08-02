@@ -74,9 +74,9 @@ export class DiscordAlertService {
    * Send a system warning alert (yellow embed)
    */
   async sendSystemWarning(message: string): Promise<AlertDispatchResult> {
-    return this.dispatchAlert("warning", "System Warning", message, {
-      source: "discord-alert",
-    });
+    return this.dispatchAlert("warning", "System Warning", message, [
+      { name: "Source", value: "discord-alert", inline: true },
+    ]);
   }
 
   /**

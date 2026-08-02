@@ -241,7 +241,7 @@ export class B2StorageService {
   }
 
   async healthCheck(): Promise<{
-    status: string;
+    status: "healthy" | "unhealthy" | "degraded";
     details: string;
     timestamp: string;
   }> {

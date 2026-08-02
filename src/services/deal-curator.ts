@@ -15,7 +15,7 @@ import { Env } from "../types/env";
 import { CONSTANTS } from "../config/constants";
 import { logger } from "../utils/logger";
 import { ProductItem } from "../types/product";
-import { VectorDeductionService } from "./vector-dedup";
+import { UpstashVectorService } from "./upstash-vector";
 import { RedisService } from "./redis";
 
 // ---------------------------------------------------------------------------
@@ -91,12 +91,12 @@ const DEFAULT_CONFIG: DealCuratorConfig = {
 export class DealCuratorService {
   private config: DealCuratorConfig;
   private env: Env;
-  private vectorDedup: VectorDeductionService;
+  private vectorDedup: UpstashVectorService;
   private redisService: RedisService;
 
   constructor(
     env: Env,
-    vectorDedup: VectorDeductionService,
+    vectorDedup: UpstashVectorService,
     redisService: RedisService,
     config?: Partial<DealCuratorConfig>,
   ) {
@@ -231,10 +231,10 @@ export class DealCuratorService {
       );
 
       // Step 9: Mark as seen in Redis (anti-repeat TTL)
-      await this.redisService.setex(
+      await this.redisService.setEx(
         cacheKey,
-        this.config.antiRepeatTtlSeconds,
         "1",
+        this.config.antiRepeatTtlSeconds,
       );
 
       curatedDeals.push({
@@ -400,6 +400,33 @@ export class DealCuratorService {
 
     return { score: Math.round(score * 100) / 100, reasons };
   }
+
+  // -----------------------------------------------------------------------
+  // Public method for E2E orchestrator compatibility
+  // -----------------------------------------------------------------------
+
+  async curateProduct(productId: string): Promise<DealCurationResult> {
+    // This is a simplified version for E2E pipeline - in production would fetch from API
+    const mockProduct: ProductItem = {
+      id: productId,
+      title: "Sample Product",
+      price: "99.99",
+      originalPrice: "149.99",
+      discountRate: "33%",
+      imageUrl: "https://example.com/image.jpg",
+      affiliateUrl: "https://example.com/affiliate",
+      rating: "4.5",
+      soldCount: "100",
+      category: "kitchen",
+      name: "Sample Product",
+      stock: "50",
+      description: "Sample product description",
+      platform: "lazada",
+      explanation: "Sample explanation",
+    };
+
+    return this.curateDeals([mockProduct]);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -408,7 +435,7 @@ export class DealCuratorService {
 
 export function createDealCurator(
   env: Env,
-  vectorDedup: VectorDeductionService,
+  vectorDedup: UpstashVectorService,
   redisService: RedisService,
 ): DealCuratorService {
   return new DealCuratorService(env, vectorDedup, redisService, {

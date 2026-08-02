@@ -116,7 +116,15 @@ export class ChannelPostValidator {
 
   constructor() {
     // Initialize platform-specific configurations
-    this.platformConfig = new Map([
+    this.platformConfig = new Map<
+      string,
+      {
+        maxContentLength: number;
+        minContentLength: number;
+        urgencyWords: string[];
+        hashtags: string;
+      }
+    >([
       [
         PLATFORM_TYPE.X,
         {
@@ -246,7 +254,7 @@ export class ChannelPostValidator {
 
   private validateXTweetContent(
     content: ValidatedXContent,
-    config: { urgencyWords: string[] },
+    config: { urgencyWords: string[]; hashtags: string },
     warnings: string[],
   ): void {
     // Check if tweet 1 contains hook markers
@@ -280,7 +288,7 @@ export class ChannelPostValidator {
 
   private validateFBCustomerPost(
     content: ValidatedFBContent,
-    config: { urgencyWords: string[] },
+    config: { urgencyWords: string[]; hashtags: string },
     warnings: string[],
   ): void {
     // Check if post contains storytelling elements
@@ -308,7 +316,13 @@ export class ChannelPostValidator {
   }
 
   private getContentType(content: AnyContent): string {
-    return content.threadType || content.storyType;
+    if ("threadType" in content) {
+      return content.threadType;
+    }
+    if ("storyType" in content) {
+      return content.storyType;
+    }
+    return "unknown";
   }
 
   validateForPlatform(

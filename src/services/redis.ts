@@ -22,9 +22,11 @@ export class RedisService {
     }
   }
 
-  async healthCheck(): Promise<{ status: string; timestamp: string }> {
+  async healthCheck(): Promise<{ status: "healthy" | "unhealthy" | "degraded"; details: string; timestamp: string }> {
+    const isConnected = this.baseUrl && this.token;
     return {
-      status: this.baseUrl && this.token ? "connected" : "disconnected",
+      status: isConnected ? "healthy" : "unhealthy",
+      details: isConnected ? "Upstash Redis connection healthy" : "Upstash Redis not configured",
       timestamp: new Date().toISOString(),
     };
   }

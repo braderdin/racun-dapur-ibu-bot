@@ -22,11 +22,11 @@ export interface ShortlinkRoute {
 
 export interface ClickTrackingData {
   shortCode: string;
-  source: string;
-  userAgent: string;
-  ipAddress: string;
-  refererUrl: string;
-  timestamp: string;
+  source?: string;
+  userAgent?: string;
+  ipAddress?: string;
+  refererUrl?: string;
+  timestamp?: string;
   geoLocation?: {
     country: string;
     region: string;
@@ -139,10 +139,10 @@ export class ShortlinkRouter {
     route.clickCount++;
 
     // Track click asynchronously
-    this.trackClick({
+    this.clickTracker.trackClick({
       ...clickData,
       shortCode,
-    }).catch((error) => {
+    }).catch((error: Error) => {
       // Don't fail redirect for tracking errors
       logger.warn(
         "Failed to track click",

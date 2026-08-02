@@ -36,7 +36,7 @@ export class TwitterService {
     }
   }
 
-  async healthCheck(): Promise<{ status: string; details: string; timestamp: string }> {
+  async healthCheck(): Promise<{ status: "healthy" | "unhealthy" | "degraded"; details: string; timestamp: string }> {
     return {
       status: this.bearerToken ? "healthy" : "unhealthy",
       details: this.bearerToken ? "X API v2 service operational" : "X API v2 not configured",

@@ -545,8 +545,9 @@ export class FacebookService {
 
   // Health check for Facebook service
   async healthCheck(): Promise<{
-    status: "healthy" | "unhealthy";
+    status: "healthy" | "unhealthy" | "degraded";
     details: string;
+    timestamp: string;
   }> {
     try {
       // Test basic connectivity
@@ -579,6 +580,7 @@ export class FacebookService {
           return {
             status: "healthy",
             details: "Facebook Graph API is operational",
+            timestamp: new Date().toISOString(),
           };
         } else {
           throw new Error(`Health check failed: ${response.status}`);
@@ -598,6 +600,7 @@ export class FacebookService {
       return {
         status: "unhealthy",
         details: `Facebook service error: ${error instanceof Error ? error.message : "Unknown error"}`,
+        timestamp: new Date().toISOString(),
       };
     }
   }
