@@ -18,7 +18,11 @@ import {
   DealCuratorConfig,
 } from "./deal-curator";
 import { UpstashVectorService } from "./upstash-vector";
-import { AIPersonaEngine, PersonaCopyOutput } from "./ai-persona-engine";
+import {
+  AIPersonaEngine,
+  PersonaCopyOutput,
+  TwitterThreadOutput,
+} from "./ai-persona-engine";
 import { AIFallbackRouter } from "./ai-fallback-router";
 import { B2StorageService, UploadResult } from "./b2-storage";
 import { SupabaseService } from "./supabase";
@@ -69,8 +73,10 @@ export class E2EOrchestrator {
   private facebook: FacebookService;
   private twitter: TwitterService;
   private config: E2EConfig;
+  private env: Env;
 
   constructor(env: Env, config?: Partial<E2EConfig>) {
+    this.env = env;
     this.config = {
       enableWatermark: true,
       enableB2Upload: true,
@@ -249,28 +255,43 @@ export class E2EOrchestrator {
       }
 
       // Step 9: Telegram audit notification
-      if (env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID) {
+      if (this.env.TELEGRAM_BOT_TOKEN && this.env.TELEGRAM_CHAT_ID) {
         await this.runStep("telegram_notification", async () => {
           const product = curated.deals[0];
-          const copy = copyResult as PersonaCopyOutput;
-          if (!product || !copy)
+          if (!product) {
+            return { success: true, details: "No product found for Telegram" };
+          }
+          const copy = copyResult as
+            | PersonaCopyOutput
+            | { twitter: TwitterThreadOutput; facebook: PersonaCopyOutput };
+          if (!copy)
             return { success: true, details: "No content for Telegram" };
 
           try {
             const telegram = new TelegramNotifierService(
-              env.TELEGRAM_BOT_TOKEN,
-              env.TELEGRAM_CHAT_ID,
+              this.env.TELEGRAM_BOT_TOKEN!,
+              this.env.TELEGRAM_CHAT_ID!,
             );
+
+            // Extract copy text safely based on the actual structure
+            const twitterCopyText =
+              "twitter" in copy
+                ? copy.twitter.tweet1.body.join(" ")
+                : copy.body.join(" ");
+            const facebookCopyText =
+              "facebook" in copy
+                ? copy.facebook.body.join(" ")
+                : copy.body.join(" ");
 
             await telegram.sendAuditReport({
               productTitle: product.title,
               price: `RM ${product.price}`,
-              discount: `${product.discountPercentage || 0}%`,
+              discount: `${product.discountPercent || 0}%`,
               platform: product.platform === "lazada" ? "Lazada" : "Shopee",
-              imageUrl: product.b2ImageUrl || product.imageUrl,
-              shortlinkUrl: product.affiliateUrl,
-              twitterCopy: copy.twitterCopy?.body?.join(" ") || "",
-              facebookCopy: copy.facebookCopy?.body?.join(" ") || "",
+              imageUrl: product.imageUrl || "",
+              shortlinkUrl: product.affiliateUrl || "",
+              twitterCopy: twitterCopyText,
+              facebookCopy: facebookCopyText,
               twitterPostUrl: undefined,
               facebookPostUrl: undefined,
             });
