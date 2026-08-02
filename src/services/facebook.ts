@@ -533,7 +533,7 @@ export class FacebookService {
         };
       }
 
-      const data = await response.json();
+      const data: { id?: string } = await response.json();
       return { success: true, id: data.id };
     } catch (error) {
       return {

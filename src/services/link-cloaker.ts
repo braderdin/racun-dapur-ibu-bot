@@ -198,26 +198,32 @@ export class LinkCloaker {
 
     // Fall back to cache (Redis)
     if (!link) {
-      link = await this.retrieveFromCache(shortCode);
+      const cachedLink = await this.retrieveFromCache(shortCode);
+      if (cachedLink) {
+        link = cachedLink;
+      }
     }
 
     if (!link) {
       return { success: false, error: "Short link not found" };
     }
 
+    // TypeScript narrowing - link is guaranteed to be CloakedLink here
+    const cloakedLink: CloakedLink = link;
+
     // Check expiry
-    if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
+    if (cloakedLink.expiresAt && new Date(cloakedLink.expiresAt) < new Date()) {
       return { success: false, error: "Short link has expired" };
     }
 
     // Increment click count
-    link.clickCount++;
-    this.linkStore.set(shortCode, link);
+    cloakedLink.clickCount++;
+    this.linkStore.set(shortCode, cloakedLink);
 
     // Record click analytics asynchronously (non-blocking)
-    this.recordClickAnalytics(shortCode, link);
+    this.recordClickAnalytics(shortCode, cloakedLink);
 
-    return { success: true, cloakedLink: link };
+    return { success: true, cloakedLink };
   }
 
   // -----------------------------------------------------------------------

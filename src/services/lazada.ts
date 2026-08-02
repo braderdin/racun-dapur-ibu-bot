@@ -6,8 +6,8 @@ export class LazadaService {
   private appSecret: string;
 
   constructor(env: Env) {
-    this.appKey = env.LAZADA_APP_KEY;
-    this.appSecret = env.LAZADA_APP_SECRET;
+    this.appKey = env.LAZADA_APP_KEY || "";
+    this.appSecret = env.LAZADA_APP_SECRET || "";
   }
 
   /**
