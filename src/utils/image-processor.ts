@@ -143,14 +143,19 @@ export class ImageProcessor {
     const compressedSize = processedBuffer.length;
 
     return {
-      buffer: processedBuffer.buffer,
+      buffer: processedBuffer.buffer as ArrayBuffer,
       originalSize,
       compressedSize,
       width,
       height,
       mimeType,
       isWebP,
-      dimensionsValid: this.validateImageDimensions(width, height, opts),
+      dimensionsValid: this.validateImageDimensions(
+        width,
+        height,
+        opts.maxWidth,
+        opts.maxHeight,
+      ),
       sizeValid: true,
     };
   }

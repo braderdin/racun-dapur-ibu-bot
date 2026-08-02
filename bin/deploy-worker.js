@@ -21,10 +21,6 @@ class DeployWorker {
     this.projectDir = path.join(__dirname, "..");
     this.wranglerConfigPath = path.join(this.projectDir, "wrangler.toml");
 
-  constructor() {
-    this.projectDir = path.join(__dirname, "..");
-    this.wranglerConfigPath = path.join(this.projectDir, "wrangler.toml");
-
     if (!fs.existsSync(this.wranglerConfigPath)) {
       throw new Error(`wrangler.toml not found at ${this.wranglerConfigPath}`);
     }

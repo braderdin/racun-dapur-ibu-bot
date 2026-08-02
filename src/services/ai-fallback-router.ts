@@ -337,8 +337,13 @@ export class AIFallbackRouter {
       console.log(
         `🔌 Circuit breaker activated for ${tier} - marking as unavailable`,
       );
-      this.tierStatus[`${tier}Status` as keyof TierStatusInfo] =
-        TierStatus.UNAVAILABLE;
+      const statusKey: "tier1" | "tier2" | "tier3" =
+        tier === Tier.TIER_1
+          ? "tier1"
+          : tier === Tier.TIER_2
+            ? "tier2"
+            : "tier3";
+      this.tierStatus[statusKey] = TierStatus.UNAVAILABLE;
 
       // Schedule circuit recovery
       setTimeout(() => {
@@ -353,8 +358,13 @@ export class AIFallbackRouter {
 
     if (timeSinceFailure >= this.config.circuitBreakerTimeoutMs) {
       console.log(`🔌 Attempting circuit recovery for ${tier}...`);
-      this.tierStatus[`${tier}Status` as keyof TierStatusInfo] =
-        TierStatus.AVAILABLE;
+      const statusKey: "tier1" | "tier2" | "tier3" =
+        tier === Tier.TIER_1
+          ? "tier1"
+          : tier === Tier.TIER_2
+            ? "tier2"
+            : "tier3";
+      this.tierStatus[statusKey] = TierStatus.AVAILABLE;
       this.circuitBreakerCounts.set(tier, 0);
       this.lastFailureTime.set(tier, Date.now());
     } else {
@@ -474,7 +484,8 @@ export class AIFallbackRouter {
   }
 
   updateTierAvailability(tier: Tier, available: boolean): void {
-    const statusKey = `${tier}Status` as keyof TierStatusInfo;
+    const statusKey: "tier1" | "tier2" | "tier3" =
+      tier === Tier.TIER_1 ? "tier1" : tier === Tier.TIER_2 ? "tier2" : "tier3";
     this.tierStatus[statusKey] = available
       ? TierStatus.AVAILABLE
       : TierStatus.UNAVAILABLE;
@@ -511,30 +522,31 @@ export class AIFallbackRouter {
 
       const testProduct: ProductItem = {
         id: "health_test_" + Date.now(),
+        title: "Health Check Product",
         name: "Health Check Product",
         description: "Test product for health check",
-        price: 1.0,
+        price: "1.0",
         imageUrl: "https://example.com/health-test.jpg",
         category: "health",
-        rating: 5,
+        rating: "5",
         platform: "lazada",
-        originalPrice: 1.5,
-        discountRate: 0.33,
-        soldCount: 0,
-        sourceUrl: "https://example.com",
-        affiliateLink: "https://racun.ibu.my/health-test",
-        commissionRate: 0.08,
-        expirationDate: new Date(Date.now() + 86400000).toISOString(),
-        seller: "Health Test Seller",
-        stock: 100,
-        createdAt: new Date(),
+        originalPrice: "1.5",
+        discountRate: "0.33",
+        soldCount: "0",
+        affiliateUrl: "https://racun.ibu.my/health-test",
+        stock: "100",
       };
 
       // Test each available tier
       for (const tier of [Tier.TIER_1, Tier.TIER_2, Tier.TIER_3]) {
+        const statusKey =
+          tier === Tier.TIER_1
+            ? "tier1"
+            : tier === Tier.TIER_2
+              ? "tier2"
+              : "tier3";
         if (
-          tierStatus[`${tier}Status` as keyof TierStatusInfo] ===
-          TierStatus.AVAILABLE
+          tierStatus[statusKey as keyof TierStatusInfo] === TierStatus.AVAILABLE
         ) {
           try {
             await this.delayRequest(100); // Small delay between tests
@@ -660,15 +672,16 @@ class OpenRouterServiceWrapper {
   async generateCopy(product: ProductItem): Promise<FallbackResult> {
     await this.delayRequest(3000);
 
+    const price = Number(product.price);
     const hooks = [
-      `🔥 ${product.price > 100 ? "Premium" : "Best Deal"} ${product.category} Alert! 🚨`,
+      `🔥 ${price > 100 ? "Premium" : "Best Deal"} ${product.category} Alert! 🚨`,
       `💰 Limited Time: Amazing discounts on ${product.name}! 🎊`,
       `🎁 Don't miss out on this ${product.category} deal: ${product.title}...`,
     ];
 
     const bodies = [
-      `Get this ${product.category} for only RM${product.price}! Quality guaranteed, fast shipping. ${product.price > 100 ? "Perfect for" : "Ideal for"} ${product.category} needs.`,
-      `Special offer on ${product.name}. Originally RM${(product.price * 1.5).toFixed(2)}, now just RM${product.price}. Hurry, stock running out! ${product.category === "beauty" ? "Get glowing skin today!" : "Perfect for your home!"}`,
+      `Get this ${product.category} for only RM${price}! Quality guaranteed, fast shipping. ${price > 100 ? "Perfect for" : "Ideal for"} ${product.category} needs.`,
+      `Special offer on ${product.name}. Originally RM${(price * 1.5).toFixed(2)}, now just RM${price}. Hurry, stock running out! ${product.category === "beauty" ? "Get glowing skin today!" : "Perfect for your home!"}`,
     ];
 
     const ctas = [`Shop Now: [SHOP_NOW]`, `Swipe up to shop: [AFFILIATE_LINK]`];
@@ -699,15 +712,17 @@ class GeminiServiceWrapper {
   async generateCopy(product: ProductItem): Promise<FallbackResult> {
     await this.delayRequest(1500);
 
+    const price = Number(product.price);
+    const rating = Number(product.rating ?? 0);
     const hooks = [
       `🤩 ${product.category} Alert: Big savings inside! 🎊`,
       `✨ Found your perfect ${product.category} at an unbeatable price!`,
-      `🎯 Deal Alert: ${product.name} - Only RM${product.price}!!!`,
+      `🎯 Deal Alert: ${product.name} - Only RM${price}!!!`,
     ];
 
     const bodies = [
       `Product: ${product.name}
-Price: RM${product.price} (Original: RM${(product.price * 1.3).toFixed(2)})
+Price: RM${price} (Original: RM${(price * 1.3).toFixed(2)})
 Special Offer: ${product.category} category
 ${product.category === "electronics" ? "Built with quality components" : "Perfect for your needs"}
 ${product.category === "beauty" ? "Transform your appearance today" : product.category === "home" ? "Make your home beautiful" : "Enhance your lifestyle"}`,
@@ -741,15 +756,16 @@ class HeuristicRuleEngineWrapper {
   async generateCopy(product: ProductItem): Promise<FallbackResult> {
     await this.delayRequest(500);
 
+    const price = Number(product.price);
     const hooks = [
-      `Best ${product.category} Deal Found: RM${product.price}`,
-      `Your ${product.category} Search Ends Here: Just RM${product.price}`,
-      `Smart Shopping Alert: ${product.name} at RM${product.price}`,
+      `Best ${product.category} Deal Found: RM${price}`,
+      `Your ${product.category} Search Ends Here: Just RM${price}`,
+      `Smart Shopping Alert: ${product.name} at RM${price}`,
     ];
 
     const bodies = [
       `Product: ${product.name}
-Price: RM${product.price} (Original: RM${(product.price * 1.2).toFixed(2)})
+Price: RM${price} (Original: RM${(price * 1.2).toFixed(2)})
 Special Offer: ${product.category} category
 ${product.category === "electronics" ? "Built with quality components" : "Perfect for your needs"}
 ${product.category === "beauty" ? "Transform your appearance today" : product.category === "home" ? "Make your home beautiful" : "Enhance your lifestyle"}`,

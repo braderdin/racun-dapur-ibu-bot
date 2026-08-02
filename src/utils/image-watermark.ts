@@ -13,7 +13,8 @@ import { logger } from "../utils/logger";
 
 // Lazy-load sharp to avoid bundling native .node binaries in Cloudflare Workers
 async function getSharp() {
-  return import("sharp");
+  const sharpModule = await import("sharp");
+  return sharpModule.default || sharpModule;
 }
 
 // ---------------------------------------------------------------------------
