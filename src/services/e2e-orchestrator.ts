@@ -99,7 +99,29 @@ export class E2EOrchestrator {
       requestQueueSize: 100,
     });
     this.personaEngine = new AIPersonaEngine(env, fallbackRouter);
-    this.b2Storage = new B2StorageService(env);
+    this.b2Storage = new B2StorageService([
+      {
+        account: 1,
+        bucket: env.B2_ACC1_BUCKET || "racun-dapur-ibu-assets",
+        keyId: env.B2_ACC1_KEY_ID || "0052efa5668da500000000001",
+        applicationKey: env.B2_ACC1_APPLICATION_KEY || "K005yneif9owcpAltV67bqji3DjxZ5s",
+        endpoint: env.B2_ACC1_ENDPOINT || "https://s3.amazonaws.com",
+      },
+      {
+        account: 2,
+        bucket: env.B2_ACC2_BUCKET || "racun-dapur-ibu-assets-02",
+        keyId: env.B2_ACC2_KEY_ID || "005450036af81220000000001",
+        applicationKey: env.B2_ACC2_APPLICATION_KEY || "K005lY71WOFB4uNyIS8O62oKN+QFZw0",
+        endpoint: env.B2_ACC2_ENDPOINT || "https://s3.amazonaws.com",
+      },
+      {
+        account: 3,
+        bucket: env.B2_ACC3_BUCKET || "racun-dapur-ibu-assets-03",
+        keyId: env.B2_ACC3_KEY_ID || "005b1741c48e4c10000000001",
+        applicationKey: env.B2_ACC3_APPLICATION_KEY || "K005+I2FEu00DBkrMZgSx+8dNqjDPn0",
+        endpoint: env.B2_ACC3_ENDPOINT || "https://s3.amazonaws.com",
+      },
+    ]);
     this.supabase = new SupabaseService(env);
     this.facebook = new FacebookService(env);
     this.twitter = new TwitterService(env);

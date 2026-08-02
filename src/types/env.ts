@@ -120,6 +120,16 @@ export const securityConfigSchema = z.object({
   B2_ACC1_APPLICATION_KEY: z.string().optional(),
   B2_ACC2_KEY_NAME: z.string().optional(),
   B2_ACC2_APPLICATION_KEY: z.string().optional(),
+  B2_ACC1_BUCKET: z.string().optional(),
+  B2_ACC1_KEY_ID: z.string().optional(),
+  B2_ACC1_ENDPOINT: z.string().optional(),
+  B2_ACC2_BUCKET: z.string().optional(),
+  B2_ACC2_KEY_ID: z.string().optional(),
+  B2_ACC2_ENDPOINT: z.string().optional(),
+  B2_ACC3_BUCKET: z.string().optional(),
+  B2_ACC3_KEY_ID: z.string().optional(),
+  B2_ACC3_APPLICATION_KEY: z.string().optional(),
+  B2_ACC3_ENDPOINT: z.string().optional(),
 
   // QStash Authentication and Signing
   QSTASH_CURRENT_SIGNING_KEY: z.string().optional(),

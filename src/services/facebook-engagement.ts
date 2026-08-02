@@ -42,6 +42,7 @@ export interface CommentSchedule {
   commentText: string;
   status: "pending" | "posted" | "failed" | "retrying";
   attempts: number;
+  commentId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -251,7 +252,7 @@ export class FacebookEngagementService {
         throw new Error(`HTTP ${response.status}: ${errorBody}`);
       }
 
-      const data = await response.json();
+      const data: { id: string } = await response.json();
 
       logger.info(
         "Facebook comment posted successfully",
