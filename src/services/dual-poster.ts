@@ -15,6 +15,7 @@ import { OpenRouterService } from "./openrouter";
 import { GeneratedCopy } from "../types/product";
 import { FacebookService } from "./facebook";
 import { TwitterService } from "./twitter";
+import { TelegramNotifierService } from "./telegram-notifier";
 
 // Dual-Posting Configuration
 export interface DualPostConfig {
@@ -204,6 +205,37 @@ export class DualPosterService {
 
       // Set Redis anti-repeat cache
       await this.setAntiRepeat(deal.id, result);
+
+      // Send Telegram audit notification
+      if (env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID) {
+        try {
+          const telegram = new TelegramNotifierService(
+            env.TELEGRAM_BOT_TOKEN,
+            env.TELEGRAM_CHAT_ID,
+          );
+
+          await telegram.sendAuditReport({
+            productTitle: deal.title,
+            price: `RM ${deal.price}`,
+            discount: `${deal.commissionRate || 0}%`,
+            platform: deal.platform === "lazada" ? "Lazada" : "Shopee",
+            imageUrl: processedImage.webpUrl || deal.imageUrl,
+            shortlinkUrl: deal.affiliateLink,
+            twitterCopy: dualCopy.twitterCopy?.body?.join(" ") || "",
+            facebookCopy: dualCopy.facebookCopy?.body?.join(" ") || "",
+            twitterPostUrl: result.twitter?.postId
+              ? `https://x.com/i/status/${result.twitter.postId}`
+              : undefined,
+            facebookPostUrl: result.facebook?.postId
+              ? `https://facebook.com/${result.facebook.postId}`
+              : undefined,
+          });
+        } catch (telegramError) {
+          console.warn(
+            `⚠️ Telegram notification failed: ${telegramError instanceof Error ? telegramError.message : String(telegramError)}`,
+          );
+        }
+      }
 
       console.log(`✅ Dual-post pipeline completed for deal ${deal.id}`);
       console.log(

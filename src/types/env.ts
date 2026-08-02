@@ -168,6 +168,10 @@ export const securityConfigSchema = z.object({
   // Discord Webhook
   DISCORD_WEBHOOK_URL: z.string().optional(),
 
+  // Telegram Bot
+  TELEGRAM_BOT_TOKEN: z.string().optional(),
+  TELEGRAM_CHAT_ID: z.string().optional(),
+
   // Cloaking & Link Masking
   CLOAK_DOMAIN: z.string().optional(),
   CLOAK_UTM_SOURCE: z.string().optional(),

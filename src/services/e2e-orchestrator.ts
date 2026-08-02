@@ -25,6 +25,7 @@ import { SupabaseService } from "./supabase";
 import { FacebookService } from "./facebook";
 import { TwitterService } from "./twitter";
 import { RedisService } from "./redis";
+import { TelegramNotifierService } from "./telegram-notifier";
 
 // ---------------------------------------------------------------------------
 // Interfaces
@@ -244,6 +245,42 @@ export class E2EOrchestrator {
             return { success: true, details: "No content to tweet" };
           // Twitter thread logic would go here
           return { success: true, details: "Twitter thread placeholder" };
+        });
+      }
+
+      // Step 9: Telegram audit notification
+      if (env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID) {
+        await this.runStep("telegram_notification", async () => {
+          const product = curated.deals[0];
+          const copy = copyResult as PersonaCopyOutput;
+          if (!product || !copy)
+            return { success: true, details: "No content for Telegram" };
+
+          try {
+            const telegram = new TelegramNotifierService(
+              env.TELEGRAM_BOT_TOKEN,
+              env.TELEGRAM_CHAT_ID,
+            );
+
+            await telegram.sendAuditReport({
+              productTitle: product.title,
+              price: `RM ${product.price}`,
+              discount: `${product.discountPercentage || 0}%`,
+              platform: product.platform === "lazada" ? "Lazada" : "Shopee",
+              imageUrl: product.b2ImageUrl || product.imageUrl,
+              shortlinkUrl: product.affiliateUrl,
+              twitterCopy: copy.twitterCopy?.body?.join(" ") || "",
+              facebookCopy: copy.facebookCopy?.body?.join(" ") || "",
+              twitterPostUrl: undefined,
+              facebookPostUrl: undefined,
+            });
+            return { success: true, details: "Telegram notification sent" };
+          } catch (telegramError) {
+            console.warn(
+              `⚠️ Telegram notification failed: ${telegramError instanceof Error ? telegramError.message : String(telegramError)}`,
+            );
+            return { success: false, details: "Telegram notification failed" };
+          }
         });
       }
 
