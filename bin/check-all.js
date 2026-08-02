@@ -64,7 +64,7 @@ console.log(
 );
 const tsStart = Date.now();
 try {
-  // Check if bin/check-ts.js exists, else fallback to tsc directly
+  // Check if bin/check-ts.js exists in project root, else fallback to tsc directly
   const checkTsPath = path.join(__dirname, "check-ts.js");
   let command = fs.existsSync(checkTsPath)
     ? "node bin/check-ts.js"
@@ -73,6 +73,7 @@ try {
   const stdout = execSync(command, {
     encoding: "utf8",
     stdio: ["pipe", "pipe", "pipe"],
+    cwd: process.cwd(),
   });
   results.typeScript.passed = true;
   results.typeScript.output = stdout;
