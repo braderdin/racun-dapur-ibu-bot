@@ -23,11 +23,17 @@ export class SupabaseService {
     }
   }
 
-  async healthCheck(): Promise<{ status: "healthy" | "unhealthy" | "degraded"; details: string; timestamp: string }> {
+  async healthCheck(): Promise<{
+    status: "healthy" | "unhealthy" | "degraded";
+    details: string;
+    timestamp: string;
+  }> {
     const isConnected = this.url && this.serviceKey;
     return {
       status: isConnected ? "healthy" : "unhealthy",
-      details: isConnected ? "Supabase PostgreSQL connection healthy" : "Supabase not configured",
+      details: isConnected
+        ? "Supabase PostgreSQL connection healthy"
+        : "Supabase not configured",
       timestamp: new Date().toISOString(),
     };
   }
@@ -89,7 +95,11 @@ export class SupabaseService {
         "SupabaseService",
       );
     } catch (error) {
-      logger.error("Error logging link click to Supabase:", { error }, "SupabaseService");
+      logger.error(
+        "Error logging link click to Supabase:",
+        { error },
+        "SupabaseService",
+      );
     }
   }
 
@@ -402,7 +412,11 @@ export class SupabaseService {
         console.error("Supabase logClickEvent error:", await response.text());
       }
     } catch (error) {
-      logger.error("Error logging click event to Supabase:", { error }, "SupabaseService");
+      logger.error(
+        "Error logging click event to Supabase:",
+        { error },
+        "SupabaseService",
+      );
     }
   }
 
@@ -433,7 +447,11 @@ export class SupabaseService {
       const data = (await response.json()) as any[];
       return data;
     } catch (error) {
-      logger.error("Error fetching clicks from Supabase:", { error }, "SupabaseService");
+      logger.error(
+        "Error fetching clicks from Supabase:",
+        { error },
+        "SupabaseService",
+      );
       return [];
     }
   }
@@ -463,7 +481,11 @@ export class SupabaseService {
       const data = (await response.json()) as any[];
       return data;
     } catch (error) {
-      logger.error("Error fetching campaign reports from Supabase:", { error }, "SupabaseService");
+      logger.error(
+        "Error fetching campaign reports from Supabase:",
+        { error },
+        "SupabaseService",
+      );
       return [];
     }
   }
@@ -491,7 +513,11 @@ export class SupabaseService {
       const data = (await response.json()) as any[];
       return data;
     } catch (error) {
-      logger.error("Error fetching popular links from Supabase:", { error }, "SupabaseService");
+      logger.error(
+        "Error fetching popular links from Supabase:",
+        { error },
+        "SupabaseService",
+      );
       return [];
     }
   }
@@ -521,7 +547,11 @@ export class SupabaseService {
       const data = (await response.json()) as any[];
       return data;
     } catch (error) {
-      logger.error("Error fetching geographic distribution from Supabase:", { error }, "SupabaseService");
+      logger.error(
+        "Error fetching geographic distribution from Supabase:",
+        { error },
+        "SupabaseService",
+      );
       return [];
     }
   }
@@ -534,13 +564,16 @@ export class SupabaseService {
       cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
       const cutoffISO = cutoffDate.toISOString();
 
-      const response = await fetch(`${this.url}/rest/v1/link_clicks?created_at=lt.${cutoffISO}`, {
-        method: "DELETE",
-        headers: {
-          apikey: this.serviceKey,
-          Authorization: `Bearer ${this.serviceKey}`,
+      const response = await fetch(
+        `${this.url}/rest/v1/link_clicks?created_at=lt.${cutoffISO}`,
+        {
+          method: "DELETE",
+          headers: {
+            apikey: this.serviceKey,
+            Authorization: `Bearer ${this.serviceKey}`,
+          },
         },
-      });
+      );
 
       if (!response.ok) {
         throw new Error(`Supabase API error: ${response.statusText}`);
@@ -549,7 +582,11 @@ export class SupabaseService {
       // Return number of deleted rows (approximate)
       return 0;
     } catch (error) {
-      logger.error("Error cleaning up old click events from Supabase:", { error }, "SupabaseService");
+      logger.error(
+        "Error cleaning up old click events from Supabase:",
+        { error },
+        "SupabaseService",
+      );
       return 0;
     }
   }
@@ -618,7 +655,11 @@ export class SupabaseService {
         "SupabaseService",
       );
     } catch (error) {
-      logger.error("Error upserting product to Supabase:", { error }, "SupabaseService");
+      logger.error(
+        "Error upserting product to Supabase:",
+        { error },
+        "SupabaseService",
+      );
     }
   }
 }

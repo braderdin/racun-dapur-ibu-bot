@@ -74,7 +74,7 @@ export interface ShopeeProductRequest {
 
 export class ShopeeApiService {
   private config: ShopeeApiConfig;
-  private baseUrl: string;
+  private baseUrl: string = "https://partner.api.shopee.com";
   private readonly USER_AGENT =
     "RacunDapurIbuBot/1.0 (Affiliate Marketing Bot)";
   private readonly REQUEST_TIMEOUT = 15000;
@@ -172,7 +172,7 @@ export class ShopeeApiService {
     } catch (error) {
       console.log(
         "⚠️  Failed to generate affiliate link, using fallback:",
-        error.message,
+        error instanceof Error ? error.message : String(error),
       );
       return this.generateFallbackAffiliateLink(productId, campaignId, subId);
     }
@@ -185,7 +185,10 @@ export class ShopeeApiService {
       );
       return response.valid;
     } catch (error) {
-      console.log("❌ API credentials validation failed:", error.message);
+      console.log(
+        "❌ API credentials validation failed:",
+        error instanceof Error ? error.message : String(error),
+      );
       return false;
     }
   }

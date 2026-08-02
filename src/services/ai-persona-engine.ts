@@ -417,10 +417,16 @@ export class AIPersonaEngine {
   // Public method for E2E orchestrator compatibility
   // -----------------------------------------------------------------------
 
-  async generateCopy(product: ProductItem, platform: "twitter" | "facebook" | "both" = "both"): Promise<PersonaCopyOutput | { twitter: TwitterThreadOutput; facebook: PersonaCopyOutput }> {
+  async generateCopy(
+    product: ProductItem,
+    platform: "twitter" | "facebook" | "both" = "both",
+  ): Promise<
+    | PersonaCopyOutput
+    | { twitter: TwitterThreadOutput; facebook: PersonaCopyOutput }
+  > {
     // For E2E pipeline, we'll use a simplified version without hooks
     const emptyHooks: HookEntry[] = [];
-    
+
     if (platform === "both") {
       return this.generateDualPlatformCopy(product, emptyHooks);
     } else if (platform === "facebook") {

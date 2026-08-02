@@ -218,10 +218,6 @@ export const securityConfigSchema = z.object({
   UPSTASH_VECTOR_CIRCUIT_BREAKER_TIMEOUT: z.string().optional(),
   RECOMMENDATIONS_CACHE_TTL: z.string().optional(),
   RECOMMENDATIONS_CATEGORY_BOOST: z.string().optional(),
-
-  // Upstash Vector Circuit Breaker
-  UPSTASH_VECTOR_CIRCUIT_BREAKER_THRESHOLD: z.string().optional(),
-  UPSTASH_VECTOR_CIRCUIT_BREAKER_TIMEOUT: z.string().optional(),
 });
 
 /**

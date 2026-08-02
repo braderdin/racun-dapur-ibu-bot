@@ -139,20 +139,22 @@ export class ShortlinkRouter {
     route.clickCount++;
 
     // Track click asynchronously
-    this.clickTracker.trackClick({
-      ...clickData,
-      shortCode,
-    }).catch((error: Error) => {
-      // Don't fail redirect for tracking errors
-      logger.warn(
-        "Failed to track click",
-        {
-          shortCode,
-          error: error instanceof Error ? error.message : String(error),
-        },
-        "ShortlinkRouter",
-      );
-    });
+    this.clickTracker
+      .trackClick({
+        ...clickData,
+        shortCode,
+      })
+      .catch((error: Error) => {
+        // Don't fail redirect for tracking errors
+        logger.warn(
+          "Failed to track click",
+          {
+            shortCode,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          "ShortlinkRouter",
+        );
+      });
 
     // Log redirect for analytics
     logger.info(

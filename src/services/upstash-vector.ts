@@ -76,6 +76,7 @@ export class UpstashVectorService {
       details: "Upstash Vector service operational",
       circuitBreaker: "closed",
       errorCount: 0,
+      timestamp: new Date().toISOString(),
     };
 
     logger.info(
@@ -114,6 +115,7 @@ export class UpstashVectorService {
       const results = await this.performVectorSearch(
         embedding,
         similarityThreshold,
+        product,
       );
 
       // Record success
@@ -155,9 +157,17 @@ export class UpstashVectorService {
   // Public method for E2E orchestrator compatibility
   // -----------------------------------------------------------------------
 
-  async checkDuplicate(product: ProductItem): Promise<{ isDuplicate: boolean; similarity: number }> {
-    const results = await this.searchSimilar(product, this.config.similarityThreshold);
-    if (results.length > 0 && results[0].similarity >= this.config.similarityThreshold) {
+  async checkDuplicate(
+    product: ProductItem,
+  ): Promise<{ isDuplicate: boolean; similarity: number }> {
+    const results = await this.searchSimilar(
+      product,
+      this.config.similarityThreshold,
+    );
+    if (
+      results.length > 0 &&
+      results[0].similarity >= this.config.similarityThreshold
+    ) {
       return { isDuplicate: true, similarity: results[0].similarity };
     }
     return { isDuplicate: false, similarity: 0 };
@@ -347,6 +357,7 @@ export class UpstashVectorService {
         details: `Upstash Vector service error: ${error instanceof Error ? error.message : String(error)}`,
         circuitBreaker: "open",
         errorCount: (this.healthStats.errorCount || 0) + 1,
+        timestamp: new Date().toISOString(),
       };
 
       logger.error(
@@ -379,13 +390,14 @@ export class UpstashVectorService {
         );
       }
 
-      const stats = await response.json();
+      const stats: any = await response.json();
 
       logger.debug("Vector stats retrieved", stats, "UpstashVectorService");
 
       return {
-        totalVectors: stats.count || 0,
-        lastUpsert: stats.lastUpdated || new Date().toISOString(),
+        totalVectors: stats.count || stats.totalVectors || 0,
+        lastUpsert:
+          stats.lastUpdated || stats.lastUpsert || new Date().toISOString(),
         storageSize: stats.storageSize || 0,
       };
     } catch (error) {
@@ -433,7 +445,8 @@ export class UpstashVectorService {
       );
     }
 
-    const data = await response.json();
+    const data: { data: Array<{ embedding: number[] }> } =
+      await response.json();
 
     if (!data.data || !data.data[0] || !data.data[0].embedding) {
       throw new Error("Invalid embedding response from OpenRouter");
@@ -459,6 +472,7 @@ Generate embedding that emphasizes product characteristics, category, and price 
   private async performVectorSearch(
     embedding: number[],
     threshold: number,
+    product: ProductItem,
   ): Promise<VectorSearchResult[]> {
     // Calculate cosine similarity with existing vectors (simulated for production)
     // In production, this would use Upstash Vector's nearest neighbor search
@@ -486,8 +500,8 @@ Generate embedding that emphasizes product characteristics, category, and price 
         description:
           "This product is semantically similar based on our vector search",
         similarity: Math.random() * 0.5 + 0.6, // 0.6-1.1
-        platform: product.platform,
-        price: product.price * (Math.random() * 0.5 + 0.5), // Random price variation
+        platform: product.platform || "lazada",
+        price: Number(product.price) * (Math.random() * 0.5 + 0.5), // Random price variation
         createdAt: new Date().toISOString(),
       });
     }
@@ -530,7 +544,7 @@ Generate embedding that emphasizes product characteristics, category, and price 
     this.circuitBreakerTimeout.clear();
   }
 
-  private incrementCircuitBreaker(operation: string, error: Error): void {
+  private incrementCircuitBreaker(operation: string, error: unknown): void {
     const count = (this.circuitBreakerCounts.get(operation) || 0) + 1;
     this.circuitBreakerCounts.set(operation, count);
     this.lastFailureTime.set(operation, Date.now());
@@ -542,20 +556,12 @@ Generate embedding that emphasizes product characteristics, category, and price 
     }
   }
 
-  private incrementAllCircuitBreakers(error: Error): void {
+  private incrementAllCircuitBreakers(error: unknown): void {
     this.circuitBreakerCounts.forEach((_, operation) => {
       this.incrementCircuitBreaker(operation, error);
     });
   }
 }
-
-export { UpstashVectorService };
-export type {
-  VectorSearchResult,
-  VectorConfig,
-  VectorStats,
-  UpstashVectorHealth,
-};
 
 // Export default factory function
 export default function createUpstashVectorService(

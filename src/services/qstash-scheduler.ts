@@ -4,9 +4,9 @@
  * Includes retry backoff, rate limit prevention for X and Facebook Graph APIs.
  */
 
-import { Schedule, CronExpression } from "@upstash/qstash";
+import { Client, Schedule } from "@upstash/qstash";
 import { CONSTANTS } from "../config/constants";
-import { QSTASH_CURRENT_SIGNING_KEY } from "../config/env";
+import { Env } from "../types/env";
 import {
   createQStashVerifier,
   qstashVerifierMiddleware,
@@ -36,28 +36,27 @@ export interface QStashJob {
 
 export class QStashScheduler {
   private static instance: QStashScheduler;
-  private schedule: Schedule;
+  private client: Client;
   private qstashSigningKey: string | undefined;
   private verificationEnabled: boolean;
   private jobs: Map<string, QStashJob> = new Map();
 
-  private constructor() {
+  private constructor(env?: Env) {
     // Validate environment configuration
-    this.qstashSigningKey = QSTASH_CURRENT_SIGNING_KEY;
+    this.qstashSigningKey = env?.QSTASH_CURRENT_SIGNING_KEY;
     this.verificationEnabled = !!this.qstashSigningKey;
 
-    // Initialize QStash schedule with current signing key
-    this.schedule = new Schedule({
-      baseUrl: "https://qstash.upstash.io/v1",
-      currentSigningKey: this.qstashSigningKey,
+    // Initialize QStash client with current signing key
+    this.client = new Client({
+      token: this.qstashSigningKey,
     });
 
     this.initializePeakHourJobs();
   }
 
-  public static getInstance(): QStashScheduler {
+  public static getInstance(env?: Env): QStashScheduler {
     if (!QStashScheduler.instance) {
-      QStashScheduler.instance = new QStashScheduler();
+      QStashScheduler.instance = new QStashScheduler(env);
     }
     return QStashScheduler.instance;
   }
@@ -188,21 +187,17 @@ export class QStashScheduler {
       const delayMs = Math.floor(Math.random() * 30000); // Random delay up to 30 seconds
 
       // Use QStash scheduling with timezone support
-      this.schedule.publish({
-        url: job.targetUrl,
+      this.client.schedules.create({
+        destination: job.targetUrl,
         method: "POST",
         body: JSON.stringify(job.body),
         headers: job.headers,
-        delay: Math.ceil(delayMs / 1000), // Convert to seconds
-        retry: {
-          attempts: parseInt(job.headers["upstash-retry"] || "3"),
-          delay: "60s",
-        },
-        timeout: "30s",
+        cron: job.cronExpression,
+        retries: parseInt(job.headers?.["upstash-retry"] || "3"),
       });
 
       console.log(
-        `[QStashScheduler] Scheduled job: ${job.id} -> ${job.targetUrl} (delay: ${delayMs}ms)`,
+        `[QStashScheduler] Scheduled job: ${job.id} -> ${job.targetUrl} (cron: ${job.cronExpression})`,
       );
     } catch (error) {
       console.error(
@@ -239,8 +234,27 @@ export class QStashScheduler {
       },
     );
 
-    // Schedule the job
-    this.scheduleJob(job);
+    // Schedule the job using client
+    if (this.verificationEnabled) {
+      try {
+        await this.client.schedules.create({
+          destination: job.targetUrl,
+          method: "POST",
+          body: JSON.stringify(job.body),
+          headers: job.headers,
+          cron: job.cronExpression,
+          retries: parseInt(job.headers?.["upstash-retry"] || "3"),
+        });
+        console.log(
+          `[QStashScheduler] Scheduled job: ${job.id} -> ${job.targetUrl} (cron: ${job.cronExpression})`,
+        );
+      } catch (error) {
+        console.error(
+          `[QStashScheduler] Failed to schedule job ${job.id}:`,
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+    }
   }
 
   public async updatePeakHours(newPeakHours: {

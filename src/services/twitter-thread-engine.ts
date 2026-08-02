@@ -177,7 +177,7 @@ export class TwitterThreadEngine {
     copy: GeneratedCopy,
     imageUrl: string,
   ): Promise<TweetResult> {
-    const tweet1Text = this.formatTweet1(copy.tweetHook);
+    const tweet1Text = this.formatTweet1(copy.tweetHook ?? "");
 
     // Enforce character limit
     const truncatedText = this.truncateToLimit(
@@ -233,7 +233,7 @@ export class TwitterThreadEngine {
     copy: GeneratedCopy,
     inReplyToTweetId: string,
   ): Promise<TweetResult> {
-    const tweet2Text = this.formatTweet2(copy.tweetReply);
+    const tweet2Text = this.formatTweet2(copy.tweetReply ?? "");
 
     // Enforce character limit
     const truncatedText = this.truncateToLimit(

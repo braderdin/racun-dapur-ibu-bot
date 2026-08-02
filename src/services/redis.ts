@@ -8,7 +8,7 @@ export class RedisService {
   private env: Env;
 
   constructor(env?: Env) {
-    this.env = env || {} as Env;
+    this.env = env || ({} as Env);
     this.baseUrl = env?.UPSTASH_REDIS_REST_URL || "";
     this.token = env?.UPSTASH_REDIS_REST_TOKEN || "";
 
@@ -22,11 +22,17 @@ export class RedisService {
     }
   }
 
-  async healthCheck(): Promise<{ status: "healthy" | "unhealthy" | "degraded"; details: string; timestamp: string }> {
+  async healthCheck(): Promise<{
+    status: "healthy" | "unhealthy" | "degraded";
+    details: string;
+    timestamp: string;
+  }> {
     const isConnected = this.baseUrl && this.token;
     return {
       status: isConnected ? "healthy" : "unhealthy",
-      details: isConnected ? "Upstash Redis connection healthy" : "Upstash Redis not configured",
+      details: isConnected
+        ? "Upstash Redis connection healthy"
+        : "Upstash Redis not configured",
       timestamp: new Date().toISOString(),
     };
   }
@@ -137,7 +143,10 @@ export class RedisService {
 
   async get(key: string): Promise<string | null> {
     try {
-      const result = await this.makeRequest<{ value: string }>("GET", `/keys/${key}`);
+      const result = await this.makeRequest<{ value: string }>(
+        "GET",
+        `/keys/${key}`,
+      );
       return result?.value ?? null;
     } catch {
       return null;
@@ -154,12 +163,19 @@ export class RedisService {
   }
 
   async incr(key: string): Promise<number> {
-    const result = await this.makeRequest<{ value: string }>("POST", `/incr/${key}`, {});
+    const result = await this.makeRequest<{ value: string }>(
+      "POST",
+      `/incr/${key}`,
+      {},
+    );
     return parseInt(result?.value ?? "0", 10);
   }
 
   async keys(pattern: string): Promise<string[]> {
-    const result = await this.makeRequest<{ keys: string[] }>("GET", `/keys?match=${encodeURIComponent(pattern)}`);
+    const result = await this.makeRequest<{ keys: string[] }>(
+      "GET",
+      `/keys?match=${encodeURIComponent(pattern)}`,
+    );
     return result?.keys ?? [];
   }
 }

@@ -71,7 +71,7 @@ export class FacebookService {
   private readonly timeoutMs = 15000;
 
   constructor(env?: Env) {
-    this.env = env || {} as Env;
+    this.env = env || ({} as Env);
     logger.info(
       "Facebook Service initialized",
       {
@@ -117,7 +117,9 @@ export class FacebookService {
       const elapsed = Date.now() - startTime;
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null) as { error?: { message?: string; type?: string; code?: number } } | null;
+        const errorData = (await response.json().catch(() => null)) as {
+          error?: { message?: string; type?: string; code?: number };
+        } | null;
         const error = {
           message:
             errorData?.error?.message ||
@@ -222,7 +224,9 @@ export class FacebookService {
       const elapsed = Date.now() - startTime;
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null) as { error?: { message?: string; type?: string; code?: number } } | null;
+        const errorData = (await response.json().catch(() => null)) as {
+          error?: { message?: string; type?: string; code?: number };
+        } | null;
         const error = {
           message:
             errorData?.error?.message ||
@@ -326,7 +330,9 @@ export class FacebookService {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null) as { error?: { message?: string; type?: string; code?: number } } | null;
+        const errorData = (await response.json().catch(() => null)) as {
+          error?: { message?: string; type?: string; code?: number };
+        } | null;
         const error = {
           message:
             errorData?.error?.message ||
@@ -406,7 +412,9 @@ export class FacebookService {
           "FacebookService",
         );
       } else {
-        const errorData = await response.json().catch(() => null) as { error?: { message?: string } } | null;
+        const errorData = (await response.json().catch(() => null)) as {
+          error?: { message?: string };
+        } | null;
         const errorMessage =
           errorData?.error?.message ||
           `Facebook validation failed: ${response.status} ${response.statusText}`;
@@ -460,20 +468,19 @@ export class FacebookService {
       if (imageUrl) formData.append("url", imageUrl);
       formData.append("link", affiliateLink);
 
-      const response = await fetch(
-        `${this.graphApiBaseUrl}/${pageId}/feed`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: formData.toString(),
+      const response = await fetch(`${this.graphApiBaseUrl}/${pageId}/feed`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Bearer ${accessToken}`,
         },
-      );
+        body: formData.toString(),
+      });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null) as { error?: { message?: string } } | null;
+        const errorData = (await response.json().catch(() => null)) as {
+          error?: { message?: string };
+        } | null;
         return {
           id: "",
           success: false,
@@ -526,7 +533,9 @@ export class FacebookService {
       );
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null) as { error?: { message?: string } } | null;
+        const errorData = (await response.json().catch(() => null)) as {
+          error?: { message?: string };
+        } | null;
         return {
           success: false,
           error: errorData?.error?.message || "Failed to add comment",

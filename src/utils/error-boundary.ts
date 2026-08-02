@@ -37,6 +37,7 @@ export interface CircuitBreakerState {
   lastSuccessTime: number;
   state: "CLOSED" | "OPEN" | "HALF_OPEN";
   failureCount: number;
+  timeoutMs: number;
 }
 
 export class GlobalErrorBoundary {
@@ -295,6 +296,7 @@ export class GlobalErrorBoundary {
         lastSuccessTime: Date.now(),
         state: "CLOSED",
         failureCount: 1,
+        timeoutMs: this.config.circuitBreakerTimeoutMs,
       };
       this.circuitBreakers.set(key, state);
     }

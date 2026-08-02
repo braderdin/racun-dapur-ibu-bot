@@ -224,16 +224,18 @@ class MockOpenRouterService implements OpenRouterService {
     product: ProductItem,
     source: string,
   ): Omit<GeneratedCopy, "platform" | "confidence" | "fallbackChainUsed"> {
+    const price = Number(product.price);
+    const rating = Number(product.rating ?? 0);
     const hooks = [
-      `🔥 ${product.price > 100 ? "Premium" : "Best Deal"} ${product.category} Alert!`,
-      `💰 Limited Time: ${product.price > 100 ? "${product.price}%}" : "Amazing"} discounts on ${product.name}!`,
+      `🔥 ${price > 100 ? "Premium" : "Best Deal"} ${product.category} Alert!`,
+      `💰 Limited Time: ${price > 100 ? `${price}%` : "Amazing"} discounts on ${product.name}!`,
       `🎁 Don't miss out on this ${product.category} deal: ${product.title.substring(0, 50)}...`,
     ];
 
     const bodies = [
-      `Get this ${product.category} for only RM${product.price}! Quality guaranteed, fast shipping. ${product.price > 100 ? "Perfect for" : "Ideal for"} ${product.category} needs.`,
-      `Special offer on ${product.name}. Originally RM${(product.price * 1.5).toFixed(2)}, now just RM${product.price}. Hurry, stock running out! ${product.category === "beauty" ? "Get glowing skin today!" : "Perfect for your home!"}`,
-      `Why settle for ordinary when you can get extraordinary? This ${product.category} is exactly what you need. Only RM${product.price} today. ${product.rating > 4 ? "Rated 5 stars, loved by everyone!" : "Rated " + product.rating + " stars, making it our customers' favorite!"}`,
+      `Get this ${product.category} for only RM${price}! Quality guaranteed, fast shipping. ${price > 100 ? "Perfect for" : "Ideal for"} ${product.category} needs.`,
+      `Special offer on ${product.name}. Originally RM${(price * 1.5).toFixed(2)}, now just RM${price}. Hurry, stock running out! ${product.category === "beauty" ? "Get glowing skin today!" : "Perfect for your home!"}`,
+      `Why settle for ordinary when you can get extraordinary? This ${product.category} is exactly what you need. Only RM${price} today. ${rating > 4 ? "Rated 5 stars, loved by everyone!" : "Rated " + rating + " stars, making it our customers' favorite!"}`,
     ];
 
     const ctas = [
@@ -281,22 +283,24 @@ class MockGeminiService implements GeminiService {
     product: ProductItem,
     source: string,
   ): Omit<GeneratedCopy, "platform" | "confidence" | "fallbackChainUsed"> {
+    const price = Number(product.price);
+    const rating = Number(product.rating ?? 0);
     const hooks = [
       `🤩 ${product.category} Alert: Big savings inside! 🎊`,
       `✨ Found your perfect ${product.category} at an unbeatable price!`,
-      `🎯 Deal Alert: ${product.name} - Only RM${product.price}!!!`,
+      `🎯 Deal Alert: ${product.name} - Only RM${price}!!!`,
     ];
 
     const bodies = [
       `Product: ${product.name}
-Price: RM${product.price} (Original: RM${(product.price * 1.3).toFixed(2)})
+Price: RM${price} (Original: RM${(price * 1.3).toFixed(2)})
 Special Offer: ${product.category} category
 ${product.category === "electronics" ? "Built with quality components" : "Perfect for your needs"}
 ${product.category === "beauty" ? "Transform your appearance today" : product.category === "home" ? "Make your home beautiful" : "Enhance your lifestyle"}`,
       `Quick Summary:
 Name: ${product.name}
-Price: RM${product.price}
-Rating: ${product.rating} stars
+Price: RM${price}
+Rating: ${rating} stars
 ${product.description}
 ${product.stock ? "Stock: " + product.stock + " units" : ""}`,
       `Call to Action: Ready to purchase? Just click the link and complete your order! ${product.explanation || "Your satisfaction is guaranteed!"}`,
@@ -348,22 +352,24 @@ class HeuristicRuleEngine implements HeuristicRuleEngine {
   private generateCreativeCopy(
     product: ProductItem,
   ): Omit<GeneratedCopy, "platform" | "confidence" | "fallbackChainUsed"> {
+    const price = Number(product.price);
+    const rating = Number(product.rating ?? 0);
     const hooks = [
-      `Best ${product.category} Deal Found: RM${product.price}`,
-      `Your ${product.category} Search Ends Here: Just RM${product.price}`,
-      `Smart Shopping Alert: ${product.name} at RM${product.price}`,
+      `Best ${product.category} Deal Found: RM${price}`,
+      `Your ${product.category} Search Ends Here: Just RM${price}`,
+      `Smart Shopping Alert: ${product.name} at RM${price}`,
     ];
 
     const bodies = [
       `Product: ${product.name}
-Price: RM${product.price} (Original: RM${(product.price * 1.2).toFixed(2)})
+Price: RM${price} (Original: RM${(price * 1.2).toFixed(2)})
 Special Offer: ${product.category} category
 ${product.category === "electronics" ? "Built with quality components" : "Perfect for your needs"}
 ${product.category === "beauty" ? "Transform your appearance today" : product.category === "home" ? "Make your home beautiful" : "Enhance your lifestyle"}`,
       `Quick Summary:
 Name: ${product.name}
-Price: RM${product.price}
-Rating: ${product.rating} stars
+Price: RM${price}
+Rating: ${rating} stars
 ${product.description}
 ${product.stock ? "Stock: " + product.stock + " units" : ""}`,
       `Call to Action: Ready to purchase? Just click the link and complete your order! ${product.explanation || "Your satisfaction is guaranteed!"}`,

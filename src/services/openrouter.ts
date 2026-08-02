@@ -5,7 +5,10 @@
  * Implements 3-second rate limiting and OpenRouter safeguards
  */
 
-import { AIFallbackEngine, GeneratedCopy as AIGeneratedCopy } from "./ai-fallback";
+import {
+  AIFallbackEngine,
+  GeneratedCopy as AIGeneratedCopy,
+} from "./ai-fallback";
 
 export interface OpenRouterConfig {
   model: string;
@@ -93,7 +96,8 @@ export class OpenRouterService {
       const result = await this.makeOpenRouterRequest(product);
       return this.formatOpenRouterResponse(result, "tier-1", product);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       console.warn(
         "⚠️ OpenRouter AI failed, attempting Tier 2 fallback:",
         errorMessage,
@@ -107,7 +111,10 @@ export class OpenRouterService {
           fallbackChainUsed: "tier-2",
         };
       } catch (fallbackError) {
-        const fallbackErrorMessage = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+        const fallbackErrorMessage =
+          fallbackError instanceof Error
+            ? fallbackError.message
+            : String(fallbackError);
         console.warn(
           "⚠️ Tier 2 fallback failed, attempting Tier 3 fallback:",
           fallbackErrorMessage,
@@ -459,7 +466,7 @@ Write engaging, conversion-focused copy that resonates with ${platform} shoppers
     } catch (error) {
       return {
         status: "unhealthy",
-        details: `OpenRouter service error: ${error.message}`,
+        details: `OpenRouter service error: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   }
