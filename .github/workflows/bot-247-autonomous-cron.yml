@@ -13,6 +13,8 @@ on:
     - cron: "30 13 * * *" # 21:30 MYT
     - cron: "0 14 * * *" # 22:00 MYT
     - cron: "30 14 * * *" # 22:30 MYT
+    # Phase 16: 30-minute interval Telegram AI testing pipeline
+    - cron: "*/30 * * * *" # Every 30 minutes (Phase 16 Telegram AI Trial Mode)
   workflow_dispatch:
     inputs:
       run_type:
@@ -132,7 +134,7 @@ jobs:
           echo "🕐 Current UTC time: ${CURRENT_HOUR_UTC}:${CURRENT_MIN_UTC}"
 
           # Run the autonomous bot pipeline
-          npx tsx bin/run-live-bot-e2e.js --mode=autonomous --peak-hours
+          npx tsx bin/run-live-bot-e2e.js --mode=autonomous --peak-hours --telegram-only
 
       - name: Verify Worker Health
         if: success()

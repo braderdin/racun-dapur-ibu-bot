@@ -142,6 +142,7 @@ class LiveBotE2ETestRunner {
     this.log("🚀 Starting Live Bot E2E Test Runner");
     this.log(`Mode: ${this.config.mode}`);
     this.log(`Peak Hours: ${this.config.peakHours}`);
+    this.log(`Telegram Only: ${this.config.telegramOnly}`);
     this.log(`Product Limit: ${this.config.productLimit}`);
     this.log(`Categories: ${this.config.categories.join(", ")}`);
 
@@ -427,6 +428,11 @@ async function main() {
       "dry-run",
     )
     .option("--peak-hours", "Run during peak hours only", false)
+    .option(
+      "--telegram-only",
+      "Run Telegram QA Inspector only (skip social posting)",
+      false,
+    )
     .option("-l, --limit <number>", "Product limit", "5")
     .option(
       "-c, --categories <categories>",
@@ -436,15 +442,31 @@ async function main() {
     .option("--skip <stages>", "Comma-separated stages to skip", "")
     .option("-v, --verbose", "Verbose output", false)
     .action(async (options) => {
+      const skipStages = options.skip
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      // In telegram-only mode, automatically skip social poster stages
+      if (options.telegramOnly) {
+        skipStages.push(
+          "poster",
+          "scraper",
+          "uploader",
+          "copywriter",
+          "shortener",
+          "health-guard",
+          "realtime",
+        );
+      }
+
       const config = {
         mode: options.mode,
         peakHours: options.peakHours,
+        telegramOnly: options.telegramOnly,
         productLimit: parseInt(options.limit, 10),
         categories: options.categories.split(",").map((c) => c.trim()),
-        skipStages: options.skip
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean),
+        skipStages: skipStages,
         verbose: options.verbose,
       };
 

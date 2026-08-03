@@ -153,6 +153,7 @@ export class SocialPosterEngine {
 
   /**
    * Post to X (Twitter) using 2-tweet thread strategy
+   * Soft-fail: Returns skipped status if X API is unconfigured or failing
    * @param postData - Post data
    * @param shortUrl - Short affiliate URL
    * @returns Twitter post result
@@ -162,6 +163,17 @@ export class SocialPosterEngine {
     shortUrl: string,
   ): Promise<PostResult["twitter"]> {
     try {
+      // Check if X API credentials are configured
+      if (!this.env.X_BEARER_TOKEN && !this.env.X_ACCESS_TOKEN) {
+        console.warn(
+          "X API credentials not configured, skipping Twitter posting",
+        );
+        return {
+          status: "pending",
+          error: "X API credentials not configured - skipped",
+        };
+      }
+
       // Tweet 1: Hook + HD Photo (NO LINK)
       const tweet1Text = this.buildTweet1Text(postData.xCopy);
       const tweet1Result = await this.twitter.postTweetWithMedia(
@@ -200,8 +212,9 @@ export class SocialPosterEngine {
       };
     } catch (error) {
       console.error("Error posting to Twitter:", error);
+      // Soft-fail: Return skipped status instead of throwing fatal error
       return {
-        status: "failed",
+        status: "pending",
         error: error instanceof Error ? error.message : "Unknown error",
       };
     }
@@ -209,6 +222,7 @@ export class SocialPosterEngine {
 
   /**
    * Post to Facebook Page using main post + auto-comment strategy
+   * Soft-fail: Returns skipped status if Meta API is unconfigured or failing
    * @param postData - Post data
    * @param shortUrl - Short affiliate URL
    * @returns Facebook post result
@@ -218,6 +232,17 @@ export class SocialPosterEngine {
     shortUrl: string,
   ): Promise<PostResult["facebook"]> {
     try {
+      // Check if Meta API credentials are configured
+      if (!this.env.META_PAGE_ACCESS_TOKEN && !this.env.META_APP_ID) {
+        console.warn(
+          "Meta API credentials not configured, skipping Facebook posting",
+        );
+        return {
+          status: "pending",
+          error: "Meta API credentials not configured - skipped",
+        };
+      }
+
       // Main Post: HD Photo + Storytelling Copy (NO LINK)
       const postText = this.buildFacebookPostText(postData.facebookCopy);
       const postResult = await this.facebook.postToPageWithMedia(
@@ -260,8 +285,9 @@ export class SocialPosterEngine {
       };
     } catch (error) {
       console.error("Error posting to Facebook:", error);
+      // Soft-fail: Return skipped status instead of throwing fatal error
       return {
-        status: "failed",
+        status: "pending",
         error: error instanceof Error ? error.message : "Unknown error",
       };
     }

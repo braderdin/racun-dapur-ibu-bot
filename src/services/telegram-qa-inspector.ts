@@ -237,6 +237,7 @@ export class TelegramQAInspector {
 
   /**
    * Build audit report caption
+   * Includes AI copywriting from "openrouter/free" model and B2 WebP image preview
    * @param data - Audit data
    * @returns Formatted caption
    */
@@ -245,34 +246,32 @@ export class TelegramQAInspector {
       timeZone: "Asia/Kuala_Lumpur",
     });
 
-    let caption = `🔍 <b>VISUAL QA AUDIT REPORT</b>\n\n`;
+    let caption = `🧪 <b>[30-MIN AI TRIAL MODE]</b>\n`;
+    caption += `🔍 <b>VISUAL QA AUDIT REPORT</b>\n\n`;
     caption += `<b>📦 Product:</b> ${data.productTitle}\n`;
     caption += `<b>🆔 ID:</b> <code>${data.productId}</code>\n`;
     caption += `<b>🏷️ Category:</b> ${data.category}\n`;
-    caption += `<b>💰 Price:</b> ${data.price} <s>${data.originalPrice}</s> (${data.discountRate} OFF)\n\n`;
+    caption += `<b>💰 Price:</b> ${data.price} <s>${data.originalPrice}</s> (${data.discountRate} OFF)\n`;
+    caption += `<b>🖼️ Image:</b> B2 WebP HD Photo\n\n`;
 
-    caption += `<b>🐦 X (TWITTER) COPY:</b>\n`;
+    caption += `<b>🐦 X (TWITTER) COPY (openrouter/free):</b>\n`;
     caption += `<i>Hook:</i> ${data.xCopy.hook}\n`;
     caption += `<i>CTA:</i> ${data.xCopy.cta}\n`;
-    caption += `<i>Cultural:</i> ${data.xCopy.culturalAdaptation}\n\n`;
+    caption += `<i>Cultural:</i> ${data.xCopy.culturalAdaptation}\n`;
+    caption += `<i>Confidence:</i> ${(data.xCopy.confidence * 100).toFixed(1)}%\n\n`;
 
-    caption += `<b>📘 FACEBOOK COPY:</b>\n`;
+    caption += `<b>📘 FACEBOOK COPY (openrouter/free):</b>\n`;
     caption += `<i>Hook:</i> ${data.facebookCopy.hook}\n`;
     caption += `<i>CTA:</i> ${data.facebookCopy.cta}\n`;
-    caption += `<i>Cultural:</i> ${data.facebookCopy.culturalAdaptation}\n\n`;
+    caption += `<i>Cultural:</i> ${data.facebookCopy.culturalAdaptation}\n`;
+    caption += `<i>Confidence:</i> ${(data.facebookCopy.confidence * 100).toFixed(1)}%\n\n`;
 
-    caption += `<b>🔗 LINKS:</b>\n`;
-    caption += `• Short: ${data.shortUrl}\n`;
-    caption += `• Original: <code>${data.affiliateUrl}</code>\n`;
+    caption += `<b>🔗 SHORTLINK:</b>\n`;
+    caption += `• <a href="${data.shortUrl}">${data.shortUrl}</a>\n`;
+    caption += `• Affiliate: <code>${data.affiliateUrl}</code>\n\n`;
 
-    if (data.twitterPostUrl) {
-      caption += `• X Post: ${data.twitterPostUrl}\n`;
-    }
-    if (data.facebookPostUrl) {
-      caption += `• FB Post: ${data.facebookPostUrl}\n`;
-    }
-
-    caption += `\n<b>⏰ Audit Time:</b> ${timestamp}`;
+    caption += `\n<b>⏰ Audit Time:</b> ${timestamp}\n`;
+    caption += `\n🧪 <b>[30-MIN AI TRIAL MODE] Product Deal Audited & Delivered</b>`;
 
     return caption;
   }
