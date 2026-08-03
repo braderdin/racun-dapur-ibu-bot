@@ -12,11 +12,11 @@ on:
           - production
           - dry-run
           - test
-  schedule:
-    - cron: "30 4 * * *" # 04:30 MYT
-    - cron: "0 5 * * *" # 05:00 MYT
-    - cron: "30 12 * * *" # 12:30 MYT
-    - cron: "0 13 * * *" # 13:00 MYT
+#  schedule:
+#    - cron: "30 4 * * *" # 04:30 MYT
+#    - cron: "0 5 * * *" # 05:00 MYT
+#    - cron: "30 12 * * *" # 12:30 MYT
+#    - cron: "0 13 * * *" # 13:00 MYT
 
 jobs:
   run-bot:
