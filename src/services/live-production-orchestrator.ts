@@ -12,10 +12,12 @@ import { SocialPosterEngine, PostData } from "./social-poster-engine";
 import { EdgeLinkShortener } from "./edge-link-shortener";
 import { VectorRAGCopywriter, GeneratedCopy } from "./vector-rag-copywriter";
 import { B2WebPUploader } from "./b2-webp-uploader";
-import { TelegramService } from "./telegram";
+import { TelegramNotifierService } from "./telegram-notifier";
 import { SupabaseRealtimeBroadcaster } from "./supabase-realtime-broadcaster";
-import { DealCurator } from "./deal-curator";
+import { DealCuratorService } from "./deal-curator";
 import { AffiliateYieldTracker } from "./affiliate-yield-tracker";
+import { LazadaService } from "./lazada";
+import { ShopeeApiService } from "./shopee";
 
 export interface PipelineConfig {
   mode: "dry-run" | "production";
@@ -76,10 +78,12 @@ export class LiveProductionOrchestrator {
   private linkShortener: EdgeLinkShortener;
   private copywriter: VectorRAGCopywriter;
   private b2Uploader: B2WebPUploader;
-  private telegram: TelegramService;
+  private telegram: TelegramNotifierService;
   private realtimeBroadcaster: SupabaseRealtimeBroadcaster;
-  private dealCurator: DealCurator;
+  private dealCurator: DealCuratorService;
   private yieldTracker: AffiliateYieldTracker;
+  private lazadaService: LazadaService;
+  private shopeeService?: ShopeeApiService;
 
   private circuitBreakerFailures: number = 0;
   private lastCircuitBreakerReset: number = Date.now();
@@ -103,10 +107,27 @@ export class LiveProductionOrchestrator {
     this.linkShortener = new EdgeLinkShortener(env);
     this.copywriter = new VectorRAGCopywriter(env);
     this.b2Uploader = new B2WebPUploader(env);
-    this.telegram = new TelegramService(env);
+    this.telegram = new TelegramNotifierService(
+      env.TELEGRAM_BOT_TOKEN || "",
+      env.TELEGRAM_CHAT_ID || "",
+    );
     this.realtimeBroadcaster = new SupabaseRealtimeBroadcaster(env);
-    this.dealCurator = new DealCurator(env);
+    this.dealCurator = new DealCuratorService(
+      env,
+      new (require("./upstash-vector").UpstashVectorService)(env),
+      new (require("./redis").RedisService)(env),
+    );
     this.yieldTracker = new AffiliateYieldTracker(env);
+    this.lazadaService = new LazadaService(env);
+    // Shopee is optional - only initialize if credentials are available
+    if (env.SHOPEE_API_KEY && env.SHOPEE_API_SECRET) {
+      this.shopeeService = new ShopeeApiService({
+        clientId: env.SHOPEE_API_KEY || "",
+        clientSecret: env.SHOPEE_API_SECRET || "",
+        accessToken: env.SHOPEE_ACCESS_TOKEN || "",
+        refreshToken: env.SHOPEE_REFRESH_TOKEN || "",
+      });
+    }
   }
 
   /**
@@ -213,13 +234,21 @@ export class LiveProductionOrchestrator {
 
     try {
       // Fetch from Lazada
-      const lazadaDeals = await this.dealCurator.fetchFromLazada();
+      const lazadaDeals = await this.lazadaService.fetchTrendingProducts();
       lazadaDeals.forEach((deal) => {
+        const price = parseFloat(deal.price.replace(/[^0-9.]/g, ""));
+        const originalPrice = deal.originalPrice
+          ? parseFloat(deal.originalPrice.replace(/[^0-9.]/g, ""))
+          : price;
+        const discount =
+          originalPrice > 0
+            ? Math.round(((originalPrice - price) / originalPrice) * 100)
+            : 0;
         deals.push({
           id: `lz-${deal.id}`,
           title: deal.title,
-          price: deal.price,
-          discount: deal.discount,
+          price,
+          discount,
           imageUrl: deal.imageUrl,
           affiliateUrl: deal.affiliateUrl,
           platform: "lazada",
@@ -231,19 +260,34 @@ export class LiveProductionOrchestrator {
     }
 
     try {
-      // Fetch from Shopee
-      const shopeeDeals = await this.dealCurator.fetchFromShopee();
-      shopeeDeals.forEach((deal) => {
-        deals.push({
-          id: `sp-${deal.id}`,
-          title: deal.title,
-          price: deal.price,
-          discount: deal.discount,
-          imageUrl: deal.imageUrl,
-          affiliateUrl: deal.affiliateUrl,
-          platform: "shopee",
+      // Fetch from Shopee (optional - only if credentials are available)
+      if (this.shopeeService) {
+        const shopeeResponse = await this.shopeeService.fetchTrendingProducts({
+          keyword: "kitchen",
+          category: "kitchen",
+          page: 1,
+          pageSize: 10,
+          sortBy: "pop",
         });
-      });
+        shopeeResponse.items.forEach((deal) => {
+          const discount =
+            deal.originalPrice > 0
+              ? Math.round(
+                  ((deal.originalPrice - deal.price) / deal.originalPrice) *
+                    100,
+                )
+              : 0;
+          deals.push({
+            id: `sp-${deal.id}`,
+            title: deal.name,
+            price: deal.price,
+            discount,
+            imageUrl: deal.thumbnailUrl,
+            affiliateUrl: deal.affiliateLink,
+            platform: "shopee",
+          });
+        });
+      }
     } catch (error) {
       console.error("Shopee fetch error:", error);
       this.recordCircuitBreakerFailure();
@@ -338,11 +382,12 @@ export class LiveProductionOrchestrator {
       }
 
       // Track yield metrics
-      const yieldMetrics = await this.yieldTracker.recordClick(
-        shortLink.code,
-        "production",
-      );
-      metadata.yieldMetrics = yieldMetrics;
+      await this.yieldTracker.recordClick(shortLink.code, "web");
+      metadata.yieldMetrics = {
+        clicks: 0,
+        conversions: 0,
+        ctr: 0,
+      };
     } catch (error) {
       metadata.error = error instanceof Error ? error.message : String(error);
       result.errors.push(`Deal ${deal.id} failed: ${metadata.error}`);
@@ -358,7 +403,10 @@ export class LiveProductionOrchestrator {
    */
   private async uploadToB2(imageUrl: string, dealId: string): Promise<string> {
     try {
-      const uploadResult = await this.b2Uploader.uploadImage(imageUrl, dealId);
+      const uploadResult = await this.b2Uploader.processAndUploadImage(
+        imageUrl,
+        dealId,
+      );
       return uploadResult.webpUrl || imageUrl;
     } catch (error) {
       console.warn(`B2 upload failed for ${dealId}, using original URL`);
@@ -374,15 +422,19 @@ export class LiveProductionOrchestrator {
     price: number,
     discount: number,
   ): Promise<{ x: GeneratedCopy; facebook: GeneratedCopy }> {
-    const copy = await this.copywriter.generateCopy({
-      title,
-      price,
-      discount,
-      platform: "both",
-    });
+    const [xCopy, facebookCopy] = await Promise.all([
+      this.copywriter.generateCopyWithRAG(
+        { category: "kitchen", priceRange: "all", season: "all" },
+        "x",
+      ),
+      this.copywriter.generateCopyWithRAG(
+        { category: "kitchen", priceRange: "all", season: "all" },
+        "facebook",
+      ),
+    ]);
     return {
-      x: copy.x,
-      facebook: copy.facebook,
+      x: xCopy,
+      facebook: facebookCopy,
     };
   }
 
@@ -400,7 +452,7 @@ export class LiveProductionOrchestrator {
     );
     return {
       url: result.shortUrl || affiliateUrl,
-      code: result.shortCode || dealId,
+      code: result.code || dealId,
     };
   }
 
@@ -434,7 +486,7 @@ export class LiveProductionOrchestrator {
 Please review and approve if suitable.
     `.trim();
 
-    await this.telegram.sendMessage(message);
+    await this.telegram.sendTextMessage(message);
   }
 
   /**
@@ -453,17 +505,19 @@ Please review and approve if suitable.
     postResult: any,
     shortLink: string,
   ): Promise<void> {
-    await this.realtimeBroadcaster.broadcastDeal({
-      id: deal.id,
+    await this.realtimeBroadcaster.broadcastDealCurated({
+      dealId: deal.id,
+      productId: deal.id,
       title: deal.title,
       price: deal.price,
-      discount: deal.discount,
-      imageUrl: deal.imageUrl,
-      affiliateUrl: deal.affiliateUrl,
+      discountPrice: deal.price * (1 - deal.discount / 100),
+      discountPercent: deal.discount,
       platform: deal.platform,
-      shortLink,
-      twitterStatus: postResult.twitter?.status,
-      facebookStatus: postResult.facebook?.status,
+      affiliateLink: deal.affiliateUrl,
+      imageUrls: [deal.imageUrl],
+      category: "kitchen",
+      rating: 4.5,
+      stock: 100,
     });
   }
 

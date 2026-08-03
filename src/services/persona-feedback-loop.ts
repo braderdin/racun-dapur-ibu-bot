@@ -725,10 +725,11 @@ class PersonaFeedbackLoop {
   // Get top positive hooks for RAG
   async getTopPositiveHooks(limit: number = 10): Promise<string[]> {
     try {
-      const hookIds = await this.redis.zrevrange(
+      const hookIds = await this.redis.zrange(
         "positive_hooks_ranking",
         0,
         limit - 1,
+        { rev: true },
       );
       const hooks: string[] = [];
 

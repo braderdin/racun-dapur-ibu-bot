@@ -21,7 +21,9 @@ interface TelegramCallback {
       | "regenerate_copy"
       | "rate_pos"
       | "rate_neg"
-      | "regen_ai";
+      | "regen_ai"
+      | "autofix_ai"
+      | "view_ai_audit";
     originalMessage?: string;
     generatedCopy?: string;
     chipBesarRating?: "positive" | "negative" | "neutral";

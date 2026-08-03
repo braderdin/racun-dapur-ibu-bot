@@ -148,6 +148,8 @@ export const securityConfigSchema = z.object({
   // Shopee API Credentials
   SHOPEE_API_KEY: z.string().optional(),
   SHOPEE_SHOP_ID: z.string().optional(),
+  SHOPEE_ACCESS_TOKEN: z.string().optional(),
+  SHOPEE_REFRESH_TOKEN: z.string().optional(),
 
   // Facebook API Credentials
   FACEBOOK_PAGE_ACCESS_TOKEN: z.string().optional(),

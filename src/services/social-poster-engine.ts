@@ -246,7 +246,7 @@ export class SocialPosterEngine {
   ): Promise<PostResult["facebook"]> {
     try {
       // Check if Meta API credentials are configured
-      if (!this.env.META_PAGE_ACCESS_TOKEN && !this.env.META_APP_ID) {
+      if (!this.env.FACEBOOK_PAGE_ACCESS_TOKEN && !this.env.FACEBOOK_APP_ID) {
         console.warn(
           "Meta API credentials not configured, skipping Facebook posting",
         );

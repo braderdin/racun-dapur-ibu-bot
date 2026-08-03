@@ -36,6 +36,7 @@ export interface PriceValidationResult {
   detectedPrice?: number;
   detectedDiscount?: number;
   confidence: number;
+  issues?: string[];
 }
 
 export class AiHallucinationGuard {
@@ -122,6 +123,7 @@ export class AiHallucinationGuard {
       detectedPrice: detectedPrices[0],
       detectedDiscount: detectedPrices.find((_, i) => i > 0),
       confidence,
+      issues,
     };
   }
 
@@ -205,7 +207,7 @@ export class AiHallucinationGuard {
     );
 
     if (!priceValidation.isValid) {
-      issues.push(...priceValidation.issues);
+      issues.push(...(priceValidation.issues || []));
       totalScore -= (1 - priceValidation.confidence) * 0.4;
     }
 

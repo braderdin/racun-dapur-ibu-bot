@@ -8,7 +8,7 @@
 
 import { Redis } from "@upstash/redis";
 import { Env } from "../types/env";
-import { TelegramService } from "./telegram";
+import { TelegramNotifierService } from "./telegram-notifier";
 
 export interface YieldMetrics {
   totalClicks: number;
@@ -39,7 +39,7 @@ export interface ConversionRecord {
 export class AffiliateYieldTracker {
   private redis: Redis;
   private env: Env;
-  private telegram: TelegramService;
+  private telegram: TelegramNotifierService;
   private targetConversionRate: number = 0.05; // 5%
   private targetCtr: number = 0.05; // 5% CTR
 
@@ -50,7 +50,10 @@ export class AffiliateYieldTracker {
       token:
         env.UPSTASH_REDIS_REST_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN,
     });
-    this.telegram = new TelegramService(env);
+    this.telegram = new TelegramNotifierService(
+      env.TELEGRAM_BOT_TOKEN || "",
+      env.TELEGRAM_CHAT_ID || "",
+    );
   }
 
   /**
@@ -227,7 +230,7 @@ export class AffiliateYieldTracker {
 _Updated automatically_
     `.trim();
 
-    await this.telegram.sendMessage(message);
+    await this.telegram.sendTextMessage(message);
   }
 
   /**

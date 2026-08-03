@@ -104,18 +104,24 @@ export class TelegramNotifierService {
   /**
    * Send a text message to Telegram
    */
-  async sendTextMessage(text: string): Promise<boolean> {
+  async sendTextMessage(text: string, replyMarkup?: any): Promise<boolean> {
     try {
+      const body: any = {
+        chat_id: this.chatId,
+        text: text,
+        parse_mode: "HTML",
+      };
+
+      if (replyMarkup) {
+        body.reply_markup = replyMarkup;
+      }
+
       const response = await fetch(
         `https://api.telegram.org/bot${this.botToken}/sendMessage`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chat_id: this.chatId,
-            text: text,
-            parse_mode: "HTML",
-          }),
+          body: JSON.stringify(body),
         },
       );
 

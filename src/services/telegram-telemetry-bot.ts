@@ -447,14 +447,17 @@ export class TelegramTelemetryBot {
   }> {
     try {
       // Query Supabase for AI stats
-      const { data, error } = await this.supabase
+      const result = await this.supabase
         .getClient()
         .from("ai_copywriting_logs")
         .select("*")
         .gte(
           "created_at",
           new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-        );
+        )
+        .limit(1000);
+
+      const { data, error } = await result;
 
       if (error || !data || data.length === 0) {
         return {
@@ -470,11 +473,15 @@ export class TelegramTelemetryBot {
 
       const totalGenerations = data.length;
       const avgResponseTimeMs =
-        data.reduce((sum, row: any) => sum + (row.response_time_ms || 0), 0) /
-        totalGenerations;
+        data.reduce(
+          (sum: number, row: any) => sum + (row.response_time_ms || 0),
+          0,
+        ) / totalGenerations;
       const avgConfidence =
-        data.reduce((sum, row: any) => sum + (row.confidence_score || 0), 0) /
-        totalGenerations;
+        data.reduce(
+          (sum: number, row: any) => sum + (row.confidence_score || 0),
+          0,
+        ) / totalGenerations;
 
       const positiveCount = data.filter(
         (row: any) => row.chip_besar_rating === "positive",

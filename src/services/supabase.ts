@@ -23,6 +23,128 @@ export class SupabaseService {
     }
   }
 
+  // Provide a Supabase-compatible client interface for compatibility
+  getClient() {
+    return {
+      from: (table: string) => ({
+        select: (columns?: string) => ({
+          gte: (column: string, value: string) => ({
+            lte: (column: string, value: string) => ({
+              order: (column: string, options?: { ascending: boolean }) => ({
+                limit: (count: number) =>
+                  this.queryTable(table, columns, {
+                    gte: { column, value },
+                    lte: { column, value },
+                    order: { column, ...options },
+                    limit: count,
+                  }),
+              }),
+              limit: (count: number) =>
+                this.queryTable(table, columns, {
+                  gte: { column, value },
+                  lte: { column, value },
+                  limit: count,
+                }),
+            }),
+            order: (column: string, options?: { ascending: boolean }) => ({
+              limit: (count: number) =>
+                this.queryTable(table, columns, {
+                  gte: { column, value },
+                  order: { column, ...options },
+                  limit: count,
+                }),
+            }),
+            limit: (count: number) =>
+              this.queryTable(table, columns, {
+                gte: { column, value },
+                limit: count,
+              }),
+          }),
+          lte: (column: string, value: string) => ({
+            order: (column: string, options?: { ascending: boolean }) => ({
+              limit: (count: number) =>
+                this.queryTable(table, columns, {
+                  lte: { column, value },
+                  order: { column, ...options },
+                  limit: count,
+                }),
+            }),
+            limit: (count: number) =>
+              this.queryTable(table, columns, {
+                lte: { column, value },
+                limit: count,
+              }),
+          }),
+          order: (column: string, options?: { ascending: boolean }) => ({
+            limit: (count: number) =>
+              this.queryTable(table, columns, {
+                order: { column, ...options },
+                limit: count,
+              }),
+          }),
+          limit: (count: number) =>
+            this.queryTable(table, columns, {
+              limit: count,
+            }),
+        }),
+      }),
+    };
+  }
+
+  private async queryTable(
+    table: string,
+    columns: string = "*",
+    options: any = {},
+  ): Promise<{ data: any[]; error: any }> {
+    try {
+      if (!this.url || !this.serviceKey) {
+        return { data: [], error: new Error("Supabase not configured") };
+      }
+
+      let queryUrl = `${this.url}/rest/v1/${table}?select=${columns}`;
+      const params: string[] = [];
+
+      if (options.gte) {
+        params.push(`${options.gte.column}=gte.${options.gte.value}`);
+      }
+      if (options.lte) {
+        params.push(`${options.lte.column}=lte.${options.lte.value}`);
+      }
+      if (options.order) {
+        const direction = options.order.ascending ? "asc" : "desc";
+        params.push(`order=${options.order.column}.${direction}`);
+      }
+      if (options.limit) {
+        params.push(`limit=${options.limit}`);
+      }
+
+      if (params.length > 0) {
+        queryUrl += "&" + params.join("&");
+      }
+
+      const response = await fetch(queryUrl, {
+        method: "GET",
+        headers: {
+          apikey: this.serviceKey,
+          Authorization: `Bearer ${this.serviceKey}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        return {
+          data: [],
+          error: new Error(`Supabase API error: ${errorText}`),
+        };
+      }
+
+      const data = (await response.json()) as any[];
+      return { data, error: null };
+    } catch (error) {
+      return { data: [], error };
+    }
+  }
+
   async healthCheck(): Promise<{
     status: "healthy" | "unhealthy" | "degraded";
     details: string;
