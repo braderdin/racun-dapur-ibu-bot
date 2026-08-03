@@ -120,7 +120,7 @@ export class VectorAdCopyRotator {
         return [];
       }
 
-      const data = await response.json();
+      const data: { results?: VectorSearchResult[] } = await response.json();
       const results: VectorSearchResult[] = data.results || [];
 
       // Filter by minimum similarity
@@ -215,6 +215,7 @@ export class VectorAdCopyRotator {
       platform?: string;
       excludeIds?: string[];
       minUsageCount?: number;
+      avoidRecent?: boolean;
     } = {},
   ): Promise<CopyHook | null> {
     const { category, platform, excludeIds = [], minUsageCount = 0 } = options;
@@ -338,7 +339,7 @@ export class VectorAdCopyRotator {
 
       // Keep only last 10
       const trimmed = recentList.slice(0, 10);
-      await redisService.set(recentKey, JSON.stringify(trimmed), { ex: 86400 });
+      await redisService.set(recentKey, JSON.stringify(trimmed), 86400);
     } catch (error) {
       logger.error(
         "Error recording hook usage",

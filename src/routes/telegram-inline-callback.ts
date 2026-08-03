@@ -186,7 +186,7 @@ export class TelegramInlineCallbackHandler {
 
     // Mark as approved in Redis
     if (postId) {
-      await this.redis.set(`post:${postId}:approved`, "true", { ex: 86400 });
+      await this.redis.set(`post:${postId}:approved`, "true", 86400);
     }
 
     return {
@@ -276,10 +276,10 @@ export class TelegramInlineCallbackHandler {
     );
 
     // Set flag in Redis to force AI regeneration
-    await this.redis.set(`force_rerun:${dealId}`, "true", { ex: 3600 });
+    await this.redis.set(`force_rerun:${dealId}`, "true", 3600);
 
     // Add to regeneration queue
-    await this.redis.lpush(
+    await this.redis.sadd(
       "ai_regeneration_queue",
       JSON.stringify({
         dealId,
@@ -309,7 +309,7 @@ export class TelegramInlineCallbackHandler {
     await this.redis.set(
       "feature:fb_posting_enabled",
       newState ? "true" : "false",
-      { ex: 86400 },
+      86400,
     );
 
     logger.info(
@@ -339,7 +339,7 @@ export class TelegramInlineCallbackHandler {
     await this.redis.set(
       "feature:x_posting_enabled",
       newState ? "true" : "false",
-      { ex: 86400 },
+      86400,
     );
 
     logger.info(
@@ -404,7 +404,13 @@ export async function handleTelegramInlineCallback(
   const handler = new TelegramInlineCallbackHandler(env);
 
   try {
-    const body = await request.json();
+    const body = (await request.json()) as {
+      callback_query?: {
+        id: string;
+        data: string;
+        from?: { id: number | string };
+      };
+    };
     const callbackQuery = body?.callback_query;
 
     if (!callbackQuery) {

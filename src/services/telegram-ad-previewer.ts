@@ -6,14 +6,24 @@
 
 import { Env } from "../types/env";
 import { TelegramNotifierService } from "./telegram-notifier";
-import {
-  FeaturedAdCarousel,
-  LazadaDeal,
-} from "../../apps/web/src/components/FeaturedAdCarousel";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
+
+export interface LazadaDeal {
+  id: string;
+  title: string;
+  originalPrice: number;
+  discountPrice: number;
+  discountPercent: number;
+  endTime: Date;
+  imageUrls: string[];
+  affiliateLink: string;
+  rating: number;
+  stock: number;
+  category: string;
+}
 
 export interface AdPreview {
   deal: LazadaDeal;
@@ -72,7 +82,7 @@ export class TelegramAdPreviewer {
 
   async generatePreview(
     deal: LazadaDeal,
-    options: PreviewOptions = {},
+    options: Partial<PreviewOptions> = {},
   ): Promise<AdPreview> {
     const defaultOptions: PreviewOptions = {
       includeImages: true,
@@ -81,7 +91,7 @@ export class TelegramAdPreviewer {
       sendToTelegram: false,
     };
 
-    const opts = { ...defaultOptions, ...options };
+    const opts: PreviewOptions = { ...defaultOptions, ...options };
 
     const preview: AdPreview = {
       deal,
@@ -189,7 +199,7 @@ Klik pautan untuk dapatkan produk dengan harga termurah!`;
 
   async sendPreviewToTelegram(
     preview: AdPreview,
-    options: PreviewOptions = {},
+    options: Partial<PreviewOptions> = {},
   ): Promise<boolean> {
     try {
       const botToken = this.env.TELEGRAM_BOT_TOKEN || "";
@@ -222,7 +232,7 @@ Klik pautan untuk dapatkan produk dengan harga termurah!`;
 
   private formatPreviewMessage(
     preview: AdPreview,
-    options: PreviewOptions,
+    options: Partial<PreviewOptions>,
   ): string {
     let message = `🖼️ <b>AD PREVIEW - @RacunDapurIbu</b>
 

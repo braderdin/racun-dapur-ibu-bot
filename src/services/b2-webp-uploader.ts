@@ -6,8 +6,8 @@
  */
 
 import { Env } from "../types/env";
-import { B2Storage } from "./b2-storage";
-import { B2MultiAccountRotator } from "./b2-multi-account-rotator";
+import { B2StorageService } from "./b2-storage";
+import { B2MultiAccountRotator, B2AccountConfig } from "./b2-multi-account-rotator";
 
 export interface ImageProcessingConfig {
   maxWidth: number;
@@ -32,14 +32,49 @@ export interface ProcessedImageResult {
 
 export class B2WebPUploader {
   private env: Env;
-  private b2Storage: B2Storage;
+  private b2Storage: B2StorageService;
   private accountRotator: B2MultiAccountRotator;
   private config: ImageProcessingConfig;
 
   constructor(env: Env, config?: Partial<ImageProcessingConfig>) {
     this.env = env;
-    this.b2Storage = new B2Storage(env);
-    this.accountRotator = new B2MultiAccountRotator(env);
+    
+    // Create B2 account configs from env
+    const accounts: B2AccountConfig[] = [
+      {
+        account: 1,
+        bucket: env.B2_ACC1_BUCKET || "",
+        keyId: env.B2_ACC1_KEY_ID || "",
+        applicationKey: env.B2_ACC1_APPLICATION_KEY || "",
+        endpoint: env.B2_ACC1_ENDPOINT || "",
+        maxCapacityGB: 9,
+        usedGB: 0,
+        enabled: !!(env.B2_ACC1_BUCKET && env.B2_ACC1_KEY_ID && env.B2_ACC1_APPLICATION_KEY),
+      },
+      {
+        account: 2,
+        bucket: env.B2_ACC2_BUCKET || "",
+        keyId: env.B2_ACC2_KEY_ID || "",
+        applicationKey: env.B2_ACC2_APPLICATION_KEY || "",
+        endpoint: env.B2_ACC2_ENDPOINT || "",
+        maxCapacityGB: 9,
+        usedGB: 0,
+        enabled: !!(env.B2_ACC2_BUCKET && env.B2_ACC2_KEY_ID && env.B2_ACC2_APPLICATION_KEY),
+      },
+      {
+        account: 3,
+        bucket: env.B2_ACC3_BUCKET || "",
+        keyId: env.B2_ACC3_KEY_ID || "",
+        applicationKey: env.B2_ACC3_APPLICATION_KEY || "",
+        endpoint: env.B2_ACC3_ENDPOINT || "",
+        maxCapacityGB: 9,
+        usedGB: 0,
+        enabled: !!(env.B2_ACC3_BUCKET && env.B2_ACC3_KEY_ID && env.B2_ACC3_APPLICATION_KEY),
+      },
+    ].filter(a => a.enabled);
+
+    this.b2Storage = new B2StorageService(accounts);
+    this.accountRotator = new B2MultiAccountRotator(accounts);
 
     this.config = {
       maxWidth: 1200,
@@ -277,26 +312,33 @@ export class B2WebPUploader {
   ): Promise<ProcessedImageResult> {
     try {
       // Get next available B2 account
-      const accountInfo = await this.accountRotator.getNextAvailableAccount();
-      if (!accountInfo) {
+      const accountNumber = this.accountRotator.getNextAvailableAccount();
+      if (!accountNumber) {
         return this.createErrorResult("No available B2 accounts");
+      }
+
+      const currentAccount = this.accountRotator.getCurrentAccount();
+      if (!currentAccount) {
+        return this.createErrorResult("No current B2 account");
       }
 
       const fileName = `products/${productId}_${Date.now()}.webp`;
 
-      // Upload to B2
-      const uploadResult = await this.b2Storage.uploadFile(
-        accountInfo.accountId,
-        fileName,
-        webpBuffer,
-        "image/webp",
+      // Upload to B2 using storage service - convert Buffer to ArrayBuffer
+      const arrayBuffer = new Uint8Array(webpBuffer).buffer;
+      const uploadResult = await this.b2Storage.uploadProductImage(
+        arrayBuffer,
+        productId,
+        {
+          platform: "lazada", // default, could be parameterized
+          category: "general",
+          originalFileName: fileName,
+        },
       );
 
       if (!uploadResult.success) {
-        // Mark account as having issues and try next
-        await this.accountRotator.markAccountIssue(accountInfo.accountId);
         return this.createErrorResult(
-          `B2 upload failed: ${uploadResult.error}`,
+          `B2 upload failed`,
         );
       }
 
@@ -312,7 +354,7 @@ export class B2WebPUploader {
         compressionRatio: Math.round(
           (1 - webpBuffer.length / originalSize) * 100,
         ),
-        bucketAccount: accountInfo.accountId,
+        bucketAccount: currentAccount.account,
       };
     } catch (error) {
       console.error("Error uploading to B2:", error);
@@ -367,6 +409,6 @@ export class B2WebPUploader {
    * @returns Storage stats
    */
   async getStorageStats(): Promise<any> {
-    return await this.accountRotator.getAllAccountsStats();
+    return await this.accountRotator.getStorageStats();
   }
 }

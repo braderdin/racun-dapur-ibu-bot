@@ -198,4 +198,43 @@ export class RedisService {
     await this.makeRequest("POST", `/ex/${key}/${ttlSeconds}`, {});
     return 1;
   }
+
+  // Hash operations
+  async hincrby(key: string, field: string, increment: number): Promise<number> {
+    const result = await this.makeRequest<{ value: string }>(
+      "POST",
+      `/hincrby/${key}/${field}/${increment}`,
+      {},
+    );
+    return parseInt(result?.value ?? "0", 10);
+  }
+
+  async hset(key: string, field: string, value: string): Promise<number> {
+    await this.makeRequest("POST", `/hset/${key}/${field}`, { value });
+    return 1;
+  }
+
+  async hget(key: string, field: string): Promise<string | null> {
+    try {
+      const result = await this.makeRequest<{ value: string }>(
+        "GET",
+        `/hget/${key}/${field}`,
+      );
+      return result?.value ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  async hgetall(key: string): Promise<Record<string, string>> {
+    try {
+      const result = await this.makeRequest<Record<string, string>>(
+        "GET",
+        `/hgetall/${key}`,
+      );
+      return result ?? {};
+    } catch {
+      return {};
+    }
+  }
 }

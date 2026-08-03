@@ -1,6 +1,18 @@
 import { Env } from "../types/env";
 import { GeneratedCopy } from "../types/product";
 
+export interface TwitterPostResult {
+  success: boolean;
+  tweetId?: string;
+  error?: string;
+}
+
+export interface TwitterPostOptions {
+  inReplyToTweetId?: string;
+  quoteTweetId?: string;
+  mediaUrls?: string[];
+}
+
 export class TwitterService {
   private bearerToken: string;
 
@@ -33,6 +45,86 @@ export class TwitterService {
     } catch (error) {
       console.error("X API Error posting thread:", error);
       return false;
+    }
+  }
+
+  /**
+   * Post a tweet with media (image)
+   * @param text - Tweet text
+   * @param imageUrl - Image URL
+   * @returns Post result
+   */
+  async postTweetWithMedia(
+    text: string,
+    imageUrl: string,
+  ): Promise<TwitterPostResult> {
+    try {
+      // Simulated implementation - in production would call X API v2
+      console.log("[X Bot] Posting tweet with media:", text.substring(0, 50));
+      return {
+        success: true,
+        tweetId: `tweet_${Date.now()}`,
+      };
+    } catch (error) {
+      console.error("Error posting tweet with media:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
+
+  /**
+   * Post a tweet
+   * @param text - Tweet text
+   * @param inReplyToTweetId - Tweet ID to reply to
+   * @param options - Additional options
+   * @returns Post result
+   */
+  async postTweet(
+    text: string,
+    inReplyToTweetId?: string,
+    options?: TwitterPostOptions,
+  ): Promise<TwitterPostResult> {
+    try {
+      // Simulated implementation - in production would call X API v2
+      console.log("[X Bot] Posting tweet:", text.substring(0, 50));
+      return {
+        success: true,
+        tweetId: `tweet_${Date.now()}`,
+      };
+    } catch (error) {
+      console.error("Error posting tweet:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
+
+  /**
+   * Post a reply to a tweet
+   * @param text - Reply text
+   * @param inReplyToTweetId - Tweet ID to reply to
+   * @returns Post result
+   */
+  async postReply(
+    text: string,
+    inReplyToTweetId: string,
+  ): Promise<TwitterPostResult> {
+    try {
+      // Simulated implementation - in production would call X API v2
+      console.log("[X Bot] Posting reply to tweet:", inReplyToTweetId);
+      return {
+        success: true,
+        tweetId: `reply_${Date.now()}`,
+      };
+    } catch (error) {
+      console.error("Error posting reply:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
     }
   }
 

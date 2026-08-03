@@ -1,15 +1,15 @@
 import { Env } from "../types/env";
-import { Twitter } from "../services/twitter";
+import { TwitterService } from "./twitter";
 import { LazadaLinkCloaker } from "./link-cloaker-lazada";
 
 export class TwitterCommenter {
-  private twitter: Twitter;
+  private twitter: TwitterService;
   private linkCloaker: LazadaLinkCloaker;
   private env: Env;
 
   constructor(env: Env) {
     this.env = env;
-    this.twitter = new Twitter(env);
+    this.twitter = new TwitterService(env);
     this.linkCloaker = new LazadaLinkCloaker(env);
   }
 
@@ -46,21 +46,21 @@ export class TwitterCommenter {
         mainTweetId,
         {
           inReplyToTweetId: mainTweetId,
-          quoteTweetId: null,
+          quoteTweetId: undefined,
         },
       );
 
-      if (!tweetResponse) {
+      if (!tweetResponse.success || !tweetResponse.tweetId) {
         throw new Error("Failed to post reply tweet");
       }
 
       console.log(
-        `Reply tweet posted successfully: ${tweetResponse.id} under tweet ${mainTweetId}`,
+        `Reply tweet posted successfully: ${tweetResponse.tweetId} under tweet ${mainTweetId}`,
       );
       return {
         success: true,
-        tweetId: tweetResponse.id,
-        tweetUrl: `https://twitter.com/i/status/${tweetResponse.id}`,
+        tweetId: tweetResponse.tweetId,
+        tweetUrl: `https://twitter.com/i/status/${tweetResponse.tweetId}`,
         cloakedLink,
         mainTweetId,
       };
@@ -89,16 +89,16 @@ export class TwitterCommenter {
 
       // Tweet 1: Hook + HD Photo
       const tweet1Content = this.formatHookTweet(productData);
-      const tweet1Response = await this.twitter.postTweet(tweet1Content, null, {
+      const tweet1Response = await this.twitter.postTweet(tweet1Content, undefined, {
         mediaUrls: imageUrl ? [imageUrl] : [],
       });
 
-      if (!tweet1Response) {
+      if (!tweet1Response.success || !tweet1Response.tweetId) {
         throw new Error("Failed to post Tweet 1");
       }
 
       results.tweets.push({
-        id: tweet1Response.id,
+        id: tweet1Response.tweetId,
         content: tweet1Content,
         type: "hook",
         imageUrl,
@@ -114,18 +114,18 @@ export class TwitterCommenter {
 
       const tweet2Response = await this.twitter.postTweet(
         tweet2Content,
-        tweet1Response.id,
+        tweet1Response.tweetId,
         {
-          inReplyToTweetId: tweet1Response.id,
+          inReplyToTweetId: tweet1Response.tweetId,
         },
       );
 
-      if (!tweet2Response) {
+      if (!tweet2Response.success || !tweet2Response.tweetId) {
         throw new Error("Failed to post Tweet 2");
       }
 
       results.tweets.push({
-        id: tweet2Response.id,
+        id: tweet2Response.tweetId,
         content: tweet2Content,
         type: "affiliate",
         cloakedLink,

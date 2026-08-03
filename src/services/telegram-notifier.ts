@@ -102,9 +102,9 @@ export class TelegramNotifierService {
   }
 
   /**
-   * Fallback text message if photo fails
+   * Send a text message to Telegram
    */
-  private async sendTextMessage(text: string): Promise<boolean> {
+  async sendTextMessage(text: string): Promise<boolean> {
     try {
       const response = await fetch(
         `https://api.telegram.org/bot${this.botToken}/sendMessage`,
@@ -114,6 +114,32 @@ export class TelegramNotifierService {
           body: JSON.stringify({
             chat_id: this.chatId,
             text: text,
+            parse_mode: "HTML",
+          }),
+        },
+      );
+
+      const result = (await response.json()) as { ok: boolean };
+      return result.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Send a photo to Telegram
+   */
+  async sendPhoto(photoUrl: string, caption?: string): Promise<boolean> {
+    try {
+      const response = await fetch(
+        `https://api.telegram.org/bot${this.botToken}/sendPhoto`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: this.chatId,
+            photo: photoUrl,
+            caption: caption,
             parse_mode: "HTML",
           }),
         },

@@ -142,7 +142,17 @@ class TelegramQuickActions {
     callback: TelegramCallback,
   ): Promise<QuickActionResult> {
     try {
-      const postInfo = await this.getPostInfo(callback.metadata.postId);
+      const postId = callback.metadata.postId;
+      if (!postId) {
+        return {
+          success: false,
+          action: "delete_x_post",
+          message: "Post ID not found",
+          timestamp: Date.now(),
+        };
+      }
+
+      const postInfo = await this.getPostInfo(postId);
       if (!postInfo) {
         return {
           success: false,
@@ -181,7 +191,17 @@ class TelegramQuickActions {
     callback: TelegramCallback,
   ): Promise<QuickActionResult> {
     try {
-      const postInfo = await this.getPostInfo(callback.metadata.postId);
+      const postId = callback.metadata.postId;
+      if (!postId) {
+        return {
+          success: false,
+          action: "delete_fb_post",
+          message: "Post ID not found",
+          timestamp: Date.now(),
+        };
+      }
+
+      const postInfo = await this.getPostInfo(postId);
       if (!postInfo) {
         return {
           success: false,
@@ -220,7 +240,17 @@ class TelegramQuickActions {
     callback: TelegramCallback,
   ): Promise<QuickActionResult> {
     try {
-      const postInfo = await this.getPostInfo(callback.metadata.postId);
+      const postId = callback.metadata.postId;
+      if (!postId) {
+        return {
+          success: false,
+          action: "regenerate_copy",
+          message: "Post ID not found",
+          timestamp: Date.now(),
+        };
+      }
+
+      const postInfo = await this.getPostInfo(postId);
       if (!postInfo) {
         return {
           success: false,
@@ -550,7 +580,7 @@ class TelegramQuickActions {
     action: string,
     result: QuickActionResult,
   ): string {
-    const actionLabels = {
+    const actionLabels: Record<string, string> = {
       delete_x_post: "🗑️ Padam Post X",
       delete_fb_post: "🗑️ Padam Post FB",
       regenerate_copy: "🔄 Jana Semula Salinan",
@@ -577,4 +607,5 @@ class TelegramQuickActions {
   }
 }
 
-export { TelegramQuickActions, TelegramCallback, QuickActionResult, PostInfo };
+export type { TelegramCallback, QuickActionResult, PostInfo };
+export { TelegramQuickActions };

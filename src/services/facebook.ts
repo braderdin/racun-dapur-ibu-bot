@@ -194,6 +194,40 @@ export class FacebookService {
     }
   }
 
+  /**
+   * Post to Facebook Page with media (alias for postToFacebookPage)
+   * @param message - Post message
+   * @param imageUrl - Image URL
+   * @returns Post result
+   */
+  async postToPageWithMedia(
+    message: string,
+    imageUrl: string,
+  ): Promise<FacebookPostResponse> {
+    return this.postToFacebookPage({
+      message,
+      picture: imageUrl,
+    });
+  }
+
+  /**
+   * Post comment to Facebook post (alias for postCommentToFacebook)
+   * @param postId - Post ID
+   * @param commentText - Comment text
+   * @returns Comment result
+   */
+  async postComment(
+    postId: string,
+    commentText: string,
+  ): Promise<{ success: boolean; commentId?: string; error?: string }> {
+    const result = await this.postCommentToFacebook(postId, { message: commentText });
+    return {
+      success: result.success,
+      commentId: result.id,
+      error: result.error?.message,
+    };
+  }
+
   // Post comment to Facebook post
   async postCommentToFacebook(
     postId: string,

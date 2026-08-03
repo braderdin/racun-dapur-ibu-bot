@@ -34,7 +34,8 @@ export interface AuditReportData {
 
 export interface InlineKeyboardButton {
   text: string;
-  callback_data: string;
+  callback_data?: string;
+  url?: string;
 }
 
 export interface InlineKeyboardMarkup {
@@ -360,7 +361,7 @@ export class TelegramQAInspector {
         signal: AbortSignal.timeout(15000),
       });
 
-      const result = await response.json();
+      const result: { ok: boolean; result?: { message_id: number }; description?: string } = await response.json();
 
       if (!response.ok) {
         throw new Error(`Telegram API error: ${result.description}`);
@@ -368,7 +369,7 @@ export class TelegramQAInspector {
 
       return {
         success: true,
-        messageId: result.result.message_id,
+        messageId: result.result?.message_id,
       };
     } catch (error) {
       console.error("Error sending photo:", error);
@@ -410,7 +411,7 @@ export class TelegramQAInspector {
         signal: AbortSignal.timeout(10000),
       });
 
-      const result = await response.json();
+      const result: { ok: boolean; result?: { message_id: number }; description?: string } = await response.json();
 
       if (!response.ok) {
         throw new Error(`Telegram API error: ${result.description}`);
@@ -418,7 +419,7 @@ export class TelegramQAInspector {
 
       return {
         success: true,
-        messageId: result.result.message_id,
+        messageId: result.result?.message_id,
       };
     } catch (error) {
       console.error("Error sending message:", error);
@@ -462,7 +463,7 @@ export class TelegramQAInspector {
         signal: AbortSignal.timeout(10000),
       });
 
-      const result = await response.json();
+      const result: { ok: boolean } = await response.json();
       return response.ok && result.ok;
     } catch (error) {
       console.error("Error editing message caption:", error);
@@ -489,7 +490,7 @@ export class TelegramQAInspector {
         signal: AbortSignal.timeout(5000),
       });
 
-      const result = await response.json();
+      const result: { ok: boolean } = await response.json();
       return response.ok && result.ok;
     } catch (error) {
       console.error("Error deleting message:", error);
@@ -523,7 +524,7 @@ export class TelegramQAInspector {
         signal: AbortSignal.timeout(5000),
       });
 
-      const result = await response.json();
+      const result: { ok: boolean } = await response.json();
       return response.ok && result.ok;
     } catch (error) {
       console.error("Error answering callback query:", error);

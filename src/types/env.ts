@@ -171,6 +171,13 @@ export const securityConfigSchema = z.object({
   // Telegram Bot
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_CHAT_ID: z.string().optional(),
+  ALLOWED_TELEGRAM_USER_IDS: z.string().optional(),
+
+  // Cloudflare KV
+  KV_STATE: z.any().optional(),
+
+  // Shortlink
+  SHORTLINK_DOMAIN: z.string().optional(),
 
   // Cloaking & Link Masking
   CLOAK_DOMAIN: z.string().optional(),

@@ -3,6 +3,7 @@
 
 import { Redis } from "@upstash/redis";
 import { OpenAI } from "openai";
+import { Env } from "../types/env";
 
 interface MarketingHook {
   id: string;
@@ -23,6 +24,7 @@ interface MarketingHook {
   };
   createdAt: number;
   updatedAt: number;
+  relevanceScore?: number;
 }
 
 interface RAGContext {
@@ -37,7 +39,7 @@ interface RAGContext {
   };
 }
 
-interface GeneratedCopy {
+export interface GeneratedCopy {
   hook: string;
   cta: string;
   culturalAdaptation: string;
@@ -51,19 +53,19 @@ interface GeneratedCopy {
   };
 }
 
-class VectorRAGCopywriter {
+export class VectorRAGCopywriter {
   private redis: Redis;
   private openai: OpenAI;
 
-  constructor() {
+  constructor(env: Env) {
     this.redis = new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+      url: env.UPSTASH_REDIS_REST_URL || process.env.UPSTASH_REDIS_REST_URL,
+      token: env.UPSTASH_REDIS_REST_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN,
     });
 
     this.openai = new OpenAI({
-      apiKey: process.env.OPENROUTER_API_KEY,
-      baseURL: process.env.OPENROUTER_BASE_URL,
+      apiKey: env.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY,
+      baseURL: env.OPENROUTER_BASE_URL || process.env.OPENROUTER_BASE_URL,
     });
   }
 

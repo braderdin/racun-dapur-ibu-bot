@@ -219,9 +219,7 @@ export class RedisAdFrequencyCap {
     const current = await this.redis.get(key);
     const newValue = (typeof current === "number" ? current : 0) + 1;
 
-    await this.redis.set(key, newValue, {
-      ex: type === "window" ? 7200 : 86400,
-    });
+    await this.redis.set(key, newValue.toString(), type === "window" ? 7200 : 86400);
   }
 
   // ---------------------------------------------------------------------------
