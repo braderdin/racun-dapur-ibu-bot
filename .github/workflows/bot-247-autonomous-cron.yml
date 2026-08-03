@@ -132,7 +132,7 @@ jobs:
           echo "🕐 Current UTC time: ${CURRENT_HOUR_UTC}:${CURRENT_MIN_UTC}"
 
           # Run the autonomous bot pipeline
-          node bin/run-live-bot-e2e.js --mode=autonomous --peak-hours=true
+          node bin/run-live-bot-e2e.js --mode=autonomous --peak-hours
 
       - name: Verify Worker Health
         if: success()
