@@ -10,9 +10,16 @@ import { logger } from "../utils/logger";
 // Cloudflare Workers KV namespace type
 interface KVNamespace {
   get(key: string): Promise<string | null>;
-  put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
+  put(
+    key: string,
+    value: string,
+    options?: { expirationTtl?: number },
+  ): Promise<void>;
   delete(key: string): Promise<void>;
-  list(options?: { prefix?: string; limit?: number }): Promise<{ keys: Array<{ name: string }> }>;
+  list(options?: {
+    prefix?: string;
+    limit?: number;
+  }): Promise<{ keys: Array<{ name: string }> }>;
 }
 
 // ---------------------------------------------------------------------------

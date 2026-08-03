@@ -220,7 +220,9 @@ export class FacebookService {
     postId: string,
     commentText: string,
   ): Promise<{ success: boolean; commentId?: string; error?: string }> {
-    const result = await this.postCommentToFacebook(postId, { message: commentText });
+    const result = await this.postCommentToFacebook(postId, {
+      message: commentText,
+    });
     return {
       success: result.success,
       commentId: result.id,

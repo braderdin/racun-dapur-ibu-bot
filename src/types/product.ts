@@ -97,7 +97,7 @@ export function validateProduct(data: any): ProductValidation {
       isValid: false,
       errors:
         error instanceof z.ZodError
-          ? error.errors.map((err) => err.message)
+          ? error.issues.map((err: z.ZodIssue) => err.message)
           : ["Invalid product data"],
     };
   }

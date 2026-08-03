@@ -4,15 +4,15 @@ on:
   schedule:
     # Peak MYT windows: 12:30-14:00 MYT (04:30-06:00 UTC) & 20:30-22:30 MYT (12:30-14:30 UTC)
     # Run every 30 minutes during peak windows
-    - cron: "30 4-5 * * *"   # 12:30-14:00 MYT (04:30-06:00 UTC)
-    - cron: "0 5 * * *"      # 13:00 MYT
-    - cron: "30 5 * * *"     # 13:30 MYT
-    - cron: "0 6 * * *"      # 14:00 MYT
-    - cron: "30 12 * * *"    # 20:30 MYT (12:30 UTC)
-    - cron: "0 13 * * *"     # 21:00 MYT
-    - cron: "30 13 * * *"    # 21:30 MYT
-    - cron: "0 14 * * *"     # 22:00 MYT
-    - cron: "30 14 * * *"    # 22:30 MYT
+    - cron: "30 4-5 * * *" # 12:30-14:00 MYT (04:30-06:00 UTC)
+    - cron: "0 5 * * *" # 13:00 MYT
+    - cron: "30 5 * * *" # 13:30 MYT
+    - cron: "0 6 * * *" # 14:00 MYT
+    - cron: "30 12 * * *" # 20:30 MYT (12:30 UTC)
+    - cron: "0 13 * * *" # 21:00 MYT
+    - cron: "30 13 * * *" # 21:30 MYT
+    - cron: "0 14 * * *" # 22:00 MYT
+    - cron: "30 14 * * *" # 22:30 MYT
   workflow_dispatch:
     inputs:
       run_type:
@@ -125,12 +125,12 @@ jobs:
           echo "🏷️  Run type: ${{ github.event.inputs.run_type }}"
           echo "⏰ Timestamp: $(date -Iseconds)"
           echo "🌏 Timezone: MYT (UTC+8)"
-          
+
           # Check if we're in peak hours
           CURRENT_HOUR_UTC=$(date -u +%H)
           CURRENT_MIN_UTC=$(date -u +%M)
           echo "🕐 Current UTC time: ${CURRENT_HOUR_UTC}:${CURRENT_MIN_UTC}"
-          
+
           # Run the autonomous bot pipeline
           node bin/run-live-bot-e2e.js --mode=autonomous --peak-hours=true
 

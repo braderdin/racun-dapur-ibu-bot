@@ -89,9 +89,13 @@ export class TwitterCommenter {
 
       // Tweet 1: Hook + HD Photo
       const tweet1Content = this.formatHookTweet(productData);
-      const tweet1Response = await this.twitter.postTweet(tweet1Content, undefined, {
-        mediaUrls: imageUrl ? [imageUrl] : [],
-      });
+      const tweet1Response = await this.twitter.postTweet(
+        tweet1Content,
+        undefined,
+        {
+          mediaUrls: imageUrl ? [imageUrl] : [],
+        },
+      );
 
       if (!tweet1Response.success || !tweet1Response.tweetId) {
         throw new Error("Failed to post Tweet 1");

@@ -7,7 +7,10 @@
 
 import { Env } from "../types/env";
 import { B2StorageService } from "./b2-storage";
-import { B2MultiAccountRotator, B2AccountConfig } from "./b2-multi-account-rotator";
+import {
+  B2MultiAccountRotator,
+  B2AccountConfig,
+} from "./b2-multi-account-rotator";
 
 export interface ImageProcessingConfig {
   maxWidth: number;
@@ -38,7 +41,7 @@ export class B2WebPUploader {
 
   constructor(env: Env, config?: Partial<ImageProcessingConfig>) {
     this.env = env;
-    
+
     // Create B2 account configs from env
     const accounts: B2AccountConfig[] = [
       {
@@ -49,7 +52,11 @@ export class B2WebPUploader {
         endpoint: env.B2_ACC1_ENDPOINT || "",
         maxCapacityGB: 9,
         usedGB: 0,
-        enabled: !!(env.B2_ACC1_BUCKET && env.B2_ACC1_KEY_ID && env.B2_ACC1_APPLICATION_KEY),
+        enabled: !!(
+          env.B2_ACC1_BUCKET &&
+          env.B2_ACC1_KEY_ID &&
+          env.B2_ACC1_APPLICATION_KEY
+        ),
       },
       {
         account: 2,
@@ -59,7 +66,11 @@ export class B2WebPUploader {
         endpoint: env.B2_ACC2_ENDPOINT || "",
         maxCapacityGB: 9,
         usedGB: 0,
-        enabled: !!(env.B2_ACC2_BUCKET && env.B2_ACC2_KEY_ID && env.B2_ACC2_APPLICATION_KEY),
+        enabled: !!(
+          env.B2_ACC2_BUCKET &&
+          env.B2_ACC2_KEY_ID &&
+          env.B2_ACC2_APPLICATION_KEY
+        ),
       },
       {
         account: 3,
@@ -69,9 +80,13 @@ export class B2WebPUploader {
         endpoint: env.B2_ACC3_ENDPOINT || "",
         maxCapacityGB: 9,
         usedGB: 0,
-        enabled: !!(env.B2_ACC3_BUCKET && env.B2_ACC3_KEY_ID && env.B2_ACC3_APPLICATION_KEY),
+        enabled: !!(
+          env.B2_ACC3_BUCKET &&
+          env.B2_ACC3_KEY_ID &&
+          env.B2_ACC3_APPLICATION_KEY
+        ),
       },
-    ].filter(a => a.enabled);
+    ].filter((a) => a.enabled);
 
     this.b2Storage = new B2StorageService(accounts);
     this.accountRotator = new B2MultiAccountRotator(accounts);
@@ -337,9 +352,7 @@ export class B2WebPUploader {
       );
 
       if (!uploadResult.success) {
-        return this.createErrorResult(
-          `B2 upload failed`,
-        );
+        return this.createErrorResult(`B2 upload failed`);
       }
 
       // Generate CDN URL via Cloudflare S3 Auth Proxy

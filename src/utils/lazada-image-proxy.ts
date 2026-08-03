@@ -1,16 +1,16 @@
 import { Env } from "../types/env";
 import { B2StorageSwitcher } from "../services/b2-storage-switcher";
-import { ImageWatermark } from "./image-watermark";
+import { ImageWatermarkService } from "./image-watermark";
 
 export class LazadaImageProxy {
   private b2Storage: B2StorageSwitcher;
-  private watermark: ImageWatermark;
+  private watermark: ImageWatermarkService;
   private env: Env;
 
   constructor(env: Env) {
     this.env = env;
     this.b2Storage = new B2StorageSwitcher(env);
-    this.watermark = new ImageWatermark();
+    this.watermark = new ImageWatermarkService();
   }
 
   /**
@@ -45,16 +45,12 @@ export class LazadaImageProxy {
       }
 
       // Step 3: Apply watermark with product info
-      const watermarkedBuffer = await this.watermark.applyWatermark(
-        webpBuffer,
-        {
-          text: `Lazada - ${productId}`, // Product ID as watermark text
-          position: "bottom-right",
-          opacity: 0.7,
-          fontSize: 24,
-          color: "#ffffff",
-        },
-      );
+      const watermarkResult = await this.watermark.processImage(webpBuffer, {
+        watermarkText: `Lazada - ${productId}`,
+        badgePosition: "bottom-right",
+        watermarkOpacity: 0.7,
+      });
+      const watermarkedBuffer = watermarkResult.buffer;
 
       // Step 4: Upload to Backblaze B2 with auto-switching
       const cdnUrl = await this.uploadToB2(watermarkedBuffer, productId);
@@ -140,26 +136,26 @@ export class LazadaImageProxy {
       const timestamp = Date.now();
       const filename = `lazada-${productId}-${timestamp}.webp`;
 
+      // Convert Buffer to ArrayBuffer for B2StorageSwitcher
+      const arrayBuffer = buffer.buffer.slice(
+        buffer.byteOffset,
+        buffer.byteOffset + buffer.byteLength,
+      ) as ArrayBuffer;
+
       // Upload to B2 with auto-switching logic
-      const uploadResult = await this.b2Storage.uploadFile(
-        buffer,
+      const uploadResult = await this.b2Storage.uploadToB2(
+        arrayBuffer,
         filename,
-        "image/webp",
-        {
-          source: "lazada",
-          productId,
-          timestamp,
-          contentType: "image/webp",
-        },
+        "lazada",
       );
 
       if (!uploadResult.success) {
-        console.error("B2 upload failed:", uploadResult.error);
+        console.error("B2 upload failed");
         return null;
       }
 
       // Return CDN URL
-      return uploadResult.cdnUrl;
+      return uploadResult.url;
     } catch (error) {
       console.error("Error uploading to B2:", error);
       return null;

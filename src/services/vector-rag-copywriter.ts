@@ -60,7 +60,8 @@ export class VectorRAGCopywriter {
   constructor(env: Env) {
     this.redis = new Redis({
       url: env.UPSTASH_REDIS_REST_URL || process.env.UPSTASH_REDIS_REST_URL,
-      token: env.UPSTASH_REDIS_REST_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN,
+      token:
+        env.UPSTASH_REDIS_REST_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN,
     });
 
     this.openai = new OpenAI({
@@ -163,7 +164,9 @@ export class VectorRAGCopywriter {
         }
       }
 
-      relevantHooks.sort((a, b) => b.relevanceScore - a.relevanceScore);
+      relevantHooks.sort(
+        (a, b) => (b.relevanceScore ?? 0) - (a.relevanceScore ?? 0),
+      );
       return relevantHooks.slice(0, 5);
     } catch (error) {
       console.error("Error searching relevant hooks:", error);
@@ -214,18 +217,18 @@ export class VectorRAGCopywriter {
         max_tokens: 500,
       });
 
-      const result = JSON.parse(response.choices[0].message.content);
+      const result = JSON.parse(response.choices[0].message.content ?? "{}");
 
       const generatedCopy: GeneratedCopy = {
-        hook: result.hook,
-        cta: result.cta,
-        culturalAdaptation: result.culturalAdaptation,
+        hook: result.hook ?? "",
+        cta: result.cta ?? "",
+        culturalAdaptation: result.culturalAdaptation ?? "",
         platform,
-        confidence: result.confidence || 0.8,
+        confidence: result.confidence ?? 0.8,
         metadata: {
           category: productInfo.category,
-          season: productInfo.season || "all",
-          priceRange: productInfo.priceRange || "all",
+          season: productInfo.season ?? "all",
+          priceRange: productInfo.priceRange ?? "all",
           culturalScore: userProfile?.language === "bm" ? 0.9 : 0.7,
         },
       };
@@ -310,7 +313,10 @@ Focus on ${productInfo.season || "year-round"} relevance and ${platform === "x" 
 Return JSON format only.`;
   }
 
-  private getFallbackCopy(productInfo: any, platform: string): GeneratedCopy {
+  private getFallbackCopy(
+    productInfo: any,
+    platform: "x" | "facebook",
+  ): GeneratedCopy {
     const fallbacks = {
       kitchen: {
         x: {
@@ -480,4 +486,4 @@ Return JSON format only.`;
   }
 }
 
-export { VectorRAGCopywriter, MarketingHook, RAGContext, GeneratedCopy };
+export type { MarketingHook, RAGContext };

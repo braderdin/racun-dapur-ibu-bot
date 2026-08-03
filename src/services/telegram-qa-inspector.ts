@@ -361,7 +361,11 @@ export class TelegramQAInspector {
         signal: AbortSignal.timeout(15000),
       });
 
-      const result: { ok: boolean; result?: { message_id: number }; description?: string } = await response.json();
+      const result: {
+        ok: boolean;
+        result?: { message_id: number };
+        description?: string;
+      } = await response.json();
 
       if (!response.ok) {
         throw new Error(`Telegram API error: ${result.description}`);
@@ -411,7 +415,11 @@ export class TelegramQAInspector {
         signal: AbortSignal.timeout(10000),
       });
 
-      const result: { ok: boolean; result?: { message_id: number }; description?: string } = await response.json();
+      const result: {
+        ok: boolean;
+        result?: { message_id: number };
+        description?: string;
+      } = await response.json();
 
       if (!response.ok) {
         throw new Error(`Telegram API error: ${result.description}`);

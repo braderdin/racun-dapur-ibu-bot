@@ -200,7 +200,11 @@ export class RedisService {
   }
 
   // Hash operations
-  async hincrby(key: string, field: string, increment: number): Promise<number> {
+  async hincrby(
+    key: string,
+    field: string,
+    increment: number,
+  ): Promise<number> {
     const result = await this.makeRequest<{ value: string }>(
       "POST",
       `/hincrby/${key}/${field}/${increment}`,
