@@ -6,11 +6,14 @@
  * Lazada API -> WebP B2 -> AI Copywriter -> Social Poster -> Telegram QA Audit
  */
 
-const { config } = require("dotenv");
-
-// Load environment variables
-config({ path: ".dev.vars" });
-config({ path: ".env.local" });
+// Safely load dotenv if available (for local dev), ignore safely in CI/GitHub Actions
+try {
+  const { config } = require("dotenv");
+  config({ path: ".dev.vars" });
+  config({ path: ".env.local" });
+} catch (e) {
+  // dotenv not installed or files not present, falling back to native process.env
+}
 
 // Import services dynamically to avoid circular dependencies
 async function importServices() {
@@ -174,7 +177,6 @@ class LiveBotE2ETestRunner {
     if (!this.config.skipStages.includes("uploader")) {
       const result = await this.runStage("B2 WebP Uploader", async () => {
         const uploader = new services.B2WebPUploader(this.env);
-        // Test with a sample image URL
         const testImageUrl =
           "https://via.placeholder.com/400x400?text=Test+Product";
         const uploadResult = await uploader.processAndUploadImage(
@@ -245,7 +247,6 @@ class LiveBotE2ETestRunner {
     ) {
       const result = await this.runStage("Social Poster Engine", async () => {
         const poster = new services.SocialPosterEngine(this.env);
-        // This would require actual product data from previous stages
         this.log("Social posting skipped in dry-run mode");
         return { skipped: true, reason: "Dry-run mode" };
       });
@@ -263,7 +264,6 @@ class LiveBotE2ETestRunner {
     if (!this.config.skipStages.includes("telegram")) {
       const result = await this.runStage("Telegram QA Inspector", async () => {
         const inspector = new services.TelegramQAInspector(this.env);
-        // Send test audit report
         const auditResult = await inspector.sendAuditReport({
           productId: "test_product_001",
           productTitle: "Test Air Fryer 5L",
@@ -341,7 +341,6 @@ class LiveBotE2ETestRunner {
       this.results.push({ stage: "Supabase Realtime Broadcaster", ...result });
     }
 
-    // Print summary
     this.printSummary();
   }
 
