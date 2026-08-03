@@ -1,8 +1,14 @@
 // Social Payload Builder
 // Format strict multi-channel payloads: X main post (photo + text without link) -> X reply (affiliate link + CTA); Facebook main post (photo + storytelling without link) -> FB comment 1 (affiliate link + CTA)
+// Integrated with AI Hallucination Guard for copy validation
 
 import { Redis } from "@upstash/redis";
 import { OpenAI } from "openai";
+import {
+  AiHallucinationGuard,
+  HallucinationAuditResult,
+  ProductData,
+} from "./ai-hallucination-guard";
 
 interface SocialPayload {
   id: string;
@@ -80,6 +86,7 @@ interface FormattedPayload {
       italic?: string[];
       links?: string[];
     };
+    warningBadge?: boolean;
   };
   validation: {
     isValid: boolean;
@@ -96,6 +103,12 @@ interface FormattedPayload {
       x: boolean;
       facebook: boolean;
     };
+    hallucinationAudit?: {
+      score: number;
+      isValid: boolean;
+      issues: string[];
+      retryNeeded: boolean;
+    };
   };
 }
 
@@ -103,6 +116,7 @@ class SocialPayloadBuilder {
   private redis: Redis;
   private openai: OpenAI;
   private channelConfig: ChannelConfig;
+  private hallucinationGuard: AiHallucinationGuard;
 
   constructor() {
     this.redis = new Redis({
@@ -114,6 +128,8 @@ class SocialPayloadBuilder {
       apiKey: process.env.OPENROUTER_API_KEY,
       baseURL: process.env.OPENROUTER_BASE_URL,
     });
+
+    this.hallucinationGuard = new AiHallucinationGuard();
 
     this.channelConfig = {
       x: {
@@ -167,11 +183,30 @@ class SocialPayloadBuilder {
       delay: number;
       scheduledAt: number;
     },
+    product?: ProductData,
   ): Promise<FormattedPayload> {
     try {
       const payloadId = `${platform}:${postType}:${Date.now()}`;
 
       const formatted = await this.formatPayload(platform, postType, content);
+
+      // Run AI Hallucination Guard if product data is provided
+      let hallucinationAudit: HallucinationAuditResult | null = null;
+      let warningBadge = false;
+
+      if (product) {
+        hallucinationAudit = await this.hallucinationGuard.auditCopyIntegrity(
+          content.text,
+          product,
+        );
+
+        // Attach warning badge if hallucination guard score is below threshold
+        if (hallucinationAudit.score < 0.85) {
+          warningBadge = true;
+          formatted.formattedContent.text = `[PERINGATAN: Salinan AI tidak sepadan dengan data produk]\n${formatted.formattedContent.text}`;
+        }
+      }
+
       const validation = await this.validatePayload(
         platform,
         postType,
@@ -188,6 +223,20 @@ class SocialPayloadBuilder {
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
+
+      // Add hallucination audit to metadata
+      if (hallucinationAudit) {
+        socialPayload.content.metadata = {
+          ...socialPayload.content.metadata,
+          hallucinationAudit: {
+            score: hallucinationAudit.score,
+            isValid: hallucinationAudit.isValid,
+            issues: hallucinationAudit.issues,
+            retryNeeded: hallucinationAudit.retryNeeded,
+          },
+          warningBadge,
+        };
+      }
 
       await this.cachePayload(payloadId, socialPayload);
 
