@@ -179,10 +179,14 @@ if (
       ? ".env.local"
       : ".dev.vars";
   results.environment.output = `Environment file (${detectedFile}) detected in workspace root.`;
-  logStatus("SUCCESS", `Environment configuration file (${detectedFile}) exists!`);
+  logStatus(
+    "SUCCESS",
+    `Environment configuration file (${detectedFile}) exists!`,
+  );
 } else {
   results.environment.passed = false;
-  results.environment.output = "Missing .env / .env.local / .dev.vars file in root directory!";
+  results.environment.output =
+    "Missing .env / .env.local / .dev.vars file in root directory!";
   logStatus(
     "WARN",
     "No .env / .env.local / .dev.vars file found in workspace root. Please ensure env vars are set.",
