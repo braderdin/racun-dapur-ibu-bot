@@ -202,7 +202,9 @@ class VectorDedupSentinel {
       const similarVectors: ProductVector[] = [];
 
       for (const key of categoryKeys) {
-        const vector = await this.redis.get(key.replace("category:", ""));
+        const vector = await this.redis.get(
+          (key as string).replace("category:", ""),
+        );
         if (vector) {
           const parsedVector = JSON.parse(vector as string);
           if (parsedVector.similarityScore >= minSimilarity) {
@@ -299,7 +301,9 @@ class VectorDedupSentinel {
         const vectors: ProductVector[] = [];
 
         for (const key of categoryKeys.slice(0, 100)) {
-          const vector = await this.redis.get(key.replace("category:", ""));
+          const vector = await this.redis.get(
+            (key as string).replace("category:", ""),
+          );
           if (vector) {
             vectors.push(JSON.parse(vector as string));
           }
@@ -394,7 +398,7 @@ class VectorDedupSentinel {
   }
 }
 
-export {
+export type {
   VectorDedupSentinel,
   ProductVector,
   DeduplicationResult,

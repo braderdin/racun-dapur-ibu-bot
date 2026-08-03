@@ -3,7 +3,6 @@
 
 import { Redis } from "@upstash/redis";
 import { OpenAI } from "openai";
-import { createWorker } from "worker_threads";
 import { resolve } from "path";
 import { readFileSync } from "fs";
 
@@ -53,7 +52,7 @@ interface VisualPreferenceProfile {
 class VectorImageMemory {
   private redis: Redis;
   private openai: OpenAI;
-  private workerPool: Worker[];
+  private workerPool: any[];
   private vectorIndex: Map<string, ImageFeatureVector>;
 
   constructor() {
@@ -76,7 +75,9 @@ class VectorImageMemory {
   private initializeWorkerPool(): void {
     const numWorkers = 4;
     for (let i = 0; i < numWorkers; i++) {
-      const worker = new Worker(resolve(__dirname, "./vector-worker.js"));
+      const worker = new (require("worker_threads").Worker)(
+        resolve(__dirname, "./vector-worker.js"),
+      );
       this.workerPool.push(worker);
     }
   }
@@ -169,7 +170,9 @@ class VectorImageMemory {
           -1,
         );
         for (const key of categoryKeys) {
-          const vector = await this.redis.get(key.replace("category:", ""));
+          const vector = await this.redis.get(
+            (key as string).replace("category:", ""),
+          );
           if (vector) {
             const parsedVector = JSON.parse(vector as string);
             const score = this.calculateCosineSimilarity(
@@ -260,7 +263,7 @@ class VectorImageMemory {
       let profile = await this.redis.get(profileKey);
 
       if (profile) {
-        return JSON.parse(profile as string);
+        return JSON.parse(profile as string) as VisualPreferenceProfile;
       }
 
       const similarVectors = await this.searchSimilarImages(
@@ -274,14 +277,14 @@ class VectorImageMemory {
         return this.createDefaultProfile(category);
       }
 
-      const profile = await this.analyzePreferenceProfile(
+      const analyzedProfile = await this.analyzePreferenceProfile(
         similarVectors.map((r) => r.vector),
         category,
       );
 
-      await this.redis.setex(profileKey, 3600, JSON.stringify(profile));
+      await this.redis.setex(profileKey, 3600, JSON.stringify(analyzedProfile));
 
-      return profile;
+      return analyzedProfile;
     } catch (error) {
       console.error("Error getting visual preference profile:", error);
       return this.createDefaultProfile(category);
@@ -388,7 +391,9 @@ class VectorImageMemory {
           -1,
         );
         for (const key of categoryKeys.slice(0, limit * 2)) {
-          const vector = await this.redis.get(key.replace("category:", ""));
+          const vector = await this.redis.get(
+            (key as string).replace("category:", ""),
+          );
           if (vector) {
             results.push(JSON.parse(vector as string));
           }
@@ -436,7 +441,7 @@ class VectorImageMemory {
   async getMemoryStats(): Promise<any> {
     try {
       const totalVectors = await this.redis.zcard("performance_index");
-      const categoryStats = {};
+      const categoryStats: Record<string, number> = {};
 
       for (const category of ["kitchen", "baby", "skincare"]) {
         const count = await this.redis.zcard(`category:${category}`);
@@ -456,9 +461,5 @@ class VectorImageMemory {
   }
 }
 
-export {
-  VectorImageMemory,
-  ImageFeatureVector,
-  VectorSearchResult,
-  VisualPreferenceProfile,
-};
+export { VectorImageMemory };
+export type { ImageFeatureVector, VectorSearchResult, VisualPreferenceProfile };

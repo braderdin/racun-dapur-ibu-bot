@@ -172,7 +172,8 @@ export class VectorAdCopyRotator {
         throw new Error(`Embedding API error: ${response.status}`);
       }
 
-      const data: { data?: Array<{ embedding: number[] }> } = await response.json();
+      const data: { data?: Array<{ embedding: number[] }> } =
+        await response.json();
       return data.data?.[0]?.embedding || [];
     } catch (error) {
       logger.error(
@@ -265,7 +266,7 @@ export class VectorAdCopyRotator {
     options: {
       category?: string;
       dealId?: string;
-      avoidRecent: boolean;
+      avoidRecent?: boolean;
     } = {},
   ): Promise<CopyHook | null> {
     const { category, dealId, avoidRecent = true } = options;
