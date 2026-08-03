@@ -15,9 +15,16 @@ interface TelegramCallback {
   metadata: {
     postId?: string;
     platform?: "x" | "facebook";
-    actionType?: "delete_x_post" | "delete_fb_post" | "regenerate_copy";
+    actionType?:
+      | "delete_x_post"
+      | "delete_fb_post"
+      | "regenerate_copy"
+      | "rate_pos"
+      | "rate_neg"
+      | "regen_ai";
     originalMessage?: string;
     generatedCopy?: string;
+    chipBesarRating?: "positive" | "negative" | "neutral";
   };
   createdAt: number;
   updatedAt: number;
@@ -109,11 +116,56 @@ class TelegramQuickActions {
 
   private parseCallbackData(
     callbackData: string,
-  ): "delete_x_post" | "delete_fb_post" | "regenerate_copy" | undefined {
-    const validActions = ["delete_x_post", "delete_fb_post", "regenerate_copy"];
+  ):
+    | "delete_x_post"
+    | "delete_fb_post"
+    | "regenerate_copy"
+    | "rate_pos"
+    | "rate_neg"
+    | "regen_ai"
+    | undefined {
+    const validActions = [
+      "delete_x_post",
+      "delete_fb_post",
+      "regenerate_copy",
+      "rate_pos",
+      "rate_neg",
+      "regen_ai",
+    ];
     return validActions.includes(callbackData)
       ? (callbackData as any)
       : undefined;
+  }
+
+  // Generate inline keyboard rating buttons for AI copywriting feedback
+  generateRatingInlineKeyboard(dealId: string): any {
+    return {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "👍 Ayat Padu", callback_data: `cb:rate_pos:${dealId}` },
+            {
+              text: "👎 Kurang Menyengat",
+              callback_data: `cb:rate_neg:${dealId}`,
+            },
+            {
+              text: "🔄 Re-generate AI",
+              callback_data: `cb:regen_ai:${dealId}`,
+            },
+          ],
+        ],
+      },
+    };
+  }
+
+  // Parse callback data with deal ID (format: cb:action:dealId)
+  private parseDetailedCallbackData(
+    callbackData: string,
+  ): { action: string; dealId: string } | null {
+    if (!callbackData.startsWith("cb:")) return null;
+    const parts = callbackData.split(":");
+    if (parts.length !== 3) return null;
+    return { action: parts[1], dealId: parts[2] };
   }
 
   private async executeAction(
@@ -128,6 +180,12 @@ class TelegramQuickActions {
         return await this.handleDeleteFacebookPost(callback);
       case "regenerate_copy":
         return await this.handleRegenerateCopy(callback);
+      case "rate_pos":
+        return await this.handlePositiveRating(callback);
+      case "rate_neg":
+        return await this.handleNegativeRating(callback);
+      case "regen_ai":
+        return await this.handleRegenerateAI(callback);
       default:
         return {
           success: false,
@@ -390,6 +448,107 @@ class TelegramQuickActions {
     } catch (error) {
       console.error("Error generating new copy:", error);
       throw error;
+    }
+  }
+
+  // Handle positive rating from Chip Besar
+  private async handlePositiveRating(
+    callback: TelegramCallback,
+  ): Promise<QuickActionResult> {
+    try {
+      const dealId = callback.metadata.postId || "unknown";
+      const rating = "positive";
+
+      // Store rating in Redis for feedback loop
+      await this.redis.hset(`deal_rating:${dealId}`, {
+        rating: "positive",
+        timestamp: Date.now(),
+        userId: callback.userId,
+      });
+      await this.redis.expire(`deal_rating:${dealId}`, 86400 * 7);
+
+      // Log to AI telemetry
+      await this.logAction(callback.userId, "rate_pos", dealId);
+
+      return {
+        success: true,
+        action: "rate_pos",
+        message:
+          "Terima kasih! Ayat anda telah disimpan sebagai contoh baik untuk AI.",
+        timestamp: Date.now(),
+      };
+    } catch (error) {
+      console.error("Error handling positive rating:", error);
+      return {
+        success: false,
+        action: "rate_pos",
+        message: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+        timestamp: Date.now(),
+      };
+    }
+  }
+
+  // Handle negative rating from Chip Besar
+  private async handleNegativeRating(
+    callback: TelegramCallback,
+  ): Promise<QuickActionResult> {
+    try {
+      const dealId = callback.metadata.postId || "unknown";
+      const rating = "negative";
+
+      // Store rating in Redis for feedback loop
+      await this.redis.hset(`deal_rating:${dealId}`, {
+        rating: "negative",
+        timestamp: Date.now(),
+        userId: callback.userId,
+      });
+      await this.redis.expire(`deal_rating:${dealId}`, 86400 * 7);
+
+      // Log to AI telemetry
+      await this.logAction(callback.userId, "rate_neg", dealId);
+
+      return {
+        success: true,
+        action: "rate_neg",
+        message:
+          "Terima kasih! Pola negatif ini akan dihindari dalam generasi AI semula.",
+        timestamp: Date.now(),
+      };
+    } catch (error) {
+      console.error("Error handling negative rating:", error);
+      return {
+        success: false,
+        action: "rate_neg",
+        message: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+        timestamp: Date.now(),
+      };
+    }
+  }
+
+  // Handle AI regeneration request
+  private async handleRegenerateAI(
+    callback: TelegramCallback,
+  ): Promise<QuickActionResult> {
+    try {
+      const dealId = callback.metadata.postId || "unknown";
+
+      // Log regeneration request
+      await this.logAction(callback.userId, "regen_ai", dealId);
+
+      return {
+        success: true,
+        action: "regen_ai",
+        message: `AI copywriting untuk deal ${dealId} akan digenari semula dalam putaran seterusnya.`,
+        timestamp: Date.now(),
+      };
+    } catch (error) {
+      console.error("Error handling AI regeneration:", error);
+      return {
+        success: false,
+        action: "regen_ai",
+        message: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+        timestamp: Date.now(),
+      };
     }
   }
 

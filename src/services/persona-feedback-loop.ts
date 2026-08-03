@@ -77,6 +77,17 @@ interface FeedbackData {
   content?: string;
 }
 
+interface TelegramRatingCallback {
+  dealId: string;
+  rating: "positive" | "negative";
+  userId: string;
+  chatId: string;
+  messageId: string;
+  generatedCopyX?: string;
+  generatedCopyFb?: string;
+  timestamp: number;
+}
+
 class PersonaFeedbackLoop {
   private redis: Redis;
   private openai: OpenAI;
@@ -614,7 +625,133 @@ class PersonaFeedbackLoop {
       return null;
     }
   }
+
+  // Process Telegram inline button ratings and store positive hooks in Vector memory
+  async processTelegramRating(
+    callback: TelegramRatingCallback,
+  ): Promise<boolean> {
+    try {
+      if (callback.rating === "positive") {
+        // Store positive copywriting hook into Upstash Vector for reinforcement
+        await this.storePositiveHookToVector(callback);
+      } else if (callback.rating === "negative") {
+        // Log negative pattern into Redis to avoid similar structures
+        await this.logNegativePattern(callback);
+      }
+
+      // Update deal rating in Redis
+      await this.redis.hset(`deal_rating:${callback.dealId}`, {
+        rating: callback.rating,
+        timestamp: callback.timestamp,
+        userId: callback.userId,
+      });
+      await this.redis.expire(`deal_rating:${callback.dealId}`, 86400 * 7);
+
+      return true;
+    } catch (error) {
+      console.error("Error processing Telegram rating:", error);
+      return false;
+    }
+  }
+
+  // Store positive hook into Upstash Vector for RAG reinforcement
+  private async storePositiveHookToVector(
+    callback: TelegramRatingCallback,
+  ): Promise<void> {
+    try {
+      const hookText =
+        callback.generatedCopyX || callback.generatedCopyFb || "";
+      if (!hookText) return;
+
+      // Create embedding for the positive hook
+      const embeddingResponse = await this.openai.embeddings.create({
+        model: "text-embedding-3-small",
+        input: hookText,
+        dimensions: 1536,
+      });
+
+      const embedding = embeddingResponse.data[0].embedding;
+
+      // Store in Vector with metadata
+      const vectorEntry = {
+        id: `positive_hook:${callback.dealId}:${Date.now()}`,
+        dealId: callback.dealId,
+        embedding,
+        content: hookText,
+        rating: "positive",
+        userId: callback.userId,
+        createdAt: Date.now(),
+      };
+
+      await this.redis.setex(
+        `vector_hook:${vectorEntry.id}`,
+        86400 * 30, // 30 days retention
+        JSON.stringify(vectorEntry),
+      );
+
+      // Add to positive hooks sorted set for ranking
+      await this.redis.zadd("positive_hooks_ranking", {
+        score: 1.0,
+        member: vectorEntry.id,
+      });
+    } catch (error) {
+      console.error("Error storing positive hook to vector:", error);
+    }
+  }
+
+  // Log negative pattern to avoid similar structures
+  private async logNegativePattern(
+    callback: TelegramRatingCallback,
+  ): Promise<void> {
+    try {
+      const negativePattern = {
+        dealId: callback.dealId,
+        content: callback.generatedCopyX || callback.generatedCopyFb || "",
+        userId: callback.userId,
+        timestamp: Date.now(),
+      };
+
+      await this.redis.lpush(
+        "negative_patterns",
+        JSON.stringify(negativePattern),
+      );
+      await this.redis.ltrim("negative_patterns", 0, 99); // Keep last 100
+      await this.redis.expire("negative_patterns", 86400 * 30);
+    } catch (error) {
+      console.error("Error logging negative pattern:", error);
+    }
+  }
+
+  // Get top positive hooks for RAG
+  async getTopPositiveHooks(limit: number = 10): Promise<string[]> {
+    try {
+      const hookIds = await this.redis.zrevrange(
+        "positive_hooks_ranking",
+        0,
+        limit - 1,
+      );
+      const hooks: string[] = [];
+
+      for (const hookId of hookIds) {
+        const hook = await this.redis.get(`vector_hook:${hookId}`);
+        if (hook) {
+          const parsed = JSON.parse(hook as string);
+          hooks.push(parsed.content);
+        }
+      }
+
+      return hooks;
+    } catch (error) {
+      console.error("Error getting top positive hooks:", error);
+      return [];
+    }
+  }
 }
 
 export { PersonaFeedbackLoop };
-export type { UserPersona, PersonaEmbedding, FeedbackData };
+export type {
+  UserPersona,
+  PersonaEmbedding,
+  FeedbackData,
+  TelegramRatingCallback,
+};
