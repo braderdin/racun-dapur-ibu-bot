@@ -15,22 +15,22 @@ try {
   // dotenv not installed or files not present, falling back to native process.env
 }
 
-// Import services dynamically to avoid circular dependencies
+// Import services dynamically with explicit .js extensions to avoid module resolution errors
 async function importServices() {
   const { LazadaLiveScraper } =
-    await import("../src/services/lazada-live-scraper");
-  const { B2WebPUploader } = await import("../src/services/b2-webp-uploader");
+    await import("../src/services/lazada-live-scraper.js");
+  const { B2WebPUploader } = await import("../src/services/b2-webp-uploader.js");
   const { VectorRAGCopywriter } =
-    await import("../src/services/vector-rag-copywriter");
+    await import("../src/services/vector-rag-copywriter.js");
   const { EdgeLinkShortener } =
-    await import("../src/services/edge-link-shortener");
+    await import("../src/services/edge-link-shortener.js");
   const { SocialPosterEngine } =
-    await import("../src/services/social-poster-engine");
+    await import("../src/services/social-poster-engine.js");
   const { TelegramQAInspector } =
-    await import("../src/services/telegram-qa-inspector");
+    await import("../src/services/telegram-qa-inspector.js");
   const { SupabaseRealtimeBroadcaster } =
-    await import("../src/services/supabase-realtime-broadcaster");
-  const { LinkHealthGuard } = await import("../src/services/link-health-guard");
+    await import("../src/services/supabase-realtime-broadcaster.js");
+  const { LinkHealthGuard } = await import("../src/services/link-health-guard.js");
 
   return {
     LazadaLiveScraper,
