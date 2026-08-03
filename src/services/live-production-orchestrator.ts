@@ -29,6 +29,27 @@ export interface PipelineConfig {
   enableRealtime: boolean;
 }
 
+export interface DealExecutionMetadata {
+  dealId: string;
+  productId: string;
+  platform: "lazada" | "shopee";
+  imageUrl: string;
+  webpUrl: string;
+  shortLink: string;
+  shortCode: string;
+  twitterStatus?: "published" | "failed" | "pending";
+  facebookStatus?: "published" | "failed" | "pending";
+  telegramStatus?: "sent" | "failed";
+  realtimeStatus?: "broadcast" | "failed";
+  yieldMetrics?: {
+    clicks: number;
+    conversions: number;
+    ctr: number;
+  };
+  executionTimeMs: number;
+  error?: string;
+}
+
 export interface PipelineResult {
   success: boolean;
   dealsProcessed: number;
@@ -39,6 +60,13 @@ export interface PipelineResult {
   errors: string[];
   warnings: string[];
   timestamp: number;
+  executionTimeMs: number;
+  dealsMetadata: DealExecutionMetadata[];
+  yieldSummary?: {
+    totalClicks: number;
+    totalConversions: number;
+    overallCtr: number;
+  };
 }
 
 export class LiveProductionOrchestrator {
@@ -85,6 +113,7 @@ export class LiveProductionOrchestrator {
    * Execute the full 8-step production pipeline
    */
   async executePipeline(): Promise<PipelineResult> {
+    const pipelineStartTime = Date.now();
     const result: PipelineResult = {
       success: false,
       dealsProcessed: 0,
@@ -95,12 +124,15 @@ export class LiveProductionOrchestrator {
       errors: [],
       warnings: [],
       timestamp: Date.now(),
+      executionTimeMs: 0,
+      dealsMetadata: [],
     };
 
     // Check circuit breaker
     if (this.shouldCircuitBreak()) {
       result.warnings.push("Circuit breaker active - skipping pipeline");
       console.warn("Circuit breaker active, skipping pipeline execution");
+      result.executionTimeMs = Date.now() - pipelineStartTime;
       return result;
     }
 
@@ -109,6 +141,7 @@ export class LiveProductionOrchestrator {
       const deals = await this.fetchDeals();
       if (deals.length === 0) {
         result.warnings.push("No deals found for processing");
+        result.executionTimeMs = Date.now() - pipelineStartTime;
         return result;
       }
 
@@ -117,7 +150,8 @@ export class LiveProductionOrchestrator {
 
       for (const deal of dealsToProcess) {
         try {
-          await this.processDeal(deal, result);
+          const metadata = await this.processDeal(deal, result);
+          result.dealsMetadata.push(metadata);
           result.dealsProcessed++;
         } catch (error) {
           const errorMsg = `Deal ${deal.id} failed: ${error instanceof Error ? error.message : String(error)}`;
@@ -127,6 +161,21 @@ export class LiveProductionOrchestrator {
       }
 
       result.success = result.dealsProcessed > 0;
+
+      // Calculate yield summary
+      const totalClicks = result.dealsMetadata.reduce(
+        (sum, d) => sum + (d.yieldMetrics?.clicks || 0),
+        0,
+      );
+      const totalConversions = result.dealsMetadata.reduce(
+        (sum, d) => sum + (d.yieldMetrics?.conversions || 0),
+        0,
+      );
+      result.yieldSummary = {
+        totalClicks,
+        totalConversions,
+        overallCtr: totalClicks > 0 ? totalConversions / totalClicks : 0,
+      };
     } catch (error) {
       result.errors.push(
         `Pipeline error: ${error instanceof Error ? error.message : String(error)}`,
@@ -134,6 +183,7 @@ export class LiveProductionOrchestrator {
       console.error("Pipeline execution error:", error);
     }
 
+    result.executionTimeMs = Date.now() - pipelineStartTime;
     return result;
   }
 
@@ -216,50 +266,91 @@ export class LiveProductionOrchestrator {
       platform: "lazada" | "shopee";
     },
     result: PipelineResult,
-  ): Promise<void> {
-    // Step 2: Upload to B2 and get WebP URL
-    const webpUrl = await this.uploadToB2(deal.imageUrl, deal.id);
-
-    // Step 3: Generate AI copy
-    const copy = await this.generateCopy(deal.title, deal.price, deal.discount);
-
-    // Step 4: Create shortlink
-    const shortLink = await this.createShortLink(deal.affiliateUrl, deal.id);
-
-    // Step 5-6: Post to X and Facebook
-    const postData: PostData = {
+  ): Promise<DealExecutionMetadata> {
+    const dealStartTime = Date.now();
+    const metadata: DealExecutionMetadata = {
+      dealId: deal.id,
       productId: deal.id,
-      imageUrl: webpUrl,
-      xCopy: copy.x,
-      facebookCopy: copy.facebook,
-      affiliateUrl: deal.affiliateUrl,
-      shortCode: shortLink.code,
-      category: "kitchen",
+      platform: deal.platform,
+      imageUrl: deal.imageUrl,
+      webpUrl: "",
+      shortLink: "",
+      shortCode: "",
+      executionTimeMs: 0,
     };
 
-    const postResult = await this.socialPoster.postToBothPlatforms(postData);
+    try {
+      // Step 2: Upload to B2 and get WebP URL
+      const webpUrl = await this.uploadToB2(deal.imageUrl, deal.id);
+      metadata.webpUrl = webpUrl;
 
-    if (postResult.twitter?.status === "published") {
-      result.twitterPosts++;
-    }
-    if (postResult.facebook?.status === "published") {
-      result.facebookPosts++;
+      // Step 3: Generate AI copy
+      const copy = await this.generateCopy(
+        deal.title,
+        deal.price,
+        deal.discount,
+      );
+
+      // Step 4: Create shortlink
+      const shortLink = await this.createShortLink(deal.affiliateUrl, deal.id);
+      metadata.shortLink = shortLink.url;
+      metadata.shortCode = shortLink.code;
+
+      // Step 5-6: Post to X and Facebook
+      const postData: PostData = {
+        productId: deal.id,
+        imageUrl: webpUrl,
+        xCopy: copy.x,
+        facebookCopy: copy.facebook,
+        affiliateUrl: deal.affiliateUrl,
+        shortCode: shortLink.code,
+        category: "kitchen",
+      };
+
+      const postResult = await this.socialPoster.postToBothPlatforms(postData);
+
+      if (postResult.twitter?.status === "published") {
+        result.twitterPosts++;
+        metadata.twitterStatus = "published";
+      } else if (postResult.twitter?.status === "failed") {
+        metadata.twitterStatus = "failed";
+      }
+
+      if (postResult.facebook?.status === "published") {
+        result.facebookPosts++;
+        metadata.facebookStatus = "published";
+      } else if (postResult.facebook?.status === "failed") {
+        metadata.facebookStatus = "failed";
+      }
+
+      // Step 7: Send Telegram notification
+      if (this.config.enableTelegram) {
+        await this.sendTelegramNotification(deal, postResult, shortLink.url);
+        result.telegramNotifications++;
+        metadata.telegramStatus = "sent";
+      }
+
+      // Step 8: Broadcast to Vercel portal
+      if (this.config.enableRealtime) {
+        await this.broadcastToRealtime(deal, postResult, shortLink.url);
+        result.realtimeBroadcasts++;
+        metadata.realtimeStatus = "broadcast";
+      }
+
+      // Track yield metrics
+      const yieldMetrics = await this.yieldTracker.recordClick(
+        shortLink.code,
+        "production",
+      );
+      metadata.yieldMetrics = yieldMetrics;
+    } catch (error) {
+      metadata.error = error instanceof Error ? error.message : String(error);
+      result.errors.push(`Deal ${deal.id} failed: ${metadata.error}`);
+      console.error(`Deal ${deal.id} failed:`, error);
     }
 
-    // Step 7: Send Telegram notification
-    if (this.config.enableTelegram) {
-      await this.sendTelegramNotification(deal, postResult, shortLink.url);
-      result.telegramNotifications++;
-    }
-
-    // Step 8: Broadcast to Vercel portal
-    if (this.config.enableRealtime) {
-      await this.broadcastToRealtime(deal, postResult, shortLink.url);
-      result.realtimeBroadcasts++;
-    }
-
-    // Track yield metrics
-    await this.yieldTracker.recordClick(shortLink.code, "production");
+    metadata.executionTimeMs = Date.now() - dealStartTime;
+    return metadata;
   }
 
   /**

@@ -37,14 +37,22 @@ export interface PostResult {
     tweet2Id?: string;
     status: "published" | "failed" | "pending";
     error?: string;
+    retryCount?: number;
+    postedAt?: number;
   };
   facebook?: {
     postId?: string;
     commentId?: string;
     status: "published" | "failed" | "pending";
     error?: string;
+    retryCount?: number;
+    postedAt?: number;
   };
   timestamp: number;
+  platformResults?: {
+    twitter: { success: boolean; status: string; error?: string };
+    facebook: { success: boolean; status: string; error?: string };
+  };
 }
 
 export class SocialPosterEngine {
@@ -202,6 +210,8 @@ export class SocialPosterEngine {
           tweet2Id: undefined,
           status: "published",
           error: `Reply failed: ${tweet2Result.error}`,
+          retryCount: 0,
+          postedAt: Date.now(),
         };
       }
 
@@ -209,6 +219,8 @@ export class SocialPosterEngine {
         tweet1Id: tweet1Result.tweetId,
         tweet2Id: tweet2Result.tweetId,
         status: "published",
+        retryCount: 0,
+        postedAt: Date.now(),
       };
     } catch (error) {
       console.error("Error posting to Twitter:", error);
@@ -216,6 +228,7 @@ export class SocialPosterEngine {
       return {
         status: "pending",
         error: error instanceof Error ? error.message : "Unknown error",
+        retryCount: 0,
       };
     }
   }
@@ -275,6 +288,8 @@ export class SocialPosterEngine {
           commentId: undefined,
           status: "published",
           error: `Comment failed: ${commentResult.error}`,
+          retryCount: 0,
+          postedAt: Date.now(),
         };
       }
 
@@ -282,6 +297,8 @@ export class SocialPosterEngine {
         postId: postResult.postId,
         commentId: commentResult.commentId,
         status: "published",
+        retryCount: 0,
+        postedAt: Date.now(),
       };
     } catch (error) {
       console.error("Error posting to Facebook:", error);
@@ -289,6 +306,7 @@ export class SocialPosterEngine {
       return {
         status: "pending",
         error: error instanceof Error ? error.message : "Unknown error",
+        retryCount: 0,
       };
     }
   }

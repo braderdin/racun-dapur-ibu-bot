@@ -1,17 +1,38 @@
 import { Env } from "../types/env";
-import { LazadaLiveOrchestrator } from "../services/lazada-live-orchestrator";
+import {
+  LiveProductionOrchestrator,
+  PipelineResult,
+} from "../services/live-production-orchestrator";
+
+export interface LiveTestRequest {
+  productId?: string;
+  mode?: "dry-run" | "live";
+  maxDeals?: number;
+  userId?: string;
+}
+
+export interface LiveTestResponse {
+  success: boolean;
+  mode: string;
+  pipelineResult?: PipelineResult;
+  simulation?: any;
+  error?: string;
+  message: string;
+  timestamp: number;
+}
 
 export class LiveTestHandler {
-  private orchestrator: LazadaLiveOrchestrator;
+  private orchestrator: LiveProductionOrchestrator;
   private env: Env;
 
   constructor(env: Env) {
     this.env = env;
-    this.orchestrator = new LazadaLiveOrchestrator(env);
+    this.orchestrator = new LiveProductionOrchestrator(env);
   }
 
   /**
-   * Handle incoming HTTP requests for live test execution via Telegram command
+   * Handle incoming HTTP requests for live test execution
+   * Cloudflare Worker endpoint: /api/test/live-run
    * @param request - HTTP request object
    * @param query - Query parameters
    * @returns HTTP response
@@ -22,9 +43,8 @@ export class LiveTestHandler {
 
       // Parse query parameters
       const productId = query.productId || query.id || query.p;
-      const mainTweetId = query.tweetId || query.t;
-      const facebookPagePostId = query.facebookPostId || query.f;
-      const mode = query.mode || "auto";
+      const mode = query.mode || "dry-run";
+      const maxDeals = parseInt(query.maxDeals || "3");
       const userId = query.userId || "telegram_user";
 
       if (!productId) {
@@ -34,41 +54,20 @@ export class LiveTestHandler {
             success: false,
             error: "Product ID is required",
             usage:
-              "/live-test?productId=laz_001[&tweetId=123][&facebookPostId=456][&mode=dry]",
+              "/api/test/live-run?productId=laz_001&mode=dry-run|maxDeals=3",
           },
         };
       }
 
       console.log(`📦 Processing live test for product: ${productId}`);
 
-      // Validate product ID format
-      if (!productId.startsWith("laz_")) {
-        return {
-          status: 400,
-          body: {
-            success: false,
-            error: "Invalid product ID format. Must start with 'laz_'",
-          },
-        };
-      }
-
       // Check if this is a dry run
-      const isDryRun = mode === "dry" || request.method === "GET";
+      const isDryRun = mode === "dry-run";
 
       if (isDryRun) {
-        return await this.handleDryRun(
-          productId,
-          mainTweetId,
-          facebookPagePostId,
-          userId,
-        );
+        return await this.handleDryRun(productId, maxDeals, userId);
       } else {
-        return await this.handleLiveExecution(
-          productId,
-          mainTweetId,
-          facebookPagePostId,
-          userId,
-        );
+        return await this.handleLiveExecution(productId, maxDeals, userId);
       }
     } catch (error) {
       console.error("Error handling live test request:", error);
@@ -86,16 +85,14 @@ export class LiveTestHandler {
   /**
    * Handle dry run test
    * @param productId - Product ID
-   * @param mainTweetId - Main tweet ID
-   * @param facebookPagePostId - Facebook page post ID
+   * @param maxDeals - Maximum deals to process
    * @param userId - User ID
    * @returns Dry run response
    */
   private async handleDryRun(
     productId: string,
-    mainTweetId?: string,
-    facebookPagePostId?: string,
-    userId?: string,
+    maxDeals: number,
+    userId: string,
   ): Promise<any> {
     try {
       console.log(`🧪 Running dry run test for product: ${productId}`);
@@ -103,15 +100,14 @@ export class LiveTestHandler {
       // Simulate the pipeline execution
       const simulationResult = await this.simulatePipelineExecution(
         productId,
-        mainTweetId,
-        facebookPagePostId,
+        maxDeals,
       );
 
       return {
         status: 200,
         body: {
           success: true,
-          mode: "dry_run",
+          mode: "dry-run",
           productId,
           simulation: simulationResult,
           message: "Dry run completed successfully. No actual posts were made.",
@@ -138,22 +134,20 @@ export class LiveTestHandler {
   /**
    * Handle live execution
    * @param productId - Product ID
-   * @param mainTweetId - Main tweet ID
-   * @param facebookPagePostId - Facebook page post ID
+   * @param maxDeals - Maximum deals to process
    * @param userId - User ID
    * @returns Live execution response
    */
   private async handleLiveExecution(
     productId: string,
-    mainTweetId?: string,
-    facebookPagePostId?: string,
-    userId?: string,
+    maxDeals: number,
+    userId: string,
   ): Promise<any> {
     try {
       console.log(`🌐 Running live execution for product: ${productId}`);
 
       // Validate user permissions
-      const userValidation = await this.validateUserAccess(userId || "");
+      const userValidation = await this.validateUserAccess(userId);
       if (!userValidation.allowed) {
         return {
           status: 403,
@@ -166,11 +160,7 @@ export class LiveTestHandler {
       }
 
       // Execute the live pipeline
-      const pipelineResult = await this.orchestrator.executeLivePipeline(
-        productId,
-        mainTweetId,
-        facebookPagePostId,
-      );
+      const pipelineResult = await this.orchestrator.executePipeline();
 
       return {
         status: 200,
@@ -235,14 +225,12 @@ export class LiveTestHandler {
   /**
    * Simulate pipeline execution for dry run
    * @param productId - Product ID
-   * @param mainTweetId - Main tweet ID
-   * @param facebookPagePostId - Facebook page post ID
+   * @param maxDeals - Maximum deals to simulate
    * @returns Simulation result
    */
   private async simulatePipelineExecution(
     productId: string,
-    mainTweetId?: string,
-    facebookPagePostId?: string,
+    maxDeals: number,
   ): Promise<any> {
     const simulation: {
       productId: string;
