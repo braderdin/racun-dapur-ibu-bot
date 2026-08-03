@@ -189,7 +189,7 @@ export class RedisService {
     // We'll store as a JSON array
     const existing = await this.get(key);
     const set = existing ? new Set(JSON.parse(existing)) : new Set();
-    members.forEach(m => set.add(m));
+    members.forEach((m) => set.add(m));
     await this.set(key, JSON.stringify([...set]));
     return set.size;
   }

@@ -111,7 +111,9 @@ class TelegramQuickActions {
     callbackData: string,
   ): "delete_x_post" | "delete_fb_post" | "regenerate_copy" | undefined {
     const validActions = ["delete_x_post", "delete_fb_post", "regenerate_copy"];
-    return validActions.includes(callbackData) ? (callbackData as any) : undefined;
+    return validActions.includes(callbackData)
+      ? (callbackData as any)
+      : undefined;
   }
 
   private async executeAction(

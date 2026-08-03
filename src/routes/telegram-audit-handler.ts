@@ -580,7 +580,10 @@ class TelegramAuditHandler {
   ): Promise<boolean> {
     try {
       // Map alertType to valid messageType
-      const messageTypeMap: Record<string, "visual_audit" | "emergency_alert" | "manual_qa"> = {
+      const messageTypeMap: Record<
+        string,
+        "visual_audit" | "emergency_alert" | "manual_qa"
+      > = {
         manual_qa: "manual_qa",
         system_error: "emergency_alert",
         performance_issue: "emergency_alert",

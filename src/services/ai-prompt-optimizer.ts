@@ -452,7 +452,9 @@ class AIPromptOptimizer {
         max_tokens: 500,
       });
 
-      const result = JSON.parse(optimization.choices[0].message.content || "{}");
+      const result = JSON.parse(
+        optimization.choices[0].message.content || "{}",
+      );
 
       const optimizedPrompt: OptimizedPrompt = {
         systemPrompt: result.systemPrompt || systemPrompt,
