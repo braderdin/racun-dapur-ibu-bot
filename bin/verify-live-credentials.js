@@ -170,6 +170,7 @@ async function testFacebook() {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
+    // Use /me endpoint with Page Access Token - returns Page ID and Page Name
     const response = await fetch(
       `https://graph.facebook.com/v19.0/me?fields=id,name&access_token=${pageToken}`,
       {
@@ -179,12 +180,12 @@ async function testFacebook() {
     clearTimeout(timeoutId);
 
     if (response.ok) {
-      const data = await response.json();
-      if (data.id && data.name) {
+      const resData = await response.json();
+      if (resData.id && resData.name) {
         addResult(
           "Meta Facebook Graph API",
           "PASS",
-          `Page ID: ${data.id}, Name: ${data.name}`,
+          `Page Name: ${resData.name}`,
         );
       } else {
         addResult(
@@ -194,7 +195,17 @@ async function testFacebook() {
         );
       }
     } else {
-      addResult("Meta Facebook Graph API", "FAIL", `HTTP ${response.status}`);
+      const resData = await response.json().catch(() => ({}));
+      const errorMessage = resData.error?.message || "Unknown error";
+      console.log(
+        `  ❌ Meta Facebook Graph API - Detailed Error:`,
+        JSON.stringify(resData, null, 2),
+      );
+      addResult(
+        "Meta Facebook Graph API",
+        "FAIL",
+        `HTTP ${response.status}: ${errorMessage}`,
+      );
     }
   } catch (err) {
     addResult(
