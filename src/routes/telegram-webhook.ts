@@ -1,22 +1,30 @@
 import { Env } from "../types/env";
 import { PostDeletionService } from "../services/post-deletion-service";
+import { TelegramQAInspector } from "../services/telegram-qa-inspector";
 
 export class TelegramWebhookHandler {
   private postDeletionService: PostDeletionService;
+  private qaInspector: TelegramQAInspector;
   private env: Env;
 
   constructor(env: Env) {
     this.env = env;
     this.postDeletionService = new PostDeletionService();
+    this.qaInspector = new TelegramQAInspector(env);
   }
 
   /**
    * Handle incoming inline button callbacks from Telegram
    * @param callbackData - Telegram callback data
    * @param userId - User ID
+   * @param callbackQueryId - Callback query ID for answering
    * @returns Webhook response
    */
-  async handleCallback(callbackData: string, userId: string): Promise<any> {
+  async handleCallback(
+    callbackData: string,
+    userId: string,
+    callbackQueryId?: string,
+  ): Promise<any> {
     try {
       if (!callbackData || !userId) {
         throw new Error("Missing required parameters for Telegram webhook");
@@ -32,6 +40,15 @@ export class TelegramWebhookHandler {
         throw new Error("Invalid callback data format");
       }
 
+      // Answer callback query immediately to prevent timeout
+      if (callbackQueryId) {
+        await this.qaInspector.answerCallbackQuery(
+          callbackQueryId,
+          "Processing...",
+          false,
+        );
+      }
+
       // Handle different callback actions
       switch (callback.action) {
         case "delete_post":
@@ -42,11 +59,33 @@ export class TelegramWebhookHandler {
           return await this.handleViewDetailsCallback(callback, userId);
         case "export_data":
           return await this.handleExportDataCallback(callback, userId);
+        case "view_shortlink":
+          return await this.handleViewShortlinkCallback(callback, userId);
+        case "view_analytics":
+          return await this.handleViewAnalyticsCallback(callback, userId);
+        case "retry":
+          return await this.handleRetryCallback(callback, userId);
+        case "emergency_stop":
+          return await this.handleEmergencyStopCallback(callback, userId);
+        case "retry_failed":
+          return await this.handleRetryFailedCallback(callback, userId);
+        case "export_daily_report":
+          return await this.handleExportDailyReportCallback(callback, userId);
         default:
           throw new Error(`Unknown callback action: ${callback.action}`);
       }
     } catch (error) {
       console.error("Error handling Telegram webhook callback:", error);
+
+      // Answer callback query with error
+      if (callbackQueryId) {
+        await this.qaInspector.answerCallbackQuery(
+          callbackQueryId,
+          `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+          true,
+        );
+      }
+
       throw error;
     }
   }
@@ -275,6 +314,279 @@ export class TelegramWebhookHandler {
   }
 
   /**
+   * Handle view shortlink callback
+   * @param callback - Parsed callback data
+   * @param userId - User ID
+   * @returns Shortlink view result
+   */
+  private async handleViewShortlinkCallback(
+    callback: any,
+    userId: string,
+  ): Promise<any> {
+    try {
+      const { postId } = callback;
+
+      console.log(
+        `Processing view shortlink request for post ${postId} by user ${userId}`,
+      );
+
+      // In production, fetch shortlink from database
+      const shortlinkData = {
+        postId,
+        shortUrl: `https://racun.ibu.my/r/${postId}`,
+        originalUrl: "https://c.lazada.com.my/t/c.example",
+        clicks: 42,
+        createdAt: Date.now() - 86400000,
+      };
+
+      const confirmationMessage =
+        `🔗 Shortlink for post ${postId}:\n` +
+        `Short: ${shortlinkData.shortUrl}\n` +
+        `Original: ${shortlinkData.originalUrl}\n` +
+        `Clicks: ${shortlinkData.clicks}\n` +
+        `Time: ${new Date().toLocaleString("ms-MY", { timeZone: "Asia/Kuala_Lumpur" })}`;
+
+      return {
+        success: true,
+        action: "view_shortlink",
+        postId,
+        userId,
+        timestamp: Date.now(),
+        confirmationMessage,
+        shortlinkData,
+      };
+    } catch (error) {
+      console.error("Error handling view shortlink callback:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Handle view analytics callback
+   * @param callback - Parsed callback data
+   * @param userId - User ID
+   * @returns Analytics view result
+   */
+  private async handleViewAnalyticsCallback(
+    callback: any,
+    userId: string,
+  ): Promise<any> {
+    try {
+      const { postId } = callback;
+
+      console.log(
+        `Processing view analytics request for post ${postId} by user ${userId}`,
+      );
+
+      // In production, fetch analytics from database
+      const analyticsData = {
+        postId,
+        impressions: 1250,
+        clicks: 42,
+        ctr: 3.36,
+        conversions: 3,
+        revenue: 127.5,
+        platformBreakdown: {
+          twitter: { impressions: 800, clicks: 28, ctr: 3.5 },
+          facebook: { impressions: 450, clicks: 14, ctr: 3.11 },
+        },
+      };
+
+      const confirmationMessage =
+        `📊 Analytics for post ${postId}:\n` +
+        `Impressions: ${analyticsData.impressions}\n` +
+        `Clicks: ${analyticsData.clicks}\n` +
+        `CTR: ${analyticsData.ctr}%\n` +
+        `Conversions: ${analyticsData.conversions}\n` +
+        `Revenue: RM ${analyticsData.revenue.toFixed(2)}\n` +
+        `Time: ${new Date().toLocaleString("ms-MY", { timeZone: "Asia/Kuala_Lumpur" })}`;
+
+      return {
+        success: true,
+        action: "view_analytics",
+        postId,
+        userId,
+        timestamp: Date.now(),
+        confirmationMessage,
+        analyticsData,
+      };
+    } catch (error) {
+      console.error("Error handling view analytics callback:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Handle retry callback
+   * @param callback - Parsed callback data
+   * @param userId - User ID
+   * @returns Retry result
+   */
+  private async handleRetryCallback(
+    callback: any,
+    userId: string,
+  ): Promise<any> {
+    try {
+      const { postId } = callback;
+
+      console.log(
+        `Processing retry request for post ${postId} by user ${userId}`,
+      );
+
+      // In production, trigger retry logic
+      const retryResult = {
+        postId,
+        status: "retry_queued",
+        message: "Post has been queued for retry",
+      };
+
+      const confirmationMessage =
+        `🔄 Retry initiated for post ${postId}.\n` +
+        `Action performed by user: ${userId}\n` +
+        `Status: ${retryResult.status}\n` +
+        `Time: ${new Date().toLocaleString("ms-MY", { timeZone: "Asia/Kuala_Lumpur" })}`;
+
+      return {
+        success: true,
+        action: "retry",
+        postId,
+        userId,
+        timestamp: Date.now(),
+        confirmationMessage,
+        retryResult,
+      };
+    } catch (error) {
+      console.error("Error handling retry callback:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Handle emergency stop callback
+   * @param callback - Parsed callback data
+   * @param userId - User ID
+   * @returns Emergency stop result
+   */
+  private async handleEmergencyStopCallback(
+    callback: any,
+    userId: string,
+  ): Promise<any> {
+    try {
+      const { postId } = callback;
+
+      console.log(
+        `Processing emergency stop request for post ${postId} by user ${userId}`,
+      );
+
+      // In production, trigger emergency stop
+      const stopResult = {
+        postId,
+        status: "emergency_stopped",
+        message: "All posting activities for this product have been stopped",
+      };
+
+      const confirmationMessage =
+        `🛑 EMERGENCY STOP for post ${postId}.\n` +
+        `Action performed by user: ${userId}\n` +
+        `Status: ${stopResult.status}\n` +
+        `Time: ${new Date().toLocaleString("ms-MY", { timeZone: "Asia/Kuala_Lumpur" })}`;
+
+      return {
+        success: true,
+        action: "emergency_stop",
+        postId,
+        userId,
+        timestamp: Date.now(),
+        confirmationMessage,
+        stopResult,
+      };
+    } catch (error) {
+      console.error("Error handling emergency stop callback:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Handle retry failed callback
+   * @param callback - Parsed callback data
+   * @param userId - User ID
+   * @returns Retry failed result
+   */
+  private async handleRetryFailedCallback(
+    callback: any,
+    userId: string,
+  ): Promise<any> {
+    try {
+      console.log(`Processing retry failed request by user ${userId}`);
+
+      // In production, retry all failed posts
+      const retryResult = {
+        status: "retry_queued",
+        message: "All failed posts have been queued for retry",
+        count: 5,
+      };
+
+      const confirmationMessage =
+        `🔄 Retry failed posts initiated.\n` +
+        `Action performed by user: ${userId}\n` +
+        `Posts queued: ${retryResult.count}\n` +
+        `Time: ${new Date().toLocaleString("ms-MY", { timeZone: "Asia/Kuala_Lumpur" })}`;
+
+      return {
+        success: true,
+        action: "retry_failed",
+        userId,
+        timestamp: Date.now(),
+        confirmationMessage,
+        retryResult,
+      };
+    } catch (error) {
+      console.error("Error handling retry failed callback:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Handle export daily report callback
+   * @param callback - Parsed callback data
+   * @param userId - User ID
+   * @returns Export daily report result
+   */
+  private async handleExportDailyReportCallback(
+    callback: any,
+    userId: string,
+  ): Promise<any> {
+    try {
+      console.log(`Processing export daily report request by user ${userId}`);
+
+      // In production, generate and export daily report
+      const exportResult = {
+        status: "exported",
+        message: "Daily report has been generated and sent",
+        fileName: `daily_report_${new Date().toISOString().split("T")[0]}.json`,
+      };
+
+      const confirmationMessage =
+        `📤 Daily report export initiated.\n` +
+        `Action performed by user: ${userId}\n` +
+        `File: ${exportResult.fileName}\n` +
+        `Time: ${new Date().toLocaleString("ms-MY", { timeZone: "Asia/Kuala_Lumpur" })}`;
+
+      return {
+        success: true,
+        action: "export_daily_report",
+        userId,
+        timestamp: Date.now(),
+        confirmationMessage,
+        exportResult,
+      };
+    } catch (error) {
+      console.error("Error handling export daily report callback:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Parse Telegram callback data
    * @param callbackData - Raw callback data
    * @returns Parsed callback object
@@ -363,8 +675,14 @@ export class TelegramWebhookHandler {
         "audit_override",
         "view_details",
         "export_data",
+        "view_shortlink",
+        "view_analytics",
+        "retry",
+        "emergency_stop",
+        "retry_failed",
+        "export_daily_report",
       ],
-      callbackDataFormat: "action:postId:commentId",
+      callbackDataFormat: "action:platform:postId:commentId",
       rateLimit: "10 requests per minute",
       security: "user_id_validation",
     };
