@@ -6,7 +6,7 @@
  * Lazada API -> WebP B2 -> AI Copywriter -> Social Poster -> Telegram QA Audit
  */
 
-import { config } from "dotenv";
+const { config } = require("dotenv");
 
 // Load environment variables
 config({ path: ".dev.vars" });
