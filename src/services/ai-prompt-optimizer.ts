@@ -195,7 +195,7 @@ class AIPromptOptimizer {
         tone: "formal",
         length: "medium",
         emojiUsage: "minimal",
-        template: `Expert baby care recommendations for Malaysian families. Based on pediatric research and local health guidelines. Product reviews, safety standards, and purchasing guides. Your baby\'s health matters! 👶`,
+        template: `Expert baby care recommendations for Malaysian families. Based on pediatric research and local health guidelines. Product reviews, safety standards, and purchasing guides. Your baby's health matters! 👶`,
         culturalElements: [
           "expert advice",
           "pediatric research",
@@ -240,7 +240,7 @@ class AIPromptOptimizer {
         tone: "friendly",
         length: "medium",
         emojiUsage: "moderate",
-        template: `Skincare journey: Sharing our Malaysian beauty routines! From traditional herbs to modern formulas, we\'ve discovered what works! Let's build a community of beautiful, confident Malaysian women! 💆‍♀️✨`,
+        template: `Skincare journey: Sharing our Malaysian beauty routines! From traditional herbs to modern formulas, we've discovered what works! Let's build a community of beautiful, confident Malaysian women! 💆‍♀️✨`,
         culturalElements: [
           "beauty journey",
           "traditional herbs",
