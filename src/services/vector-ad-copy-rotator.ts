@@ -172,7 +172,7 @@ export class VectorAdCopyRotator {
         throw new Error(`Embedding API error: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data: { data?: Array<{ embedding: number[] }> } = await response.json();
       return data.data?.[0]?.embedding || [];
     } catch (error) {
       logger.error(
