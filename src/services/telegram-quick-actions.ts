@@ -123,6 +123,8 @@ class TelegramQuickActions {
     | "rate_pos"
     | "rate_neg"
     | "regen_ai"
+    | "autofix_ai"
+    | "view_ai_audit"
     | undefined {
     const validActions = [
       "delete_x_post",
@@ -131,6 +133,8 @@ class TelegramQuickActions {
       "rate_pos",
       "rate_neg",
       "regen_ai",
+      "autofix_ai",
+      "view_ai_audit",
     ];
     return validActions.includes(callbackData)
       ? (callbackData as any)
@@ -148,9 +152,21 @@ class TelegramQuickActions {
               text: "👎 Kurang Menyengat",
               callback_data: `cb:rate_neg:${dealId}`,
             },
+          ],
+          [
             {
               text: "🔄 Re-generate AI",
               callback_data: `cb:regen_ai:${dealId}`,
+            },
+          ],
+          [
+            {
+              text: "🛠️ Auto-Betulkan AI",
+              callback_data: `cb:autofix_ai:${dealId}`,
+            },
+            {
+              text: "📝 Lihat Audit AI",
+              callback_data: `cb:view_ai_audit:${dealId}`,
             },
           ],
         ],
@@ -186,6 +202,10 @@ class TelegramQuickActions {
         return await this.handleNegativeRating(callback);
       case "regen_ai":
         return await this.handleRegenerateAI(callback);
+      case "autofix_ai":
+        return await this.handleAutoFixAI(callback);
+      case "view_ai_audit":
+        return await this.handleViewAIAudit(callback);
       default:
         return {
           success: false,
@@ -193,6 +213,96 @@ class TelegramQuickActions {
           message: "Unknown action type",
           timestamp: Date.now(),
         };
+    }
+  }
+
+  // Handle auto-fix AI request - re-runs generation with stricter tone constraints
+  private async handleAutoFixAI(
+    callback: TelegramCallback,
+  ): Promise<QuickActionResult> {
+    try {
+      const dealId = callback.metadata.postId || "unknown";
+
+      // Log autofix request
+      await this.logAction(callback.userId, "autofix_ai", dealId);
+
+      // Store request for AI to process with stricter tone constraints
+      await this.redis.hset(`autofix_request:${dealId}`, {
+        dealId,
+        timestamp: Date.now(),
+        userId: callback.userId,
+        status: "pending",
+        toneConstraints: "strict_malaysian",
+      });
+
+      return {
+        success: true,
+        action: "autofix_ai",
+        message: `AI copywriting untuk deal ${dealId} sedang diproses dengan nada Malay yang ketat. Sila tunggu sebentar...`,
+        timestamp: Date.now(),
+      };
+    } catch (error) {
+      console.error("Error handling auto-fix AI:", error);
+      return {
+        success: false,
+        action: "autofix_ai",
+        message: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+        timestamp: Date.now(),
+      };
+    }
+  }
+
+  // Handle view AI audit request - shows detailed latency, hallucination score, and model metadata
+  private async handleViewAIAudit(
+    callback: TelegramCallback,
+  ): Promise<QuickActionResult> {
+    try {
+      const dealId = callback.metadata.postId || "unknown";
+
+      // Retrieve AI audit data from Redis
+      const auditKey = `ai_audit:${dealId}`;
+      const auditData = await this.redis.get(auditKey);
+
+      if (!auditData) {
+        return {
+          success: true,
+          action: "view_ai_audit",
+          message: `Tiada data audit AI untuk deal ${dealId}. Audit pertama kali atau data telah lalui TTL.`,
+          timestamp: Date.now(),
+        };
+      }
+
+      const audit = JSON.parse(auditData as string);
+
+      // Format audit report
+      const report = [
+        `📊 *Audit AI untuk Deal ${dealId}*`,
+        ``,
+        `*Latency:* ${audit.latency ? audit.latency + "ms" : "N/A"}`,
+        `*Model:* ${audit.model || "openrouter/free"}`,
+        `*Hallucination Score:* ${(audit.hallucinationScore * 100).toFixed(1)}%`,
+        `*Cultural Fit Score:* ${(audit.culturalFitScore * 100).toFixed(1)}%`,
+        `*Tokens:* ${audit.tokens ? `${audit.tokens.prompt}/${audit.tokens.completion}` : "N/A"}`,
+        `*Timestamp:* ${new Date(audit.timestamp).toLocaleString("ms_MY")}`,
+      ].join("\n");
+
+      // Log view audit action
+      await this.logAction(callback.userId, "view_ai_audit", dealId);
+
+      return {
+        success: true,
+        action: "view_ai_audit",
+        message: report,
+        timestamp: Date.now(),
+      };
+    } catch (error) {
+      console.error("Error handling view AI audit:", error);
+      return {
+        success: false,
+        action: "view_ai_audit",
+        message: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+        timestamp: Date.now(),
+      };
     }
   }
 
