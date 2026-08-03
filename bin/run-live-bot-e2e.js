@@ -189,15 +189,21 @@ class LiveBotE2ETestRunner {
     if (!this.config.skipStages.includes("copywriter")) {
       const result = await this.runStage("Vector RAG Copywriter", async () => {
         const copywriter = new services.VectorRAGCopywriter(this.env);
-        const copy = await copywriter.generateDualPlatformCopy({
+        const xCopy = await copywriter.generateCopyWithRAG({
           category: "kitchen",
           productType: "air fryer",
           priceRange: "mid",
           season: "all",
-        });
-        this.log(`X Copy: ${copy.xCopy.hook.substring(0, 50)}...`);
-        this.log(`FB Copy: ${copy.facebookCopy.hook.substring(0, 50)}...`);
-        return copy;
+        }, "x");
+        const facebookCopy = await copywriter.generateCopyWithRAG({
+          category: "kitchen",
+          productType: "air fryer",
+          priceRange: "mid",
+          season: "all",
+        }, "facebook");
+        this.log(`X Copy: ${xCopy.hook.substring(0, 50)}...`);
+        this.log(`FB Copy: ${facebookCopy.hook.substring(0, 50)}...`);
+        return { xCopy, facebookCopy };
       });
       this.results.push({ stage: "Vector RAG Copywriter", ...result });
     }
