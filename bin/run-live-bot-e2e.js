@@ -19,11 +19,13 @@ try {
 async function importServices() {
   const lazadaModule = await import("../src/services/lazada-live-scraper");
   const b2Module = await import("../src/services/b2-webp-uploader");
-  const copywriterModule = await import("../src/services/vector-rag-copywriter");
+  const copywriterModule =
+    await import("../src/services/vector-rag-copywriter");
   const shortenerModule = await import("../src/services/edge-link-shortener");
   const posterModule = await import("../src/services/social-poster-engine");
   const telegramModule = await import("../src/services/telegram-qa-inspector");
-  const realtimeModule = await import("../src/services/supabase-realtime-broadcaster");
+  const realtimeModule =
+    await import("../src/services/supabase-realtime-broadcaster");
   const healthModule = await import("../src/services/link-health-guard");
 
   return {
@@ -33,7 +35,8 @@ async function importServices() {
     EdgeLinkShortener: shortenerModule.default.EdgeLinkShortener,
     SocialPosterEngine: posterModule.default.SocialPosterEngine,
     TelegramQAInspector: telegramModule.default.TelegramQAInspector,
-    SupabaseRealtimeBroadcaster: realtimeModule.default.SupabaseRealtimeBroadcaster,
+    SupabaseRealtimeBroadcaster:
+      realtimeModule.default.SupabaseRealtimeBroadcaster,
     LinkHealthGuard: healthModule.default.LinkHealthGuard,
   };
 }
@@ -189,18 +192,24 @@ class LiveBotE2ETestRunner {
     if (!this.config.skipStages.includes("copywriter")) {
       const result = await this.runStage("Vector RAG Copywriter", async () => {
         const copywriter = new services.VectorRAGCopywriter(this.env);
-        const xCopy = await copywriter.generateCopyWithRAG({
-          category: "kitchen",
-          productType: "air fryer",
-          priceRange: "mid",
-          season: "all",
-        }, "x");
-        const facebookCopy = await copywriter.generateCopyWithRAG({
-          category: "kitchen",
-          productType: "air fryer",
-          priceRange: "mid",
-          season: "all",
-        }, "facebook");
+        const xCopy = await copywriter.generateCopyWithRAG(
+          {
+            category: "kitchen",
+            productType: "air fryer",
+            priceRange: "mid",
+            season: "all",
+          },
+          "x",
+        );
+        const facebookCopy = await copywriter.generateCopyWithRAG(
+          {
+            category: "kitchen",
+            productType: "air fryer",
+            priceRange: "mid",
+            season: "all",
+          },
+          "facebook",
+        );
         this.log(`X Copy: ${xCopy.hook.substring(0, 50)}...`);
         this.log(`FB Copy: ${facebookCopy.hook.substring(0, 50)}...`);
         return { xCopy, facebookCopy };
