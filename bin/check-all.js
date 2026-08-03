@@ -46,11 +46,61 @@ function logStatus(status, text) {
   }
 }
 
+/**
+ * Cleans Stage 4 build output by filtering out Prettier noise (e.g. "(unchanged)")
+ */
+function cleanBuildOutput(rawOutput) {
+  if (!rawOutput) return "No output captured from build command.";
+
+  const lines = rawOutput.split("\n");
+  const filteredLines = lines.filter((line) => {
+    const trimmed = line.trim();
+    return (
+      !trimmed.endsWith("(unchanged)") &&
+      !trimmed.endsWith("(formatted)") &&
+      !/\d+ms \(unchanged\)$/.test(trimmed)
+    );
+  });
+
+  let cleanedText = filteredLines.join("\n").trim();
+
+  // Keep the most relevant tail lines if the output is still long
+  const cleanLines = cleanedText.split("\n");
+  if (cleanLines.length > 50) {
+    cleanedText =
+      "[... Prettier / Verbose logs stripped for clarity ...]\n" +
+      cleanLines.slice(-50).join("\n");
+  }
+
+  return cleanedText;
+}
+
+/**
+ * Analyzes Stage 4 error output to extract error count and key lines
+ */
+function analyzeBuildError(cleanedOutput) {
+  const lines = cleanedOutput.split("\n");
+  const errorLines = lines.filter((l) => {
+    const lower = l.toLowerCase();
+    return (
+      lower.includes("error") ||
+      lower.includes("failed") ||
+      lower.includes("err!") ||
+      lower.includes("ts")
+    );
+  });
+
+  return {
+    count: Math.max(1, errorLines.length),
+    summaryLines: errorLines.slice(-5),
+  };
+}
+
 const startTime = Date.now();
 const results = {
   typeScript: { passed: false, output: "", time: 0 },
   eslint: { passed: false, output: "", time: 0 },
-  build: { passed: false, output: "", time: 0 },
+  build: { passed: false, output: "", time: 0, errorCount: 0 },
   environment: { passed: false, output: "", time: 0 },
 };
 
@@ -64,7 +114,6 @@ console.log(
 );
 const tsStart = Date.now();
 try {
-  // Check if bin/check-ts.js exists in project root, else fallback to tsc directly
   const checkTsPath = path.join(__dirname, "check-ts.js");
   let command = fs.existsSync(checkTsPath)
     ? "node bin/check-ts.js"
@@ -115,50 +164,79 @@ console.log(
 );
 const envStart = Date.now();
 const envPath = path.join(process.cwd(), ".env");
-if (fs.existsSync(envPath)) {
+const envLocalPath = path.join(process.cwd(), ".env.local");
+const devVarsPath = path.join(process.cwd(), ".dev.vars");
+
+if (
+  fs.existsSync(envPath) ||
+  fs.existsSync(envLocalPath) ||
+  fs.existsSync(devVarsPath)
+) {
   results.environment.passed = true;
-  results.environment.output = ".env file detected in workspace root.";
-  logStatus("SUCCESS", "Environment configuration file (.env) exists!");
+  const detectedFile = fs.existsSync(envPath)
+    ? ".env"
+    : fs.existsSync(envLocalPath)
+      ? ".env.local"
+      : ".dev.vars";
+  results.environment.output = `Environment file (${detectedFile}) detected in workspace root.`;
+  logStatus("SUCCESS", `Environment configuration file (${detectedFile}) exists!`);
 } else {
   results.environment.passed = false;
-  results.environment.output = "Missing .env file in root directory!";
+  results.environment.output = "Missing .env / .env.local / .dev.vars file in root directory!";
   logStatus(
     "WARN",
-    "No .env file found in workspace root. Please ensure env vars are set.",
+    "No .env / .env.local / .dev.vars file found in workspace root. Please ensure env vars are set.",
   );
 }
 results.environment.time = ((Date.now() - envStart) / 1000).toFixed(2);
 
 // ==========================================
-// STAGE 4: BUILD & BUNDLING CHECK
+// STAGE 4: BUILD & BUNDLING CHECK (ENHANCED)
 // ==========================================
 console.log(
   `\n${colors.bright}👉 Stage 4/4: Testing Project Build / Bundling...${colors.reset}`,
 );
 const buildStart = Date.now();
-try {
-  // Check build script in package.json
-  const pkgPath = path.join(process.cwd(), "package.json");
-  let buildCmd = "npx wrangler deploy --dry-run"; // Fallback to wrangler dry run
+const pkgPath = path.join(process.cwd(), "package.json");
+let buildCmd = "npx wrangler deploy --dry-run";
 
-  if (fs.existsSync(pkgPath)) {
+if (fs.existsSync(pkgPath)) {
+  try {
     const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
     if (pkg.scripts && pkg.scripts.build) {
       buildCmd = "npm run build";
     }
+  } catch (e) {
+    // Fallback if package.json read fails
   }
+}
 
+try {
   const stdout = execSync(buildCmd, {
     encoding: "utf8",
     stdio: ["pipe", "pipe", "pipe"],
   });
   results.build.passed = true;
-  results.build.output = stdout;
+  results.build.output = cleanBuildOutput(stdout);
   logStatus("SUCCESS", `Project build test succeeded via (${buildCmd})!`);
 } catch (error) {
   results.build.passed = false;
-  results.build.output = error.stdout || error.stderr || error.message;
-  logStatus("FAILED", "Project build test failed!");
+  const rawOutput =
+    (error.stdout || "") +
+    "\n" +
+    (error.stderr || "") +
+    "\n" +
+    (error.message || "");
+  const cleaned = cleanBuildOutput(rawOutput);
+  results.build.output = cleaned;
+
+  const analysis = analyzeBuildError(cleaned);
+  results.build.errorCount = analysis.count;
+
+  logStatus(
+    "FAILED",
+    `Project build test failed via (${buildCmd})! Detected ~${analysis.count} error/warning trace line(s).`,
+  );
 }
 results.build.time = ((Date.now() - buildStart) / 1000).toFixed(2);
 
@@ -181,7 +259,7 @@ console.log(
   `  3. Environment Check: ${results.environment.passed ? "✅ PASSED" : "⚠️ WARN"} (${results.environment.time}s)`,
 );
 console.log(
-  `  4. Project Build    : ${results.build.passed ? "✅ PASSED" : "❌ FAILED"} (${results.build.time}s)`,
+  `  4. Project Build    : ${results.build.passed ? "✅ PASSED" : "❌ FAILED"} (${results.build.time}s) [${results.build.passed ? "Clean" : results.build.errorCount + " Error Trace(s)"}]`,
 );
 
 console.log("\n" + "─".repeat(73));
@@ -214,7 +292,7 @@ if (allPassed) {
   }
   if (!results.build.passed) {
     console.log(
-      `#### ❌ 3. BUILD FAILURE LOGS:\n\`\`\`text\n${results.build.output.trim()}\n\`\`\`\n`,
+      `#### ❌ 3. BUILD FAILURE LOGS (Filtered Clean Trace - ${results.build.errorCount} Error Issue(s)):\n\`\`\`text\n${results.build.output.trim()}\n\`\`\`\n`,
     );
   }
 
