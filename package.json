@@ -38,6 +38,7 @@
     "@upstash/qstash": "^2.11.3",
     "@upstash/redis": "^1.38.1",
     "commander": "^15.0.0",
+    "dotenv": "^17.4.2",
     "nanoid": "^6.0.0",
     "next": "^16.2.12",
     "openai": "^7.3.0",
