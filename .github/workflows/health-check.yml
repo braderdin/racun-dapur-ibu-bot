@@ -36,7 +36,7 @@ jobs:
       - name: Set up environment variables
         run: |
           echo "Setting up environment variables"
-          echo "HEALTH_ENDPOINT=https://worker.ray.com/health" >> $GITHUB_ENV
+          echo "HEALTH_ENDPOINT=https://racun-dapur-ibu-bot.braderdinyes4g.workers.dev/health" >> $GITHUB_ENV
 
       - name: Perform Health Check
         run: |
@@ -155,7 +155,7 @@ on:
       health_endpoint:
         description: "Health endpoint URL"
         required: false
-        default: "https://worker.ray.com/health"
+        default: "https://racun-dapur-ibu-bot.braderdinyes4g.workers.dev/health"
 
 jobs:
   manual-health-check:
@@ -178,9 +178,9 @@ jobs:
       - name: Perform manual health check
         run: |
           echo "🔍 Performing manual health check..."
-          echo "Endpoint: ${{ github.event.inputs.health_endpoint || 'https://worker.ray.com/health' }}"
+          echo "Endpoint: ${{ github.event.inputs.health_endpoint || 'https://racun-dapur-ibu-bot.braderdinyes4g.workers.dev/health' }}"
 
-          HEALTH_ENDPOINT="${{ github.event.inputs.health_endpoint || 'https://worker.ray.com/health' }}"
+          HEALTH_ENDPOINT="${{ github.event.inputs.health_endpoint || 'https://racun-dapur-ibu-bot.braderdinyes4g.workers.dev/health' }}"
 
           HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_ENDPOINT")
 
