@@ -10,6 +10,14 @@ const { execSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
+// Import twitter-api-v2 for OAuth 1.0a user context testing
+let TwitterApi;
+try {
+  TwitterApi = require("twitter-api-v2").TwitterApi;
+} catch (e) {
+  console.warn("⚠️  twitter-api-v2 not installed. Twitter test may fail.");
+}
+
 // Load dotenv safely
 let dotenv;
 try {
@@ -93,9 +101,27 @@ async function testTelegram() {
 }
 
 async function testTwitter() {
-  const bearerToken = process.env.X_BEARER_TOKEN || process.env.X_API_KEY;
-  if (!bearerToken) {
-    addResult("X (Twitter) API v2", "FAIL", "No X_BEARER_TOKEN or X_API_KEY");
+  const appKey = process.env.X_API_KEY || process.env.X_Consumer_Key;
+  const appSecret =
+    process.env.X_API_KEY_SECRET || process.env.X_Consumer_Key_Secret;
+  const accessToken = process.env.X_ACCESS_TOKEN;
+  const accessSecret = process.env.X_ACCESS_TOKEN_SECRET;
+
+  if (!appKey || !appSecret || !accessToken || !accessSecret) {
+    addResult(
+      "X (Twitter) API v2",
+      "FAIL",
+      "Missing OAuth 1.0a credentials (X_API_KEY, X_API_KEY_SECRET, X_ACCESS_TOKEN, X_ACCESS_TOKEN_SECRET)",
+    );
+    return;
+  }
+
+  if (!TwitterApi) {
+    addResult(
+      "X (Twitter) API v2",
+      "FAIL",
+      "twitter-api-v2 package not installed",
+    );
     return;
   }
 
@@ -103,22 +129,23 @@ async function testTwitter() {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-    const response = await fetch("https://api.twitter.com/2/users/me", {
-      headers: { Authorization: `Bearer ${bearerToken}` },
+    const client = new TwitterApi({
+      appKey: appKey,
+      appSecret: appSecret,
+      accessToken: accessToken,
+      accessSecret: accessSecret,
     });
+
+    const me = await client.v2.me();
     clearTimeout(timeoutId);
 
-    if (response.ok) {
-      const data = await response.json();
-      addResult(
-        "X (Twitter) API v2",
-        "PASS",
-        `User: @${data.data?.username || "unknown"}`,
-      );
+    if (me.data) {
+      addResult("X (Twitter) API v2", "PASS", `User: @${me.data.username}`);
     } else {
-      addResult("X (Twitter) API v2", "FAIL", `HTTP ${response.status}`);
+      addResult("X (Twitter) API v2", "FAIL", "No user data returned");
     }
   } catch (err) {
+    clearTimeout(timeoutId);
     addResult(
       "X (Twitter) API v2",
       "FAIL",
@@ -144,7 +171,7 @@ async function testFacebook() {
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
     const response = await fetch(
-      `https://graph.facebook.com/v19.0/me?access_token=${pageToken}`,
+      `https://graph.facebook.com/v19.0/me?fields=id,name&access_token=${pageToken}`,
       {
         signal: controller.signal,
       },
@@ -153,11 +180,19 @@ async function testFacebook() {
 
     if (response.ok) {
       const data = await response.json();
-      addResult(
-        "Meta Facebook Graph API",
-        "PASS",
-        `User ID: ${data.id || "verified"}`,
-      );
+      if (data.id && data.name) {
+        addResult(
+          "Meta Facebook Graph API",
+          "PASS",
+          `Page ID: ${data.id}, Name: ${data.name}`,
+        );
+      } else {
+        addResult(
+          "Meta Facebook Graph API",
+          "FAIL",
+          "Missing id or name in response",
+        );
+      }
     } else {
       addResult("Meta Facebook Graph API", "FAIL", `HTTP ${response.status}`);
     }
