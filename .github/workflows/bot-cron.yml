@@ -7,7 +7,7 @@ on:
         description: "Run type (manual, scheduled, test)"
         required: false
         default: "manual"
-        type: choice
+        type: choices
         options:
           - manual
           - scheduled
