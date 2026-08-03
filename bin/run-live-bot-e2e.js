@@ -17,30 +17,24 @@ try {
 
 // Import services dynamically to avoid circular dependencies
 async function importServices() {
-  const { LazadaLiveScraper } =
-    await import("../src/services/lazada-live-scraper");
-  const { B2WebPUploader } = await import("../src/services/b2-webp-uploader");
-  const { VectorRAGCopywriter } =
-    await import("../src/services/vector-rag-copywriter");
-  const { EdgeLinkShortener } =
-    await import("../src/services/edge-link-shortener");
-  const { SocialPosterEngine } =
-    await import("../src/services/social-poster-engine");
-  const { TelegramQAInspector } =
-    await import("../src/services/telegram-qa-inspector");
-  const { SupabaseRealtimeBroadcaster } =
-    await import("../src/services/supabase-realtime-broadcaster");
-  const { LinkHealthGuard } = await import("../src/services/link-health-guard");
+  const lazadaModule = await import("../src/services/lazada-live-scraper");
+  const b2Module = await import("../src/services/b2-webp-uploader");
+  const copywriterModule = await import("../src/services/vector-rag-copywriter");
+  const shortenerModule = await import("../src/services/edge-link-shortener");
+  const posterModule = await import("../src/services/social-poster-engine");
+  const telegramModule = await import("../src/services/telegram-qa-inspector");
+  const realtimeModule = await import("../src/services/supabase-realtime-broadcaster");
+  const healthModule = await import("../src/services/link-health-guard");
 
   return {
-    LazadaLiveScraper,
-    B2WebPUploader,
-    VectorRAGCopywriter,
-    EdgeLinkShortener,
-    SocialPosterEngine,
-    TelegramQAInspector,
-    SupabaseRealtimeBroadcaster,
-    LinkHealthGuard,
+    LazadaLiveScraper: lazadaModule.default.LazadaLiveScraper,
+    B2WebPUploader: b2Module.default.B2WebPUploader,
+    VectorRAGCopywriter: copywriterModule.default.VectorRAGCopywriter,
+    EdgeLinkShortener: shortenerModule.default.EdgeLinkShortener,
+    SocialPosterEngine: posterModule.default.SocialPosterEngine,
+    TelegramQAInspector: telegramModule.default.TelegramQAInspector,
+    SupabaseRealtimeBroadcaster: realtimeModule.default.SupabaseRealtimeBroadcaster,
+    LinkHealthGuard: healthModule.default.LinkHealthGuard,
   };
 }
 
