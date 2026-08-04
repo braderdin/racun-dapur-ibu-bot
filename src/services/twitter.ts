@@ -55,10 +55,12 @@ export class TwitterService {
   constructor(env?: Env) {
     this.env = env;
     this.bearerToken = env?.X_BEARER_TOKEN || env?.TWITTER_API_KEY || "";
-    this.apiKey = env?.TWITTER_API_KEY || "";
-    this.apiSecret = env?.TWITTER_API_SECRET || "";
-    this.accessToken = env?.TWITTER_ACCESS_TOKEN || "";
-    this.accessTokenSecret = env?.TWITTER_ACCESS_SECRET || "";
+    this.apiKey = env?.TWITTER_API_KEY || env?.X_CONSUMER_KEY || "";
+    this.apiSecret =
+      env?.TWITTER_API_SECRET || env?.X_CONSUMER_KEY_SECRET || "";
+    this.accessToken = env?.TWITTER_ACCESS_TOKEN || env?.X_ACCESS_TOKEN || "";
+    this.accessTokenSecret =
+      env?.TWITTER_ACCESS_SECRET || env?.X_ACCESS_TOKEN_SECRET || "";
   }
 
   /**
@@ -216,13 +218,21 @@ export class TwitterService {
       body: new URLSearchParams(params).toString(),
     });
 
-    const data = (await response.json()) as
-      TwitterMediaUploadResponse | TwitterErrorResponse;
+    const responseText = await response.text();
+    let data: any;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      console.warn(
+        `[X Bot] Non-JSON response from Twitter media upload (${response.status}): ${responseText.substring(0, 100)}`,
+      );
+      return null;
+    }
 
     if (!response.ok || "errors" in data) {
       const errorMsg =
         "errors" in data
-          ? data.errors.map((e) => e.message).join(", ")
+          ? data.errors.map((e: { message: string }) => e.message).join(", ")
           : `HTTP ${response.status}: ${response.statusText}`;
       console.warn(`[X Bot] Twitter media upload failed: ${errorMsg}`);
       return null;
@@ -320,9 +330,7 @@ export class TwitterService {
           "[X Bot] Image upload failed, posting text-only Tweet 1...",
         );
         tweet1Id = await this.postTweetToApi(copy.hook);
-        console.log(
-          `[X Bot] Text-only Tweet 1 Berjaya! ID: ${tweet1Id}`,
-        );
+        console.log(`[X Bot] Text-only Tweet 1 Berjaya! ID: ${tweet1Id}`);
       }
 
       // Post Tweet 2 (reply with affiliate link)
@@ -375,9 +383,7 @@ export class TwitterService {
         tweetId = await this.postTweetToApi(text, [mediaId]);
       } else {
         // Fallback: Post text-only tweet if image upload failed
-        console.log(
-          "[X Bot] Image upload failed, posting text-only tweet...",
-        );
+        console.log("[X Bot] Image upload failed, posting text-only tweet...");
         tweetId = await this.postTweetToApi(text);
       }
 
@@ -418,7 +424,9 @@ export class TwitterService {
         mediaIds = [];
         for (const mediaUrl of options.mediaUrls) {
           const mediaId = await this.uploadMedia(mediaUrl);
-          mediaIds.push(mediaId);
+          if (mediaId) {
+            mediaIds.push(mediaId);
+          }
         }
       }
 

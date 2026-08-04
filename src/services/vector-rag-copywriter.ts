@@ -63,8 +63,10 @@ export interface GeneratedCopy {
 export class VectorRAGCopywriter {
   private redis: Redis;
   private openai: OpenAI;
+  private env: Env;
 
   constructor(env: Env) {
+    this.env = env;
     this.redis = new Redis({
       url: env.UPSTASH_REDIS_REST_URL || process.env.UPSTASH_REDIS_REST_URL,
       token:
@@ -224,7 +226,6 @@ export class VectorRAGCopywriter {
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        response_format: { type: "json_object" },
         max_tokens: 500,
       });
 
@@ -236,7 +237,24 @@ export class VectorRAGCopywriter {
         return this.getFallbackCopy(productInfo, platform);
       }
 
-      const result = JSON.parse(response.choices[0].message.content ?? "{}");
+      let content = response.choices[0].message.content ?? "{}";
+
+      // Safe JSON parsing fallback - handle Markdown code blocks
+      let result: any;
+      try {
+        // Try to extract JSON from markdown code blocks if present
+        const jsonMatch = content.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+        if (jsonMatch) {
+          content = jsonMatch[1];
+        }
+        result = JSON.parse(content);
+      } catch (parseError) {
+        console.warn(
+          "[VectorRAG] JSON parse failed, using fallback:",
+          parseError,
+        );
+        return this.getFallbackCopy(productInfo, platform);
+      }
 
       const generatedCopy: GeneratedCopy = {
         hook: result.hook ?? "",

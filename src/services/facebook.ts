@@ -122,25 +122,42 @@ export class FacebookService {
       }
       const cleanPageId = this.sanitizePageId(pageId);
 
-      // Prepare form data for Facebook Graph API
+      // Determine access token with fallbacks
+      const accessToken =
+        this.env.FACEBOOK_PAGE_ACCESS_TOKEN || this.env.FB_PAGE_ACCESS_TOKEN;
+
+      if (!accessToken) {
+        throw new Error("Facebook Page Access Token is not configured");
+      }
+
+      // Check if image is provided (picture or url)
+      const hasImage = postData.picture || postData.url;
+
+      let endpoint: string;
       const formData = new URLSearchParams();
-      formData.append("message", postData.message);
 
-      if (postData.url) formData.append("url", postData.url);
-      if (postData.picture) formData.append("picture", postData.picture);
-      if (postData.link) formData.append("link", postData.link);
+      if (hasImage) {
+        // Use /photos endpoint for image posts
+        endpoint = `${this.graphApiBaseUrl}/${cleanPageId}/photos`;
+        const imageUrl = postData.picture || postData.url;
+        formData.append("url", imageUrl!);
+        formData.append("caption", postData.message);
+        if (postData.link) formData.append("link", postData.link);
+      } else {
+        // Use /feed endpoint for text/link posts
+        endpoint = `${this.graphApiBaseUrl}/${cleanPageId}/feed`;
+        formData.append("message", postData.message);
+        if (postData.link) formData.append("link", postData.link);
+      }
 
-      const response = await fetch(
-        `${this.graphApiBaseUrl}/${cleanPageId}/feed`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${this.env.FACEBOOK_PAGE_ACCESS_TOKEN}`,
-          },
-          body: formData.toString(),
-          signal: controller.signal,
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
         },
-      );
+        body: formData.toString(),
+        signal: controller.signal,
+      });
 
       clearTimeout(timeoutId);
       const elapsed = Date.now() - startTime;
