@@ -41,11 +41,18 @@ interface RAGContext {
 
 export interface GeneratedCopy {
   hook: string;
+  body: string[];
   cta: string;
-  culturalAdaptation: string;
-  platform: "x" | "facebook";
+  hashtags: string[];
+  threadTarget: "single-tweet" | "thread-2";
+  platform: "lazada" | "shopee";
   confidence: number;
-  metadata: {
+  fallbackChainUsed: "none" | "tier-1" | "tier-2" | "tier-3" | "emergency";
+  // Twitter thread specific properties (for backward compatibility)
+  tweetHook?: string;
+  tweetReply?: string;
+  culturalAdaptation?: string;
+  metadata?: {
     category: string;
     season: string;
     priceRange: string;
@@ -217,14 +224,23 @@ export class VectorRAGCopywriter {
         max_tokens: 500,
       });
 
+      // FIX: Add validation before accessing response.choices[0] to prevent TypeError
+      if (!response.choices || response.choices.length === 0) {
+        throw new Error("OpenAI returned empty choices array");
+      }
+
       const result = JSON.parse(response.choices[0].message.content ?? "{}");
 
       const generatedCopy: GeneratedCopy = {
         hook: result.hook ?? "",
+        body: result.body ?? [],
         cta: result.cta ?? "",
-        culturalAdaptation: result.culturalAdaptation ?? "",
-        platform,
+        hashtags: result.hashtags ?? [],
+        threadTarget: result.threadTarget ?? "thread-2",
+        platform: platform === "x" ? "lazada" : "shopee",
         confidence: result.confidence ?? 0.8,
+        fallbackChainUsed: "none",
+        culturalAdaptation: result.culturalAdaptation ?? "",
         metadata: {
           category: productInfo.category,
           season: productInfo.season ?? "all",
@@ -370,10 +386,14 @@ Return JSON format only.`;
 
     return {
       hook: platformConfig.hook,
+      body: [],
       cta: platformConfig.cta,
-      culturalAdaptation: platformConfig.culturalAdaptation,
-      platform,
+      hashtags: [],
+      threadTarget: "thread-2",
+      platform: platform === "x" ? "lazada" : "shopee",
       confidence: 0.6,
+      fallbackChainUsed: "emergency",
+      culturalAdaptation: platformConfig.culturalAdaptation,
       metadata: {
         category: productInfo.category,
         season: productInfo.season || "all",
@@ -444,9 +464,11 @@ Return JSON format only.`;
           totalClicks,
           totalImpressions,
           averageCTR: avgCTR,
-          topHook: hooks.sort(
-            (a, b) => b.performance.ctr - a.performance.ctr,
-          )[0],
+          // FIX: Add empty check before accessing [0] to prevent TypeError
+          topHook:
+            hooks.length > 0
+              ? hooks.sort((a, b) => b.performance.ctr - a.performance.ctr)[0]
+              : null,
         };
       }
 

@@ -125,8 +125,14 @@ export class EdgeLinkShortener {
       const reverseKey = `shortlink:reverse:${this.hashUrl(originalUrl)}`;
       await this.redis.setex(reverseKey, this.config.ttlSeconds, code);
 
-      // Build short URL
-      const shortUrl = `https://${this.config.domain}${this.config.pathPrefix}${code}`;
+      // Build short URL - FIX: Check if domain is configured, otherwise fallback to original URL
+      let shortUrl: string;
+      if (this.config.domain && this.config.domain.trim() !== "") {
+        shortUrl = `https://${this.config.domain}${this.config.pathPrefix}${code}`;
+      } else {
+        // Fallback to original affiliate URL when no shortlink domain configured
+        shortUrl = originalUrl;
+      }
 
       return {
         success: true,

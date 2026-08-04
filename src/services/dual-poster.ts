@@ -153,6 +153,7 @@ export class DualPosterService {
             .postAffiliateThread(
               dualCopy.twitterCopy as import("../types/product").GeneratedCopy,
               processedImage.webpUrl,
+              deal.affiliateLink,
             )
             .then((twitterResult) => {
               result.twitter = {

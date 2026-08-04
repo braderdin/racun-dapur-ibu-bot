@@ -81,6 +81,28 @@ export class FacebookService {
     );
   }
 
+  /**
+   * Sanitize Facebook Page ID to prevent Error #100
+   * Removes leading/trailing slashes and validates numeric format
+   */
+  private sanitizePageId(pageId: string): string {
+    if (!pageId || typeof pageId !== "string") {
+      throw new Error("Facebook Page ID is required and must be a string");
+    }
+
+    // Remove leading/trailing whitespace and slashes
+    const cleaned = pageId.trim().replace(/^\/+|\/+$/g, "");
+
+    // Validate numeric-only format (Facebook page IDs are numeric)
+    if (!/^\d+$/.test(cleaned)) {
+      throw new Error(
+        `Invalid Facebook Page ID format: "${pageId}". Must be numeric only (e.g., "61592678819948")`,
+      );
+    }
+
+    return cleaned;
+  }
+
   // Main method to post to Facebook Page
   async postToFacebookPage(
     postData: FacebookPostPayload,
@@ -93,6 +115,13 @@ export class FacebookService {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
 
+      // Sanitize page ID to prevent Error #100
+      const pageId = this.env.FACEBOOK_PAGE_ID;
+      if (!pageId) {
+        throw new Error("FACEBOOK_PAGE_ID is not configured");
+      }
+      const cleanPageId = this.sanitizePageId(pageId);
+
       // Prepare form data for Facebook Graph API
       const formData = new URLSearchParams();
       formData.append("message", postData.message);
@@ -102,7 +131,7 @@ export class FacebookService {
       if (postData.link) formData.append("link", postData.link);
 
       const response = await fetch(
-        `${this.graphApiBaseUrl}/${this.env.FACEBOOK_PAGE_ID}/feed`,
+        `${this.graphApiBaseUrl}/${cleanPageId}/feed`,
         {
           method: "POST",
           headers: {
@@ -127,6 +156,21 @@ export class FacebookService {
           type: errorData?.error?.type || "API_ERROR",
           code: errorData?.error?.code || response.status,
         };
+
+        // Specific handling for Error #100
+        if (error.code === 100) {
+          logger.error(
+            "Facebook API Error #100 - Invalid parameter (likely pageId format)",
+            {
+              status: response.status,
+              error: error.message,
+              elapsed,
+              pageId: cleanPageId,
+              hint: "Ensure FACEBOOK_PAGE_ID is numeric only, no slashes or special characters",
+            },
+            "FacebookService",
+          );
+        }
 
         logger.error(
           "Facebook page post failed",
@@ -499,19 +543,25 @@ export class FacebookService {
 
       const message = `${title}\n\n${description}\n\nPrice: $${price}\nRating: ${rating}/5\nCategory: ${category}\nExpires: ${expirationDate}\n\n${affiliateLink}`;
 
+      // Sanitize page ID to prevent Error #100
+      const cleanPageId = this.sanitizePageId(pageId);
+
       const formData = new URLSearchParams();
       formData.append("message", message);
       if (imageUrl) formData.append("url", imageUrl);
       formData.append("link", affiliateLink);
 
-      const response = await fetch(`${this.graphApiBaseUrl}/${pageId}/feed`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Authorization: `Bearer ${accessToken}`,
+      const response = await fetch(
+        `${this.graphApiBaseUrl}/${cleanPageId}/feed`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: formData.toString(),
         },
-        body: formData.toString(),
-      });
+      );
 
       if (!response.ok) {
         const errorData = (await response.json().catch(() => null)) as {

@@ -77,7 +77,7 @@ export class TelegramInteractiveAudit {
    * @param postData - Post data
    * @param commentData - Comment data
    * @param imageUrl - Image URL
-   * @returns Formatted audit message
+   * @returns Formatted audit message (HTML format for Telegram)
    */
   private formatVisualAuditMessage(
     postData: any,
@@ -94,10 +94,10 @@ export class TelegramInteractiveAudit {
       second: "2-digit",
     });
 
-    let message = `🔍 **AUDIT POST LAZADA - ${timestamp}**\n\n`;
+    let message = `🔍 <b>AUDIT POST LAZADA - ${timestamp}</b>\n\n`;
 
     // Post Information Section
-    message += `📱 **POST INFORMATION**\n`;
+    message += `📱 <b>POST INFORMATION</b>\n`;
     message += `• Platform: ${postData.platform || "Unknown"}\n`;
     message += `• Post ID: ${postData.postId || "N/A"}\n`;
     message += `• Product: ${postData.productTitle || "Unknown"}\n`;
@@ -107,64 +107,71 @@ export class TelegramInteractiveAudit {
     message += `• Stock: ${postData.stockStatus || "Unknown"}\n\n`;
 
     // AI Copywriting Draft Section - X/Twitter Hook
-    message += `🐦 **X/TWITTER HOOK COPY (AI DRAFT):**\n`;
+    message += `🐦 <b>X/TWITTER HOOK COPY (AI DRAFT):</b>\n`;
     if (postData.twitterCopy) {
-      message += `<code>${postData.twitterCopy.hook || postData.twitterCopy}</code>\n`;
+      message += `<code>${this.escapeHtml(postData.twitterCopy.hook || postData.twitterCopy)}</code>\n`;
     } else {
-      message += `<code>${postData.twitterCopy || "Not available"}</code>\n`;
+      message += `<code>${this.escapeHtml(postData.twitterCopy || "Not available")}</code>\n`;
     }
     message += `\n`;
 
     // AI Copywriting Draft Section - Facebook Storytelling
-    message += `📘 **FACEBOOK STORYTELLING COPY (AI DRAFT):**\n`;
+    message += `📘 <b>FACEBOOK STORYTELLING COPY (AI DRAFT):</b>\n`;
     if (postData.facebookCopy) {
-      message += `<code>${postData.facebookCopy.hook || postData.facebookCopy}</code>\n`;
+      message += `<code>${this.escapeHtml(postData.facebookCopy.hook || postData.facebookCopy)}</code>\n`;
       if (postData.facebookCopy.body && postData.facebookCopy.body.length > 0) {
-        message += `<code>${postData.facebookCopy.body.join(" ")}</code>\n`;
+        message += `<code>${this.escapeHtml(postData.facebookCopy.body.join(" "))}</code>\n`;
       }
     } else {
-      message += `<code>${postData.facebookCopy || "Not available"}</code>\n`;
+      message += `<code>${this.escapeHtml(postData.facebookCopy || "Not available")}</code>\n`;
     }
     message += `\n`;
 
     // Direct Affiliate Link Section
-    message += `🔗 **DIRECT AFFILIATE LINK:**\n`;
+    message += `🔗 <b>DIRECT AFFILIATE LINK:</b>\n`;
     const directAffiliateLink =
       commentData.affiliateLink || postData.directAffiliateLink || "N/A";
-    message += `<code>${directAffiliateLink}</code>\n\n`;
+    message += `<code>${this.escapeHtml(directAffiliateLink)}</code>\n\n`;
 
     // Comment Information Section
-    message += `💬 **COMMENT INFORMATION**\n`;
+    message += `💬 <b>COMMENT INFORMATION</b>\n`;
     message += `• Comment ID: ${commentData.commentId || "N/A"}\n`;
-    message += `• Comment Text: ${commentData.commentText || "N/A"}\n`;
-    message += `• Affiliate Link: ${commentData.affiliateLink || "N/A"}\n`;
+    message += `• Comment Text: ${this.escapeHtml(commentData.commentText || "N/A")}\n`;
+    message += `• Affiliate Link: ${this.escapeHtml(commentData.affiliateLink || "N/A")}\n`;
     message += `• Engagement: ${commentData.engagement || "0"}\n\n`;
 
     // Image Information Section
     if (imageUrl) {
-      message += `🖼️ **IMAGE INFORMATION**\n`;
+      message += `🖼️ <b>IMAGE INFORMATION</b>\n`;
       message += `• Image URL: ${imageUrl}\n`;
       message += `• Image Status: ✅ Available\n\n`;
     } else {
-      message += `🖼️ **IMAGE INFORMATION**\n`;
+      message += `🖼️ <b>IMAGE INFORMATION</b>\n`;
       message += `• Image URL: Not available\n\n`;
     }
 
     // Action Buttons Section
-    message += `⚡ **QUICK ACTIONS**\n`;
+    message += `⚡ <b>QUICK ACTIONS</b>\n`;
     message += `• /delete_post - Delete this post\n`;
     message += `• /audit_override - Manual audit override\n`;
     message += `• /view_details - View full details\n`;
     message += `• /export_data - Export audit data\n\n`;
 
     // Status Section
-    message += `📊 **AUDIT STATUS**\n`;
+    message += `📊 <b>AUDIT STATUS</b>\n`;
     message += `• Status: ✅ COMPLETED\n`;
     message += `• Source: Lazada Live Fetcher\n`;
     message += `• Channel: Dual-Platform (X & Facebook)\n`;
     message += `• Timestamp: ${timestamp}\n`;
 
     return message;
+  }
+
+  /**
+   * Escape HTML special characters for Telegram HTML parse_mode
+   */
+  private escapeHtml(text: string): string {
+    return text.replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">");
   }
 
   /**
@@ -314,10 +321,15 @@ export class TelegramInteractiveAudit {
 
       // Determine image URL with fallback
       let imageUrl = product.imageUrl || DEFAULT_KITCHEN_PLACEHOLDER;
+      let usedFallback = false;
 
       // Validate image URL format
       if (!imageUrl || !imageUrl.startsWith("http")) {
+        console.warn(
+          `⚠️ Invalid image URL format: "${product.imageUrl}", using default placeholder`,
+        );
         imageUrl = DEFAULT_KITCHEN_PLACEHOLDER;
+        usedFallback = true;
       }
 
       // Send PHOTO via Telegram API using the notifier service
@@ -338,38 +350,49 @@ export class TelegramInteractiveAudit {
 
       if (!success) {
         // If sendPhoto fails, try with default placeholder as last resort
-        console.warn(
-          "⚠️ Telegram sendPhoto failed, retrying with default placeholder...",
-        );
-        const fallbackSuccess = await this.telegram.sendAuditReport({
-          productTitle:
-            product.productTitle || postData.productTitle || "Unknown Product",
-          price: product.price || postData.price || "N/A",
-          discount: product.discountRate || postData.discountRate || "0%",
-          platform: product.platform || postData.platform || "Lazada",
-          imageUrl: DEFAULT_KITCHEN_PLACEHOLDER,
-          shortlinkUrl:
-            commentData.affiliateLink || postData.directAffiliateLink || "N/A",
-          twitterCopy: postData.twitterCopy || "N/A",
-          facebookCopy: postData.facebookCopy || "N/A",
-          twitterPostUrl: postData.twitterPostUrl,
-          facebookPostUrl: postData.facebookPostUrl,
-        });
+        if (!usedFallback) {
+          console.warn(
+            `⚠️ Telegram sendPhoto failed for URL: "${imageUrl}". Retrying with default placeholder...`,
+          );
+          const fallbackSuccess = await this.telegram.sendAuditReport({
+            productTitle:
+              product.productTitle ||
+              postData.productTitle ||
+              "Unknown Product",
+            price: product.price || postData.price || "N/A",
+            discount: product.discountRate || postData.discountRate || "0%",
+            platform: product.platform || postData.platform || "Lazada",
+            imageUrl: DEFAULT_KITCHEN_PLACEHOLDER,
+            shortlinkUrl:
+              commentData.affiliateLink ||
+              postData.directAffiliateLink ||
+              "N/A",
+            twitterCopy: postData.twitterCopy || "N/A",
+            facebookCopy: postData.facebookCopy || "N/A",
+            twitterPostUrl: postData.twitterPostUrl,
+            facebookPostUrl: postData.facebookPostUrl,
+          });
 
-        if (!fallbackSuccess) {
+          if (!fallbackSuccess) {
+            throw new Error(
+              "Failed to send Telegram visual audit notification even with fallback",
+            );
+          }
+        } else {
           throw new Error(
-            "Failed to send Telegram visual audit notification even with fallback",
+            "Failed to send Telegram visual audit notification with default placeholder",
           );
         }
       }
 
       console.log(
-        "✅ Telegram visual audit notification with PHOTO sent successfully",
+        `✅ Telegram visual audit notification with PHOTO sent successfully (image: ${usedFallback ? "fallback" : "original"})`,
       );
       return {
         success: true,
         hasImage: true,
         imageUrl: imageUrl,
+        usedFallback,
         postData,
         commentData,
       };
@@ -377,6 +400,17 @@ export class TelegramInteractiveAudit {
       console.error("Error sending Telegram visual audit notification:", error);
       throw error;
     }
+  }
+
+  /**
+   * Send a simple photo with caption directly via Telegram sendPhoto API
+   * Useful for quick image notifications without full audit report
+   * @param photoUrl - Photo URL
+   * @param caption - Caption text (HTML format)
+   * @returns Success status
+   */
+  async sendPhoto(photoUrl: string, caption?: string): Promise<boolean> {
+    return this.telegram.sendPhoto(photoUrl, caption);
   }
 
   /**
