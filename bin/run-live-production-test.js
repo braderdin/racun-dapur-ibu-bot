@@ -19,15 +19,19 @@ const {
   LiveProductionOrchestrator,
 } = require("../src/services/live-production-orchestrator");
 
-// Mock Env object for CLI execution (With Robust Fallback Mapping)
+// Mock Env object for CLI execution (With Complete Spread & Fallback Mapping)
 const createEnv = () => ({
+  // 1. Serap terus semua pembolehubah process.env dari GitHub Runner / Environment
+  ...process.env,
+
+  // 2. Pemetaan & Fallback Spesifik untuk Supabase & Telegram
   SUPABASE_URL: process.env.SUPABASE_URL,
   SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
   TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
   TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID,
 
-  // Twitter / X API Fallback Mapping
+  // 3. Pemetaan Dual-Name X (Twitter) API
   TWITTER_BEARER_TOKEN: process.env.TWITTER_BEARER_TOKEN || process.env.X_BEARER_TOKEN,
   TWITTER_API_KEY: process.env.TWITTER_API_KEY || process.env.X_API_KEY,
   TWITTER_API_SECRET: process.env.TWITTER_API_SECRET || process.env.X_API_KEY_SECRET,
@@ -36,8 +40,16 @@ const createEnv = () => ({
     process.env.TWITTER_ACCESS_TOKEN_SECRET ||
     process.env.TWITTER_ACCESS_SECRET ||
     process.env.X_ACCESS_TOKEN_SECRET,
+  X_BEARER_TOKEN: process.env.X_BEARER_TOKEN || process.env.TWITTER_BEARER_TOKEN,
+  X_API_KEY: process.env.X_API_KEY || process.env.TWITTER_API_KEY,
+  X_API_KEY_SECRET: process.env.X_API_KEY_SECRET || process.env.TWITTER_API_SECRET,
+  X_ACCESS_TOKEN: process.env.X_ACCESS_TOKEN || process.env.TWITTER_ACCESS_TOKEN,
+  X_ACCESS_TOKEN_SECRET:
+    process.env.X_ACCESS_TOKEN_SECRET ||
+    process.env.TWITTER_ACCESS_TOKEN_SECRET ||
+    process.env.TWITTER_ACCESS_SECRET,
 
-  // Facebook Page API Fallback Mapping
+  // 4. Pemetaan Dual-Name Facebook / Meta Graph API
   FACEBOOK_PAGE_ID:
     process.env.FACEBOOK_PAGE_ID ||
     process.env.META_PAGE_ID ||
@@ -47,20 +59,41 @@ const createEnv = () => ({
     process.env.FACEBOOK_PAGE_ACCESS_TOKEN ||
     process.env.META_PAGE_ACCESS_TOKEN ||
     process.env.FB_PAGE_ACCESS_TOKEN,
+  FACEBOOK_PAGE_ACCESS_TOKEN:
+    process.env.FACEBOOK_PAGE_ACCESS_TOKEN ||
+    process.env.FACEBOOK_ACCESS_TOKEN ||
+    process.env.META_PAGE_ACCESS_TOKEN ||
+    process.env.FB_PAGE_ACCESS_TOKEN,
+  META_PAGE_ACCESS_TOKEN:
+    process.env.META_PAGE_ACCESS_TOKEN ||
+    process.env.FACEBOOK_PAGE_ACCESS_TOKEN ||
+    process.env.FACEBOOK_ACCESS_TOKEN ||
+    process.env.FB_PAGE_ACCESS_TOKEN,
 
-  // Upstash Redis & Vector Fallback Mapping
+  // 5. Pemetaan Dual-Name Upstash Redis & Vector API
   UPSTASH_REDIS_URL:
     process.env.UPSTASH_REDIS_URL ||
     process.env.UPSTASH_REDIS_REST_URL ||
     process.env.REDIS_URL,
   UPSTASH_REDIS_TOKEN:
     process.env.UPSTASH_REDIS_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN,
+  UPSTASH_REDIS_REST_URL:
+    process.env.UPSTASH_REDIS_REST_URL ||
+    process.env.UPSTASH_REDIS_URL ||
+    process.env.REDIS_URL,
+  UPSTASH_REDIS_REST_TOKEN:
+    process.env.UPSTASH_REDIS_REST_TOKEN || process.env.UPSTASH_REDIS_TOKEN,
+
   UPSTASH_VECTOR_URL:
     process.env.UPSTASH_VECTOR_URL || process.env.UPSTASH_VECTOR_REST_URL,
   UPSTASH_VECTOR_TOKEN:
     process.env.UPSTASH_VECTOR_TOKEN || process.env.UPSTASH_VECTOR_REST_TOKEN,
+  UPSTASH_VECTOR_REST_URL:
+    process.env.UPSTASH_VECTOR_REST_URL || process.env.UPSTASH_VECTOR_URL,
+  UPSTASH_VECTOR_REST_TOKEN:
+    process.env.UPSTASH_VECTOR_REST_TOKEN || process.env.UPSTASH_VECTOR_TOKEN,
 
-  // Backblaze B2 Storage Fallback Mapping
+  // 6. Pemetaan Dual-Name Backblaze B2 Storage
   BACKBLAZE_B2_KEY_ID:
     process.env.BACKBLAZE_B2_KEY_ID ||
     process.env.B2_ACC1_KEY_ID ||
@@ -70,8 +103,16 @@ const createEnv = () => ({
     process.env.B2_ACC1_APPLICATION_KEY ||
     process.env.BACKBLAZE_B2_ACCOUNT_KEY_1,
   BACKBLAZE_B2_BUCKET_ID: process.env.BACKBLAZE_B2_BUCKET_ID,
+  B2_ACC1_KEY_ID:
+    process.env.B2_ACC1_KEY_ID ||
+    process.env.BACKBLAZE_B2_KEY_ID ||
+    process.env.BACKBLAZE_B2_ACCOUNT_ID_1,
+  B2_ACC1_APPLICATION_KEY:
+    process.env.B2_ACC1_APPLICATION_KEY ||
+    process.env.BACKBLAZE_B2_APP_KEY ||
+    process.env.BACKBLAZE_B2_ACCOUNT_KEY_1,
 
-  // AI & E-commerce APIs Fallback Mapping
+  // 7. Pemetaan OpenRouter AI & E-commerce APIs
   OPENROUTER_BASE_URL:
     process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
   OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
