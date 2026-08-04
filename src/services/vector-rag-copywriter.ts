@@ -72,8 +72,9 @@ export class VectorRAGCopywriter {
     });
 
     this.openai = new OpenAI({
-      apiKey: env.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY,
-      baseURL: env.OPENROUTER_BASE_URL || process.env.OPENROUTER_BASE_URL,
+      apiKey: process.env.OPENROUTER_API_KEY || "sk-dummy-key-cloudflare-proxy",
+      baseURL:
+        process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
     });
   }
 
@@ -215,7 +216,10 @@ export class VectorRAGCopywriter {
       );
 
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model:
+          process.env.OPENROUTER_MODEL ||
+          this.env?.OPENROUTER_MODEL ||
+          "openrouter/free",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -224,9 +228,12 @@ export class VectorRAGCopywriter {
         max_tokens: 500,
       });
 
-      // FIX: Add validation before accessing response.choices[0] to prevent TypeError
+      // Handle empty choices array gracefully - fallback to default template
       if (!response.choices || response.choices.length === 0) {
-        throw new Error("OpenAI returned empty choices array");
+        console.warn(
+          "[VectorRAG] OpenAI returned empty choices array, using fallback copy",
+        );
+        return this.getFallbackCopy(productInfo, platform);
       }
 
       const result = JSON.parse(response.choices[0].message.content ?? "{}");

@@ -137,16 +137,62 @@ export class TwitterService {
   /**
    * Upload media to Twitter (images)
    * @param imageUrl - Image URL to upload
-   * @returns Media ID string
+   * @returns Media ID string or null if upload fails
    */
-  private async uploadMedia(imageUrl: string): Promise<string> {
-    // Fetch image from URL
-    const imageResponse = await fetch(imageUrl);
-    if (!imageResponse.ok) {
-      throw new Error(`Failed to fetch image: ${imageResponse.statusText}`);
+  private async uploadMedia(imageUrl: string): Promise<string | null> {
+    // Fallback image URL (public domain kitchen image from Unsplash)
+    const FALLBACK_IMAGE_URL =
+      "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=800";
+
+    // Try to fetch the original image first
+    let imageBuffer: ArrayBuffer;
+    let fetchSuccess = false;
+
+    try {
+      const imageResponse = await fetch(imageUrl);
+      if (imageResponse.ok) {
+        imageBuffer = await imageResponse.arrayBuffer();
+        fetchSuccess = true;
+      } else {
+        console.warn(
+          `[X Bot] Failed to fetch image (${imageResponse.status}), trying fallback...`,
+        );
+      }
+    } catch (fetchError) {
+      console.warn(
+        `[X Bot] Error fetching image: ${fetchError instanceof Error ? fetchError.message : "Unknown error"}, trying fallback...`,
+      );
     }
-    const imageBuffer = await imageResponse.arrayBuffer();
-    const base64Image = Buffer.from(imageBuffer).toString("base64");
+
+    // If original image failed, try fallback image
+    if (!fetchSuccess) {
+      try {
+        const fallbackResponse = await fetch(FALLBACK_IMAGE_URL);
+        if (fallbackResponse.ok) {
+          imageBuffer = await fallbackResponse.arrayBuffer();
+          fetchSuccess = true;
+          console.log("[X Bot] Using fallback image from Unsplash");
+        } else {
+          console.warn(
+            `[X Bot] Fallback image also failed (${fallbackResponse.status})`,
+          );
+        }
+      } catch (fallbackError) {
+        console.warn(
+          `[X Bot] Error fetching fallback image: ${fallbackError instanceof Error ? fallbackError.message : "Unknown error"}`,
+        );
+      }
+    }
+
+    // If both original and fallback failed, return null to indicate text-only tweet
+    if (!fetchSuccess) {
+      console.warn(
+        "[X Bot] All image sources failed, will post text-only tweet",
+      );
+      return null;
+    }
+
+    const base64Image = Buffer.from(imageBuffer!).toString("base64");
 
     const url = "https://upload.twitter.com/1.1/media/upload.json";
     const params = {
@@ -178,7 +224,8 @@ export class TwitterService {
         "errors" in data
           ? data.errors.map((e) => e.message).join(", ")
           : `HTTP ${response.status}: ${response.statusText}`;
-      throw new Error(`Twitter media upload failed: ${errorMsg}`);
+      console.warn(`[X Bot] Twitter media upload failed: ${errorMsg}`);
+      return null;
     }
 
     return data.media_id_string;
@@ -254,15 +301,29 @@ export class TwitterService {
         throw new Error("Twitter Bearer Token not configured");
       }
 
-      // Upload media first
+      // Upload media first (with fallback handling)
       console.log("[X Bot] Uploading media to Twitter...");
       const mediaId = await this.uploadMedia(imageUrl);
-      console.log(`[X Bot] Media uploaded successfully: ${mediaId}`);
 
-      // Post Tweet 1 with media
-      console.log("[X Bot] Posting Tweet 1 via X API v2...");
-      const tweet1Id = await this.postTweetToApi(copy.hook, [mediaId]);
-      console.log(`[X Bot] Tweet 1 Berjaya! ID: ${tweet1Id}`);
+      let tweet1Id: string;
+
+      if (mediaId) {
+        console.log(`[X Bot] Media uploaded successfully: ${mediaId}`);
+
+        // Post Tweet 1 with media
+        console.log("[X Bot] Posting Tweet 1 via X API v2...");
+        tweet1Id = await this.postTweetToApi(copy.hook, [mediaId]);
+        console.log(`[X Bot] Tweet 1 Berjaya! ID: ${tweet1Id}`);
+      } else {
+        // Fallback: Post text-only tweet if image upload failed
+        console.log(
+          "[X Bot] Image upload failed, posting text-only Tweet 1...",
+        );
+        tweet1Id = await this.postTweetToApi(copy.hook);
+        console.log(
+          `[X Bot] Text-only Tweet 1 Berjaya! ID: ${tweet1Id}`,
+        );
+      }
 
       // Post Tweet 2 (reply with affiliate link)
       console.log("[X Bot] Hantar Tweet 2 (Auto-Reply Link Affiliate)...");
@@ -304,11 +365,21 @@ export class TwitterService {
         text.substring(0, 50),
       );
 
-      // Upload media
+      // Upload media (with fallback handling)
       const mediaId = await this.uploadMedia(imageUrl);
 
-      // Post tweet with media
-      const tweetId = await this.postTweetToApi(text, [mediaId]);
+      let tweetId: string;
+
+      if (mediaId) {
+        // Post tweet with media
+        tweetId = await this.postTweetToApi(text, [mediaId]);
+      } else {
+        // Fallback: Post text-only tweet if image upload failed
+        console.log(
+          "[X Bot] Image upload failed, posting text-only tweet...",
+        );
+        tweetId = await this.postTweetToApi(text);
+      }
 
       return {
         success: true,

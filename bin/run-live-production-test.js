@@ -122,6 +122,7 @@ const createEnv = () => ({
   OPENROUTER_BASE_URL:
     process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
   OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
+  OPENROUTER_MODEL: process.env.OPENROUTER_MODEL,
   LAZADA_API_KEY: process.env.LAZADA_API_KEY || process.env.LAZADA_APP_KEY,
   LAZADA_API_SECRET:
     process.env.LAZADA_API_SECRET || process.env.LAZADA_APP_SECRET,
