@@ -37,10 +37,13 @@ jobs:
       - name: Run Bot (Production Mode)
         if: github.event.inputs.run_type == 'production' || github.event_name == 'schedule'
         env:
+          # Supabase Configuration
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+          # Upstash Redis & QStash Configuration
           REDIS_URL: ${{ secrets.REDIS_URL }}
           UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
           UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
@@ -48,6 +51,8 @@ jobs:
           QSTASH_TOKEN: ${{ secrets.QSTASH_TOKEN }}
           QSTASH_CURRENT_SIGNING_KEY: ${{ secrets.QSTASH_CURRENT_SIGNING_KEY }}
           QSTASH_NEXT_SIGNING_KEY: ${{ secrets.QSTASH_NEXT_SIGNING_KEY }}
+
+          # X (Twitter) API Configuration
           X_API_KEY: ${{ secrets.X_API_KEY }}
           X_API_KEY_SECRET: ${{ secrets.X_API_KEY_SECRET }}
           X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
@@ -57,18 +62,45 @@ jobs:
           X_CONSUMER_KEY_SECRET: ${{ secrets.X_CONSUMER_KEY_SECRET }}
           X_CLIENT_ID: ${{ secrets.X_CLIENT_ID }}
           X_CLIENT_SECRET: ${{ secrets.X_CLIENT_SECRET }}
+          TWITTER_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+          TWITTER_API_KEY: ${{ secrets.X_API_KEY }}
+          TWITTER_API_SECRET: ${{ secrets.X_API_KEY_SECRET }}
+          TWITTER_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          TWITTER_ACCESS_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+
+          # Meta Facebook Graph API Configuration
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
+          FACEBOOK_APP_ID: ${{ secrets.FACEBOOK_APP_ID }}
+          FACEBOOK_APP_SECRET: ${{ secrets.FACEBOOK_APP_SECRET }}
+          META_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          META_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
+          FB_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
+
+          # Lazada Open API Configuration
           LAZADA_APP_KEY: ${{ secrets.LAZADA_APP_KEY }}
           LAZADA_APP_SECRET: ${{ secrets.LAZADA_APP_SECRET }}
           LAZADA_MEMBER_ID: ${{ secrets.LAZADA_MEMBER_ID }}
           LAZADA_USER_TOKEN: ${{ secrets.LAZADA_USER_TOKEN }}
           LAZADA_LITEAPP_KEY: ${{ secrets.LAZADA_LITEAPP_KEY }}
           LAZADA_LITEAPP_SECRET: ${{ secrets.LAZADA_LITEAPP_SECRET }}
+
+          # OpenRouter AI Configuration
           OPENROUTER_BASE_URL: ${{ secrets.OPENROUTER_BASE_URL }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+
+          # Backblaze B2 Storage Configuration
           B2_ACC1_KEY_ID: ${{ secrets.B2_ACC1_KEY_ID }}
           B2_ACC1_APPLICATION_KEY: ${{ secrets.B2_ACC1_APPLICATION_KEY }}
           B2_ACC2_KEY_ID: ${{ secrets.B2_ACC2_KEY_ID }}
           B2_ACC2_APPLICATION_KEY: ${{ secrets.B2_ACC2_APPLICATION_KEY }}
+          BACKBLAZE_B2_ACCOUNT_ID_1: ${{ secrets.B2_ACC1_KEY_ID }}
+          BACKBLAZE_B2_ACCOUNT_KEY_1: ${{ secrets.B2_ACC1_APPLICATION_KEY }}
+          BACKBLAZE_B2_ACCOUNT_ID_2: ${{ secrets.B2_ACC2_KEY_ID }}
+          BACKBLAZE_B2_ACCOUNT_KEY_2: ${{ secrets.B2_ACC2_APPLICATION_KEY }}
+
+          # Cloudflare & Telegram Configuration
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -98,6 +130,19 @@ jobs:
           X_CONSUMER_KEY_SECRET: ${{ secrets.X_CONSUMER_KEY_SECRET }}
           X_CLIENT_ID: ${{ secrets.X_CLIENT_ID }}
           X_CLIENT_SECRET: ${{ secrets.X_CLIENT_SECRET }}
+          TWITTER_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+          TWITTER_API_KEY: ${{ secrets.X_API_KEY }}
+          TWITTER_API_SECRET: ${{ secrets.X_API_KEY_SECRET }}
+          TWITTER_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          TWITTER_ACCESS_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
+          FACEBOOK_APP_ID: ${{ secrets.FACEBOOK_APP_ID }}
+          FACEBOOK_APP_SECRET: ${{ secrets.FACEBOOK_APP_SECRET }}
+          META_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          META_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
+          FB_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
           LAZADA_APP_KEY: ${{ secrets.LAZADA_APP_KEY }}
           LAZADA_APP_SECRET: ${{ secrets.LAZADA_APP_SECRET }}
           LAZADA_MEMBER_ID: ${{ secrets.LAZADA_MEMBER_ID }}
@@ -110,6 +155,10 @@ jobs:
           B2_ACC1_APPLICATION_KEY: ${{ secrets.B2_ACC1_APPLICATION_KEY }}
           B2_ACC2_KEY_ID: ${{ secrets.B2_ACC2_KEY_ID }}
           B2_ACC2_APPLICATION_KEY: ${{ secrets.B2_ACC2_APPLICATION_KEY }}
+          BACKBLAZE_B2_ACCOUNT_ID_1: ${{ secrets.B2_ACC1_KEY_ID }}
+          BACKBLAZE_B2_ACCOUNT_KEY_1: ${{ secrets.B2_ACC1_APPLICATION_KEY }}
+          BACKBLAZE_B2_ACCOUNT_ID_2: ${{ secrets.B2_ACC2_KEY_ID }}
+          BACKBLAZE_B2_ACCOUNT_KEY_2: ${{ secrets.B2_ACC2_APPLICATION_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -139,6 +188,19 @@ jobs:
           X_CONSUMER_KEY_SECRET: ${{ secrets.X_CONSUMER_KEY_SECRET }}
           X_CLIENT_ID: ${{ secrets.X_CLIENT_ID }}
           X_CLIENT_SECRET: ${{ secrets.X_CLIENT_SECRET }}
+          TWITTER_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+          TWITTER_API_KEY: ${{ secrets.X_API_KEY }}
+          TWITTER_API_SECRET: ${{ secrets.X_API_KEY_SECRET }}
+          TWITTER_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          TWITTER_ACCESS_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
+          FACEBOOK_APP_ID: ${{ secrets.FACEBOOK_APP_ID }}
+          FACEBOOK_APP_SECRET: ${{ secrets.FACEBOOK_APP_SECRET }}
+          META_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          META_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
+          FB_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
           LAZADA_APP_KEY: ${{ secrets.LAZADA_APP_KEY }}
           LAZADA_APP_SECRET: ${{ secrets.LAZADA_APP_SECRET }}
           LAZADA_MEMBER_ID: ${{ secrets.LAZADA_MEMBER_ID }}
@@ -151,6 +213,10 @@ jobs:
           B2_ACC1_APPLICATION_KEY: ${{ secrets.B2_ACC1_APPLICATION_KEY }}
           B2_ACC2_KEY_ID: ${{ secrets.B2_ACC2_KEY_ID }}
           B2_ACC2_APPLICATION_KEY: ${{ secrets.B2_ACC2_APPLICATION_KEY }}
+          BACKBLAZE_B2_ACCOUNT_ID_1: ${{ secrets.B2_ACC1_KEY_ID }}
+          BACKBLAZE_B2_ACCOUNT_KEY_1: ${{ secrets.B2_ACC1_APPLICATION_KEY }}
+          BACKBLAZE_B2_ACCOUNT_ID_2: ${{ secrets.B2_ACC2_KEY_ID }}
+          BACKBLAZE_B2_ACCOUNT_KEY_2: ${{ secrets.B2_ACC2_APPLICATION_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
