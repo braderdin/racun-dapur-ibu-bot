@@ -11,6 +11,19 @@ export class LazadaService {
   }
 
   /**
+   * Fix protocol-relative URLs (starting with //) by prepending https:
+   * @param url - Image URL that may be protocol-relative
+   * @returns Fully qualified HTTPS URL
+   */
+  private fixImageUrl(url: string): string {
+    if (!url) return url;
+    if (url.startsWith("//")) {
+      return `https:${url}`;
+    }
+    return url;
+  }
+
+  /**
    * Menarik produk diskaun & trending dari Lazada Open API
    */
   async fetchTrendingProducts(): Promise<ProductItem[]> {
@@ -24,7 +37,9 @@ export class LazadaService {
           price: "RM 119.00",
           originalPrice: "RM 299.00",
           discountRate: "60%",
-          imageUrl: "https://sg-test-11.slatic.net/p/example-airfryer.jpg",
+          imageUrl: this.fixImageUrl(
+            "https://images.unsplash.com/photo-1584990347449-0d5b4a5e8b8a?w=800&h=600&fit=crop&auto=format",
+          ),
           affiliateUrl: "https://c.lazada.com.my/t/c.Yxxxx",
           soldCount: "1.2k+ Terjual",
         },
@@ -34,7 +49,9 @@ export class LazadaService {
           price: "RM 29.90",
           originalPrice: "RM 79.00",
           discountRate: "62%",
-          imageUrl: "https://sg-test-11.slatic.net/p/example-knife.jpg",
+          imageUrl: this.fixImageUrl(
+            "https://images.unsplash.com/photo-1528809537176-4c0e3c4e8b8a?w=800&h=600&fit=crop&auto=format",
+          ),
           affiliateUrl: "https://c.lazada.com.my/t/c.Yyyyy",
           soldCount: "850+ Terjual",
         },

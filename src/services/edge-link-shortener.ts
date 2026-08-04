@@ -78,7 +78,7 @@ export class EdgeLinkShortener {
    * @param platform - Platform (lazada, shopee, web)
    * @param productId - Product identifier
    * @param customUtmParams - Optional custom UTM parameters
-   * @returns Short link result
+   * @returns Short link result with DIRECT affiliate URL (no Vercel shortlink)
    */
   async createShortLink(
     originalUrl: string,
@@ -92,7 +92,7 @@ export class EdgeLinkShortener {
         return { success: false, error: "Invalid original URL" };
       }
 
-      // Generate unique code
+      // Generate unique code for tracking
       const code = await this.generateUniqueCode();
 
       // Build UTM parameters
@@ -102,7 +102,7 @@ export class EdgeLinkShortener {
         customUtmParams,
       );
 
-      // Create short link data
+      // Create short link data for analytics tracking
       const shortLinkData: ShortLinkData = {
         code,
         originalUrl,
@@ -114,7 +114,7 @@ export class EdgeLinkShortener {
         productId,
       };
 
-      // Store in Redis with TTL
+      // Store in Redis with TTL for analytics tracking
       const key = `shortlink:${code}`;
       await this.redis.setex(
         key,
@@ -126,13 +126,13 @@ export class EdgeLinkShortener {
       const reverseKey = `shortlink:reverse:${this.hashUrl(originalUrl)}`;
       await this.redis.setex(reverseKey, this.config.ttlSeconds, code);
 
-      // Build short URL - Use Vercel app domain for shortlinks
-      // Since we don't own a custom domain, use the Vercel app URL
-      const shortUrl = `https://${this.config.domain}${this.config.pathPrefix}${code}`;
+      // Build final URL with UTM parameters appended to original affiliate URL
+      // DIRECT AFFILIATE LINK MANDATE: Return raw affiliate URL with UTM params, NOT Vercel shortlink
+      const finalUrl = this.buildFinalUrl(originalUrl, utmParams);
 
       return {
         success: true,
-        shortUrl,
+        shortUrl: finalUrl, // Return direct affiliate URL with UTM tracking
         code,
       };
     } catch (error) {

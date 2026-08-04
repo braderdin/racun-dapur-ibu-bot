@@ -77,6 +77,8 @@ export class VectorRAGCopywriter {
       apiKey: process.env.OPENROUTER_API_KEY || "sk-dummy-key-cloudflare-proxy",
       baseURL:
         process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
+      // Disable automatic retries to handle errors explicitly
+      maxRetries: 0,
     });
   }
 
@@ -217,17 +219,31 @@ export class VectorRAGCopywriter {
         relevantHooks,
       );
 
-      const response = await this.openai.chat.completions.create({
-        model:
-          process.env.OPENROUTER_MODEL ||
-          this.env?.OPENROUTER_MODEL ||
-          "openrouter/free",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        max_tokens: 500,
+      // Create a timeout promise
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(
+          () => reject(new Error("OpenRouter API timeout after 30s")),
+          30000,
+        );
       });
+
+      // Race the API call against the timeout
+      const response = await Promise.race([
+        this.openai.chat.completions.create({
+          model:
+            process.env.OPENROUTER_MODEL ||
+            this.env?.OPENROUTER_MODEL ||
+            "openrouter/free",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          max_tokens: 500,
+          temperature: 0.7,
+          // Remove response_format to avoid empty choices array issue with some models
+        }),
+        timeoutPromise,
+      ]);
 
       // Handle empty choices array gracefully - fallback to default template
       if (!response.choices || response.choices.length === 0) {

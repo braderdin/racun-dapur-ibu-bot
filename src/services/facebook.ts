@@ -137,15 +137,17 @@ export class FacebookService {
       const formData = new URLSearchParams();
 
       if (hasImage) {
-        // Use /photos endpoint for image posts
-        endpoint = `${this.graphApiBaseUrl}/${cleanPageId}/photos`;
+        // Use /me/photos endpoint for image posts when using page access token
+        // Using /{page-id}/photos with page access token causes Error #100
+        endpoint = `${this.graphApiBaseUrl}/me/photos`;
         const imageUrl = postData.picture || postData.url;
         formData.append("url", imageUrl!);
         formData.append("caption", postData.message);
         if (postData.link) formData.append("link", postData.link);
       } else {
-        // Use /feed endpoint for text/link posts
-        endpoint = `${this.graphApiBaseUrl}/${cleanPageId}/feed`;
+        // Use /me/feed endpoint for text/link posts when using page access token
+        // Using /{page-id}/feed with page access token causes Error #100
+        endpoint = `${this.graphApiBaseUrl}/me/feed`;
         formData.append("message", postData.message);
         if (postData.link) formData.append("link", postData.link);
       }
@@ -582,17 +584,15 @@ export class FacebookService {
       if (imageUrl) formData.append("url", imageUrl);
       formData.append("link", affiliateLink);
 
-      const response = await fetch(
-        `${this.graphApiBaseUrl}/${cleanPageId}/feed`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: formData.toString(),
+      // Use /me/feed endpoint when using page access token to avoid Error #100
+      const response = await fetch(`${this.graphApiBaseUrl}/me/feed`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Bearer ${accessToken}`,
         },
-      );
+        body: formData.toString(),
+      });
 
       if (!response.ok) {
         const errorData = (await response.json().catch(() => null)) as {

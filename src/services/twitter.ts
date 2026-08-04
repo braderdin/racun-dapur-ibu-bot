@@ -148,14 +148,14 @@ export class TwitterService {
   }
 
   /**
-   * Upload media to Twitter (images)
+   * Upload media to Twitter (images) using OAuth 1.0a
    * @param imageUrl - Image URL to upload
    * @returns Media ID string or null if upload fails
    */
   private async uploadMedia(imageUrl: string): Promise<string | null> {
     // Fallback image URL (public domain kitchen image from Unsplash)
     const FALLBACK_IMAGE_URL =
-      "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=800";
+      "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&h=600&fit=crop&auto=format";
 
     // Try to fetch the original image first
     let imageBuffer: ArrayBuffer;
@@ -209,26 +209,15 @@ export class TwitterService {
 
     const url = "https://upload.twitter.com/1.1/media/upload.json";
 
-    // Use multipart/form-data to avoid 100KB header buffer limit
-    const boundary = `----TwitterMediaBoundary${Date.now()}`;
-    const body = [
-      `--${boundary}`,
-      'Content-Disposition: form-data; name="media_data"',
-      "Content-Type: text/plain",
-      "",
-      base64Image,
-      `--${boundary}`,
-      'Content-Disposition: form-data; name="media_category"',
-      "Content-Type: text/plain",
-      "",
-      "tweet_image",
-      `--${boundary}--`,
-    ].join("\r\n");
+    // Use application/x-www-form-urlencoded with base64 media_data to avoid multipart OAuth issues
+    const body = new URLSearchParams();
+    body.append("media_data", base64Image);
+    body.append("media_category", "tweet_image");
 
     const authHeader = this.buildOAuthHeader(
       "POST",
       url,
-      { media_category: "tweet_image" }, // Only sign non-file params
+      { media_category: "tweet_image" },
       this.accessTokenSecret,
     );
 
@@ -236,9 +225,9 @@ export class TwitterService {
       method: "POST",
       headers: {
         Authorization: authHeader,
-        "Content-Type": `multipart/form-data; boundary=${boundary}`,
+        "Content-Type": "application/x-www-form-urlencoded",
       },
-      body,
+      body: body.toString(),
     });
 
     const responseText = await response.text();
@@ -265,7 +254,7 @@ export class TwitterService {
   }
 
   /**
-   * Post tweet to Twitter API v2
+   * Post tweet to Twitter API v2 using OAuth 1.0a (user context)
    * @param text - Tweet text
    * @param mediaIds - Optional array of media IDs
    * @param inReplyToTweetId - Optional tweet ID to reply to
@@ -290,10 +279,18 @@ export class TwitterService {
       body.reply = { in_reply_to_tweet_id: inReplyToTweetId };
     }
 
+    // Use OAuth 1.0a for user-context tweet posting (more reliable than Bearer token)
+    const authHeader = this.buildOAuthHeader(
+      "POST",
+      url,
+      {}, // No additional params for JSON body
+      this.accessTokenSecret,
+    );
+
     const response = await fetch(url, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${this.bearerToken}`,
+        Authorization: authHeader,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
@@ -310,6 +307,14 @@ export class TwitterService {
         "errors" in data && data.errors
           ? data.errors.map((e) => e.message).join(", ")
           : `HTTP ${response.status}: ${response.statusText}`;
+
+      // Handle HTTP 402 (Payment Required) - free tier limitation
+      if (response.status === 402) {
+        throw new Error(
+          "Twitter API free tier does not allow posting tweets (HTTP 402). Skipping Twitter posting.",
+        );
+      }
+
       throw new Error(`Twitter API error: ${errorMsg}`);
     }
 
@@ -415,10 +420,21 @@ export class TwitterService {
         tweetId,
       };
     } catch (error) {
-      console.error("Error posting tweet with media:", error);
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      console.error("Error posting tweet with media:", errorMsg);
+
+      // Handle HTTP 402 (Payment Required) - free tier limitation
+      if (errorMsg.includes("402") || errorMsg.includes("Payment Required")) {
+        return {
+          success: false,
+          error:
+            "Twitter API free tier does not allow posting tweets (HTTP 402). Skipping Twitter posting.",
+        };
+      }
+
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: errorMsg,
       };
     }
   }
@@ -464,10 +480,21 @@ export class TwitterService {
         tweetId,
       };
     } catch (error) {
-      console.error("Error posting tweet:", error);
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      console.error("Error posting tweet:", errorMsg);
+
+      // Handle HTTP 402 (Payment Required) - free tier limitation
+      if (errorMsg.includes("402") || errorMsg.includes("Payment Required")) {
+        return {
+          success: false,
+          error:
+            "Twitter API free tier does not allow posting tweets (HTTP 402). Skipping Twitter posting.",
+        };
+      }
+
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: errorMsg,
       };
     }
   }
@@ -503,10 +530,21 @@ export class TwitterService {
         tweetId,
       };
     } catch (error) {
-      console.error("Error posting reply:", error);
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      console.error("Error posting reply:", errorMsg);
+
+      // Handle HTTP 402 (Payment Required) - free tier limitation
+      if (errorMsg.includes("402") || errorMsg.includes("Payment Required")) {
+        return {
+          success: false,
+          error:
+            "Twitter API free tier does not allow posting tweets (HTTP 402). Skipping Twitter posting.",
+        };
+      }
+
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: errorMsg,
       };
     }
   }
