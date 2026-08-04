@@ -39,7 +39,7 @@ export class ShortenerService {
       if (existingCode) {
         const result: ShortenerResult = {
           shortCode: existingCode,
-          shortUrl: `https://racun.ibu.my/r/${existingCode}`, // TODO: Use actual domain
+          shortUrl: affiliateUrl, // Fallback to original affiliate URL when no shortlink domain configured
           affiliateUrl,
         };
         return result;
@@ -82,7 +82,7 @@ export class ShortenerService {
 
     const result: ShortenerResult = {
       shortCode,
-      shortUrl: `https://racun.ibu.my/r/${shortCode}`, // TODO: Use actual domain
+      shortUrl: affiliateUrl, // Fallback to original affiliate URL when no shortlink domain configured
       affiliateUrl,
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
     };

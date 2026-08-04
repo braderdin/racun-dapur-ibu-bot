@@ -1,6 +1,6 @@
 /*
  * Custom Affiliate Link Masking & Anti-Shadowban Engine
- * Generates clean domain shortlinks (racun.ibu.my/r/:code),
+ * Generates clean domain shortlinks (/r/:code),
  * appends UTM analytics parameters, and masks direct affiliate
  * redirects to protect social channel reach.
  *
@@ -65,7 +65,7 @@ export interface LinkAnalytics {
 // ---------------------------------------------------------------------------
 
 const DEFAULT_CONFIG: CloakConfig = {
-  domain: "racun.ibu.my",
+  domain: "", // Empty string - falls back to original affiliate URL when not configured
   pathPrefix: "/r/",
   utmSource: "racun_dapur_ibu",
   utmMedium: "social",
@@ -143,9 +143,14 @@ export class LinkCloaker {
       const maskedUrl = this.buildMaskedUrl(shortCode, utmParams);
 
       // Build the cloaked link object
+      // If no domain is configured, fall back to original affiliate URL
+      const shortUrl = this.config.domain
+        ? `https://${this.config.domain}${this.config.pathPrefix}${shortCode}`
+        : affiliateUrl;
+
       const cloakedLink: CloakedLink = {
         shortCode,
-        shortUrl: `https://${this.config.domain}${this.config.pathPrefix}${shortCode}`,
+        shortUrl,
         originalAffiliateUrl: affiliateUrl,
         utmParams,
         maskedUrl,
@@ -376,7 +381,7 @@ export class LinkCloaker {
 
 export function createLinkCloaker(env: Env): LinkCloaker {
   return new LinkCloaker(env, {
-    domain: env.CLOAK_DOMAIN || "racun.ibu.my",
+    domain: env.CLOAK_DOMAIN || "", // Empty string - falls back to original affiliate URL
     utmSource: env.CLOAK_UTM_SOURCE || "racun_dapur_ibu",
     utmCampaign: env.CLOAK_UTM_CAMPAIGN || "dual_channel_posting",
     defaultExpiryDays: parseInt(env.CLOAK_EXPIRY_DAYS || "30", 10),

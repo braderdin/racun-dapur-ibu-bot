@@ -1,7 +1,7 @@
 /*
  * Custom Shortlink Domain Router & Click Tracking Service
- * Phase 6: Custom shortlink router for racun.ibu.my with affiliate redirects
- * Handles redirects like racun.ibu.my/airfryer -> affiliate URLs while logging metadata
+ * Phase 6: Custom shortlink router with affiliate redirects
+ * Handles redirects like /airfryer -> affiliate URLs while logging metadata
  */
 
 import { Env } from "../types/env";
@@ -47,12 +47,13 @@ export class ShortlinkRouter {
 
   private initializeDefaultRoutes(): void {
     // Initialize with common product categories for Malaysian market
+    // affiliateUrl falls back to originalUrl when no shortlink domain is configured
     const defaultRoutes: ShortlinkRoute[] = [
       {
         id: "route-lk-001",
         shortCode: "airfryer",
         originalUrl: "https://www.lazada.com.my/products/airfryer-malaysia",
-        affiliateUrl: "https://racun.ibu.my/airfryer",
+        affiliateUrl: "https://www.lazada.com.my/products/airfryer-malaysia", // Fallback to original affiliate URL
         productName: "Multi-Functional Air Fryer",
         platform: "lazada",
         category: "kitchen",
@@ -65,7 +66,8 @@ export class ShortlinkRouter {
         shortCode: "baby-stroller",
         originalUrl:
           "https://www.lazada.com.my/products/baby-stroller-malaysia",
-        affiliateUrl: "https://racun.ibu.my/baby-stroller",
+        affiliateUrl:
+          "https://www.lazada.com.my/products/baby-stroller-malaysia", // Fallback to original affiliate URL
         productName: "Baby Stroller Double Seat",
         platform: "lazada",
         category: "baby",
@@ -77,7 +79,7 @@ export class ShortlinkRouter {
         id: "route-lk-003",
         shortCode: "skincare-set",
         originalUrl: "https://www.shopee.com.my/skincare-set-malaysia",
-        affiliateUrl: "https://racun.ibu.my/skincare-set",
+        affiliateUrl: "https://www.shopee.com.my/skincare-set-malaysia", // Fallback to original affiliate URL
         productName: "Complete Skincare Set",
         platform: "shopee",
         category: "skincare",
@@ -89,7 +91,7 @@ export class ShortlinkRouter {
         id: "route-lk-004",
         shortCode: "gaming-chair",
         originalUrl: "https://www.shopee.com.my/gaming-chair-malaysia",
-        affiliateUrl: "https://racun.ibu.my/gaming-chair",
+        affiliateUrl: "https://www.shopee.com.my/gaming-chair-malaysia", // Fallback to original affiliate URL
         productName: "Ergonomic Gaming Chair",
         platform: "shopee",
         category: "gaming",
@@ -302,7 +304,8 @@ export class ShortlinkRouter {
 
     this.addRoute(route);
 
-    const redirectUrl = `https://racun.ibu.my/${shortCode}`;
+    // Fallback to original affiliate URL when no shortlink domain is configured
+    const redirectUrl = affiliateUrl;
 
     logger.info(
       "Generated new shortlink",

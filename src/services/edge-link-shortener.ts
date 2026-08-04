@@ -1,7 +1,7 @@
 /**
  * Edge Affiliate Link Shortener & Cloaker Engine
  * Converts long e-commerce affiliate links into clean domain shortlinks
- * (racun.ibu.my/r/:code) with UTM tracking parameters and Upstash Redis
+ * (/r/:code) with UTM tracking parameters and Upstash Redis
  * Edge Caching (<15ms 302 redirects).
  */
 
@@ -60,7 +60,7 @@ export class EdgeLinkShortener {
     });
 
     this.config = {
-      domain: env.SHORTLINK_DOMAIN || "racun.ibu.my",
+      domain: env.SHORTLINK_DOMAIN || "", // Empty string - falls back to original affiliate URL
       pathPrefix: "/r/",
       codeLength: 8,
       ttlSeconds: 30 * 24 * 60 * 60, // 30 days
