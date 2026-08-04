@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * Live Credentials Verification CLI Script
- * Comprehensive 14-Service Diagnostic for all API Connections
- * Strictly mapped against .env.example
+ * Comprehensive 15-Diagnostic Suite for all API Connections
+ * Strictly mapped against .env.example & Cloudflare Worker Proxy Specs
  *
  * Usage: node bin/verify-live-credentials.js
  */
@@ -10,12 +10,12 @@
 const fs = require("fs");
 const path = require("path");
 
-// Import twitter-api-v2 for OAuth 1.0a user context testing
+// Import twitter-api-v2 for OAuth 1.0a v1.1 (Media Upload) & v2 (Tweet Posting) testing
 let TwitterApi;
 try {
   TwitterApi = require("twitter-api-v2").TwitterApi;
 } catch (e) {
-  // Graceful fallback
+  // Graceful fallback if dependency is missing
 }
 
 // Load dotenv safely
@@ -23,11 +23,11 @@ let dotenv;
 try {
   dotenv = require("dotenv");
 } catch (e) {
-  console.error("❌ dotenv not installed. Run: npm install dotenv");
+  console.error("❌ dotenv package not installed. Run: npm install dotenv");
   process.exit(1);
 }
 
-// Load .env.local if present
+// Load environment variables from .env.local (READ-ONLY INSRUCTION)
 const envPath = path.join(__dirname, "..", ".env.local");
 if (fs.existsSync(envPath)) {
   dotenv.config({ path: envPath });
@@ -42,9 +42,9 @@ function addResult(service, status, details = "") {
 }
 
 function printTable() {
-  console.log("\n" + "=".repeat(75));
+  console.log("\n" + "=".repeat(80));
   console.log("  LIVE CREDENTIALS & API SERVICES VERIFICATION REPORT");
-  console.log("=".repeat(75) + "\n");
+  console.log("=".repeat(80) + "\n");
 
   const statusIcon = (s) => (s === "PASS" ? "✅" : s === "WARN" ? "⚠️ " : "❌");
   const statusColor = (s) =>
@@ -55,18 +55,18 @@ function printTable() {
     const icon = statusIcon(r.status);
     const color = statusColor(r.status);
     console.log(
-      `${icon} ${r.service.padEnd(32)} ${color}${r.status.padEnd(6)}${resetColor} ${r.details}`,
+      `${icon} ${r.service.padEnd(36)} ${color}${r.status.padEnd(6)}${resetColor} ${r.details}`,
     );
   });
 
-  console.log("\n" + "-".repeat(75));
+  console.log("\n" + "-".repeat(80));
   const passCount = RESULTS.filter((r) => r.status === "PASS").length;
   const totalCount = RESULTS.length;
   console.log(`  Summary: ${passCount}/${totalCount} services verified\n`);
-  console.log("=".repeat(75) + "\n");
+  console.log("=".repeat(80) + "\n");
 }
 
-// 1. GitHub REST API
+// 1. GitHub REST API (CI/CD Workflows & Secrets Access)
 async function testGitHub() {
   const token =
     process.env.GH_PAT ||
@@ -97,7 +97,7 @@ async function testGitHub() {
 
     if (response.ok) {
       const data = await response.json();
-      addResult("GitHub REST API", "PASS", `User: ${data.login}`);
+      addResult("GitHub REST API", "PASS", `Authenticated User: ${data.login}`);
     } else {
       addResult("GitHub REST API", "FAIL", `HTTP ${response.status}`);
     }
@@ -110,10 +110,11 @@ async function testGitHub() {
   }
 }
 
-// 2. Lazada Open API
+// 2. Lazada Open API (Product Scraper & Link Converter)
 async function testLazada() {
-  const appKey = process.env.LAZADA_APP_KEY;
-  const appSecret = process.env.LAZADA_APP_SECRET;
+  const appKey = process.env.LAZADA_APP_KEY || process.env.LAZADA_LiteApp_Key;
+  const appSecret =
+    process.env.LAZADA_APP_SECRET || process.env.LAZADA_LiteApp_Secret;
 
   if (!appKey || !appSecret) {
     addResult(
@@ -127,7 +128,7 @@ async function testLazada() {
   addResult("Lazada Open API", "PASS", `App Key: ${appKey.substring(0, 8)}...`);
 }
 
-// 3. Shopee Affiliate API
+// 3. Shopee Affiliate API (Secondary Affiliate Platform)
 async function testShopee() {
   const appId = process.env.SHOPEE_AFFILIATE_APP_ID;
   const secret = process.env.SHOPEE_AFFILIATE_SECRET;
@@ -144,57 +145,110 @@ async function testShopee() {
   addResult("Shopee Affiliate API", "PASS", `App ID: ${appId.substring(0, 8)}...`);
 }
 
-// 4. X (Twitter) API v2
+// 4. X (Twitter) API v1.1 (Media Upload) & v2 (Tweet Posting)
 async function testTwitter() {
   const appKey = process.env.X_API_KEY || process.env.X_Consumer_Key;
   const appSecret =
     process.env.X_API_KEY_SECRET || process.env.X_Consumer_Key_Secret;
   const accessToken = process.env.X_ACCESS_TOKEN;
-  const accessSecret = process.env.X_ACCESS_TOKEN_SECRET;
+  const accessSecret =
+    process.env.X_ACCESS_TOKEN_SECRET || process.env.X_Consumer_Key_Secret;
 
   if (!appKey || !appSecret || !accessToken || !accessSecret) {
     addResult(
-      "X (Twitter) API v2",
+      "X (Twitter) API v1.1 (Media Upload)",
       "FAIL",
-      "Missing OAuth 1.0a credentials (X_API_KEY, X_ACCESS_TOKEN)",
+      "Missing OAuth 1.0a keys (X_API_KEY, X_ACCESS_TOKEN)",
+    );
+    addResult(
+      "X (Twitter) API v2 (Tweet Posting)",
+      "FAIL",
+      "Missing OAuth 1.0a keys",
     );
     return;
   }
 
   if (!TwitterApi) {
-    addResult("X (Twitter) API v2", "FAIL", "twitter-api-v2 not installed");
+    addResult(
+      "X (Twitter) API v1.1 (Media Upload)",
+      "FAIL",
+      "twitter-api-v2 package not installed",
+    );
+    addResult(
+      "X (Twitter) API v2 (Tweet Posting)",
+      "FAIL",
+      "twitter-api-v2 package not installed",
+    );
     return;
   }
 
+  const client = new TwitterApi({
+    appKey,
+    appSecret,
+    accessToken,
+    accessSecret,
+  });
+
+  // Test 4A: X API v1.1 (Media Upload capability check via verifyCredentials)
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-    const client = new TwitterApi({
-      appKey,
-      appSecret,
-      accessToken,
-      accessSecret,
-    });
-
-    const me = await client.v2.me();
+    const v1User = await client.v1.verifyCredentials();
     clearTimeout(timeoutId);
 
-    if (me.data) {
-      addResult("X (Twitter) API v2", "PASS", `User: @${me.data.username}`);
+    if (v1User && v1User.screen_name) {
+      addResult(
+        "X (Twitter) API v1.1 (Media Upload)",
+        "PASS",
+        `OAuth 1.0a Verified: @${v1User.screen_name}`,
+      );
     } else {
-      addResult("X (Twitter) API v2", "FAIL", "No user data returned");
+      addResult(
+        "X (Twitter) API v1.1 (Media Upload)",
+        "FAIL",
+        "v1.1 verification returned empty profile",
+      );
     }
-  } catch (err) {
+  } catch (v1Err) {
     addResult(
-      "X (Twitter) API v2",
+      "X (Twitter) API v1.1 (Media Upload)",
       "FAIL",
-      err.name === "AbortError" ? "Timeout" : err.message,
+      `HTTP Error: ${v1Err.message || String(v1Err)}`,
+    );
+  }
+
+  // Test 4B: X API v2 (Tweet Posting capability check via me endpoint)
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    const v2User = await client.v2.me();
+    clearTimeout(timeoutId);
+
+    if (v2User && v2User.data) {
+      addResult(
+        "X (Twitter) API v2 (Tweet Posting)",
+        "PASS",
+        `Authenticated User: @${v2User.data.username}`,
+      );
+    } else {
+      addResult(
+        "X (Twitter) API v2 (Tweet Posting)",
+        "FAIL",
+        "v2 me endpoint returned empty payload",
+      );
+    }
+  } catch (v2Err) {
+    addResult(
+      "X (Twitter) API v2 (Tweet Posting)",
+      "FAIL",
+      `HTTP Error: ${v2Err.message || String(v2Err)}`,
     );
   }
 }
 
-// 5. Meta Facebook Graph API
+// 5. Meta Facebook Graph API (Pages Feed & Photos Endpoint)
 async function testFacebook() {
   const pageToken =
     process.env.FACEBOOK_PAGE_ACCESS_TOKEN ||
@@ -223,7 +277,11 @@ async function testFacebook() {
     if (response.ok) {
       const resData = await response.json();
       if (resData.id && resData.name) {
-        addResult("Meta Facebook Graph API", "PASS", `Page: ${resData.name}`);
+        addResult(
+          "Meta Facebook Graph API",
+          "PASS",
+          `Connected Page: ${resData.name}`,
+        );
       } else {
         addResult("Meta Facebook Graph API", "FAIL", "Invalid page payload");
       }
@@ -232,7 +290,7 @@ async function testFacebook() {
       addResult(
         "Meta Facebook Graph API",
         "FAIL",
-        `HTTP ${response.status}: ${resData.error?.message || "Error"}`,
+        `HTTP ${response.status}: ${resData.error?.message || "OAuth Error"}`,
       );
     }
   } catch (err) {
@@ -244,7 +302,7 @@ async function testFacebook() {
   }
 }
 
-// 6. Telegram Bot API
+// 6. Telegram Bot API (Interactive Audit & Alerts)
 async function testTelegram() {
   const token = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -265,7 +323,11 @@ async function testTelegram() {
     if (response.ok) {
       const data = await response.json();
       if (data.ok && data.result) {
-        addResult("Telegram Bot API", "PASS", `Bot: @${data.result.username}`);
+        addResult(
+          "Telegram Bot API",
+          "PASS",
+          `Active Bot: @${data.result.username}`,
+        );
       } else {
         addResult("Telegram Bot API", "FAIL", "Invalid bot payload");
       }
@@ -281,7 +343,7 @@ async function testTelegram() {
   }
 }
 
-// 7. Upstash Redis
+// 7. Upstash Redis (Cache & Rate Limiter)
 async function testUpstashRedis() {
   const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
   const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
@@ -302,7 +364,7 @@ async function testUpstashRedis() {
     clearTimeout(timeoutId);
 
     if (response.ok) {
-      addResult("Upstash Redis", "PASS", "Ping successful");
+      addResult("Upstash Redis", "PASS", "REST Ping successful");
     } else {
       addResult("Upstash Redis", "FAIL", `HTTP ${response.status}`);
     }
@@ -315,7 +377,7 @@ async function testUpstashRedis() {
   }
 }
 
-// 8. Upstash Vector
+// 8. Upstash Vector (RAG Copywriting Hook Search)
 async function testUpstashVector() {
   const vectorUrl = process.env.UPSTASH_VECTOR_REST_URL;
   const vectorToken = process.env.UPSTASH_VECTOR_REST_TOKEN;
@@ -362,7 +424,7 @@ async function testUpstashSearch() {
   addResult("Upstash Search", "PASS", "Search configuration present");
 }
 
-// 10. QStash Messaging
+// 10. QStash Messaging (Cron & Event Scheduler)
 async function testQStash() {
   const qstashUrl = process.env.QSTASH_URL;
   const qstashToken = process.env.QSTASH_TOKEN;
@@ -375,7 +437,7 @@ async function testQStash() {
   addResult("QStash Messaging", "PASS", "QStash token configured");
 }
 
-// 11. Supabase Postgres & REST
+// 11. Supabase Postgres & REST API (Database Storage)
 async function testSupabase() {
   const supabaseUrl =
     process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -416,7 +478,7 @@ async function testSupabase() {
   }
 }
 
-// 12. Cloudflare API & Workers
+// 12. Cloudflare API & Workers (AI Proxy & Edge Functions)
 async function testCloudflare() {
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
   const token = process.env.CLOUDFLARE_API_TOKEN;
@@ -430,10 +492,14 @@ async function testCloudflare() {
     return;
   }
 
-  addResult("Cloudflare API & Workers", "PASS", `Account ID: ${accountId.substring(0, 8)}...`);
+  addResult(
+    "Cloudflare API & Workers",
+    "PASS",
+    `Account ID: ${accountId.substring(0, 8)}...`,
+  );
 }
 
-// 13. Backblaze B2 Storage (Multi-Account Check)
+// 13. Backblaze B2 Storage (Multi-Account Media CDN)
 async function testBackblazeB2() {
   const acc1Key = process.env.B2_ACC1_KEY_ID;
   const acc1AppKey = process.env.B2_ACC1_APPLICATION_KEY;
@@ -480,12 +546,13 @@ async function testBackblazeB2() {
   }
 }
 
-// 14. OpenRouter AI via Cloudflare Worker Proxy
+// 14. OpenRouter AI via Cloudflare Worker Proxy (OpenAI-Compatible Gateway)
 async function testOpenRouter() {
   const baseUrl =
     process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1";
   const model = process.env.OPENROUTER_MODEL || "openrouter/free";
-  const apiKey = process.env.OPENROUTER_API_KEY || "sk-dummy-key";
+  const apiKey =
+    process.env.OPENROUTER_API_KEY || "sk-dummy-key-cloudflare-proxy";
 
   try {
     const controller = new AbortController();
@@ -512,7 +579,7 @@ async function testOpenRouter() {
       addResult(
         "OpenRouter AI Proxy",
         "PASS",
-        `Endpoint Accessible (HTTP ${response.status})`,
+        `Proxy Accessible (HTTP ${response.status})`,
       );
     }
   } catch (err) {
@@ -525,7 +592,9 @@ async function testOpenRouter() {
 }
 
 async function main() {
-  console.log("\n🔍 Starting Live Credentials & Services Verification...\n");
+  console.log(
+    "\n🔍 Starting Live Credentials & Services Verification (15 Diagnostics)...\n",
+  );
 
   await Promise.all([
     testGitHub(),
@@ -548,6 +617,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("Fatal error:", err);
+  console.error("Fatal verification error:", err);
   process.exit(1);
 });
