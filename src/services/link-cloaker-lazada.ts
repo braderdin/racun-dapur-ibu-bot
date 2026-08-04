@@ -11,7 +11,8 @@ export class LazadaLinkCloaker {
   constructor(env: Env) {
     this.env = env;
     this.redis = new RedisService(env);
-    this.baseDomain = env.CLOAK_DOMAIN || "r.racundapuribu.com";
+    // Use Vercel app domain since we don't own a custom domain
+    this.baseDomain = env.CLOAK_DOMAIN || "racun-dapur-ibu.vercel.app";
     this.utmSource = env.CLOAK_UTM_SOURCE || "lazada";
     this.utmCampaign = env.CLOAK_UTM_CAMPAIGN || "live-fetcher";
   }

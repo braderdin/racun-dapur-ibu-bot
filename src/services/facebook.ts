@@ -256,7 +256,7 @@ export class FacebookService {
   }
 
   /**
-   * Post to Facebook Page with media (alias for postToFacebookPage)
+   * Post to Facebook Page with media, with fallback to text-only post if image fails
    * @param message - Post message
    * @param imageUrl - Image URL
    * @returns Post result
@@ -265,10 +265,24 @@ export class FacebookService {
     message: string,
     imageUrl: string,
   ): Promise<FacebookPostResponse> {
-    return this.postToFacebookPage({
+    // First try with image
+    const resultWithImage = await this.postToFacebookPage({
       message,
       picture: imageUrl,
     });
+
+    // If image post fails with Error #324 (invalid image), fallback to text-only post
+    if (!resultWithImage.success && resultWithImage.error?.code === 324) {
+      console.warn(
+        "[Facebook] Image post failed with Error #324, falling back to text-only post",
+      );
+      return this.postToFacebookPage({
+        message,
+        // No picture or url - will use /feed endpoint
+      });
+    }
+
+    return resultWithImage;
   }
 
   /**

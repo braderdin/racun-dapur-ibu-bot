@@ -60,7 +60,8 @@ export class EdgeLinkShortener {
     });
 
     this.config = {
-      domain: env.SHORTLINK_DOMAIN || "", // Empty string - falls back to original affiliate URL
+      // Use Vercel app domain as shortlink domain since we don't own a custom domain
+      domain: env.SHORTLINK_DOMAIN || "racun-dapur-ibu.vercel.app",
       pathPrefix: "/r/",
       codeLength: 8,
       ttlSeconds: 30 * 24 * 60 * 60, // 30 days
@@ -125,14 +126,9 @@ export class EdgeLinkShortener {
       const reverseKey = `shortlink:reverse:${this.hashUrl(originalUrl)}`;
       await this.redis.setex(reverseKey, this.config.ttlSeconds, code);
 
-      // Build short URL - FIX: Check if domain is configured, otherwise fallback to original URL
-      let shortUrl: string;
-      if (this.config.domain && this.config.domain.trim() !== "") {
-        shortUrl = `https://${this.config.domain}${this.config.pathPrefix}${code}`;
-      } else {
-        // Fallback to original affiliate URL when no shortlink domain configured
-        shortUrl = originalUrl;
-      }
+      // Build short URL - Use Vercel app domain for shortlinks
+      // Since we don't own a custom domain, use the Vercel app URL
+      const shortUrl = `https://${this.config.domain}${this.config.pathPrefix}${code}`;
 
       return {
         success: true,

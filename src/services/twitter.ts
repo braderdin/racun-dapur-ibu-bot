@@ -54,13 +54,24 @@ export class TwitterService {
 
   constructor(env?: Env) {
     this.env = env;
+    // Use X_* prefixed env vars as primary, with TWITTER_* as fallbacks
+    // Note: Env type has X_BEARER_TOKEN, TWITTER_API_KEY, TWITTER_API_SECRET, etc.
     this.bearerToken = env?.X_BEARER_TOKEN || env?.TWITTER_API_KEY || "";
-    this.apiKey = env?.TWITTER_API_KEY || env?.X_CONSUMER_KEY || "";
+    this.apiKey = env?.X_CONSUMER_KEY || env?.TWITTER_API_KEY || "";
     this.apiSecret =
-      env?.TWITTER_API_SECRET || env?.X_CONSUMER_KEY_SECRET || "";
-    this.accessToken = env?.TWITTER_ACCESS_TOKEN || env?.X_ACCESS_TOKEN || "";
+      env?.X_CONSUMER_KEY_SECRET || env?.TWITTER_API_SECRET || "";
+    this.accessToken = env?.X_ACCESS_TOKEN || env?.TWITTER_ACCESS_TOKEN || "";
     this.accessTokenSecret =
-      env?.TWITTER_ACCESS_SECRET || env?.X_ACCESS_TOKEN_SECRET || "";
+      env?.X_ACCESS_TOKEN_SECRET || env?.TWITTER_ACCESS_SECRET || "";
+
+    // Debug log for credential verification (without exposing secrets)
+    console.log("[X Bot] Credentials check:", {
+      hasBearerToken: !!this.bearerToken,
+      hasApiKey: !!this.apiKey,
+      hasApiSecret: !!this.apiSecret,
+      hasAccessToken: !!this.accessToken,
+      hasAccessTokenSecret: !!this.accessTokenSecret,
+    });
   }
 
   /**
@@ -197,15 +208,27 @@ export class TwitterService {
     const base64Image = Buffer.from(imageBuffer!).toString("base64");
 
     const url = "https://upload.twitter.com/1.1/media/upload.json";
-    const params = {
-      media_data: base64Image,
-      media_category: "tweet_image",
-    };
+
+    // Use multipart/form-data to avoid 100KB header buffer limit
+    const boundary = `----TwitterMediaBoundary${Date.now()}`;
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="media_data"',
+      "Content-Type: text/plain",
+      "",
+      base64Image,
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="media_category"',
+      "Content-Type: text/plain",
+      "",
+      "tweet_image",
+      `--${boundary}--`,
+    ].join("\r\n");
 
     const authHeader = this.buildOAuthHeader(
       "POST",
       url,
-      params,
+      { media_category: "tweet_image" }, // Only sign non-file params
       this.accessTokenSecret,
     );
 
@@ -213,9 +236,9 @@ export class TwitterService {
       method: "POST",
       headers: {
         Authorization: authHeader,
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Type": `multipart/form-data; boundary=${boundary}`,
       },
-      body: new URLSearchParams(params).toString(),
+      body,
     });
 
     const responseText = await response.text();
