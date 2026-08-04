@@ -19,32 +19,65 @@ const {
   LiveProductionOrchestrator,
 } = require("../src/services/live-production-orchestrator");
 
-// Mock Env object for CLI execution
+// Mock Env object for CLI execution (With Robust Fallback Mapping)
 const createEnv = () => ({
   SUPABASE_URL: process.env.SUPABASE_URL,
   SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
   TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
   TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID,
-  TWITTER_BEARER_TOKEN: process.env.TWITTER_BEARER_TOKEN,
-  TWITTER_API_KEY: process.env.TWITTER_API_KEY,
-  TWITTER_API_SECRET: process.env.TWITTER_API_SECRET,
-  TWITTER_ACCESS_TOKEN: process.env.TWITTER_ACCESS_TOKEN,
-  TWITTER_ACCESS_TOKEN_SECRET: process.env.TWITTER_ACCESS_TOKEN_SECRET,
-  FACEBOOK_PAGE_ID: process.env.FACEBOOK_PAGE_ID,
-  FACEBOOK_ACCESS_TOKEN: process.env.FACEBOOK_ACCESS_TOKEN,
-  UPSTASH_REDIS_URL: process.env.UPSTASH_REDIS_URL,
-  UPSTASH_REDIS_TOKEN: process.env.UPSTASH_REDIS_TOKEN,
-  UPSTASH_VECTOR_URL: process.env.UPSTASH_VECTOR_URL,
-  UPSTASH_VECTOR_TOKEN: process.env.UPSTASH_VECTOR_TOKEN,
-  BACKBLAZE_B2_KEY_ID: process.env.BACKBLAZE_B2_KEY_ID,
-  BACKBLAZE_B2_APP_KEY: process.env.BACKBLAZE_B2_APP_KEY,
+
+  // Twitter / X API Fallback Mapping
+  TWITTER_BEARER_TOKEN: process.env.TWITTER_BEARER_TOKEN || process.env.X_BEARER_TOKEN,
+  TWITTER_API_KEY: process.env.TWITTER_API_KEY || process.env.X_API_KEY,
+  TWITTER_API_SECRET: process.env.TWITTER_API_SECRET || process.env.X_API_KEY_SECRET,
+  TWITTER_ACCESS_TOKEN: process.env.TWITTER_ACCESS_TOKEN || process.env.X_ACCESS_TOKEN,
+  TWITTER_ACCESS_TOKEN_SECRET:
+    process.env.TWITTER_ACCESS_TOKEN_SECRET ||
+    process.env.TWITTER_ACCESS_SECRET ||
+    process.env.X_ACCESS_TOKEN_SECRET,
+
+  // Facebook Page API Fallback Mapping
+  FACEBOOK_PAGE_ID:
+    process.env.FACEBOOK_PAGE_ID ||
+    process.env.META_PAGE_ID ||
+    process.env.FB_PAGE_ID,
+  FACEBOOK_ACCESS_TOKEN:
+    process.env.FACEBOOK_ACCESS_TOKEN ||
+    process.env.FACEBOOK_PAGE_ACCESS_TOKEN ||
+    process.env.META_PAGE_ACCESS_TOKEN ||
+    process.env.FB_PAGE_ACCESS_TOKEN,
+
+  // Upstash Redis & Vector Fallback Mapping
+  UPSTASH_REDIS_URL:
+    process.env.UPSTASH_REDIS_URL ||
+    process.env.UPSTASH_REDIS_REST_URL ||
+    process.env.REDIS_URL,
+  UPSTASH_REDIS_TOKEN:
+    process.env.UPSTASH_REDIS_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN,
+  UPSTASH_VECTOR_URL:
+    process.env.UPSTASH_VECTOR_URL || process.env.UPSTASH_VECTOR_REST_URL,
+  UPSTASH_VECTOR_TOKEN:
+    process.env.UPSTASH_VECTOR_TOKEN || process.env.UPSTASH_VECTOR_REST_TOKEN,
+
+  // Backblaze B2 Storage Fallback Mapping
+  BACKBLAZE_B2_KEY_ID:
+    process.env.BACKBLAZE_B2_KEY_ID ||
+    process.env.B2_ACC1_KEY_ID ||
+    process.env.BACKBLAZE_B2_ACCOUNT_ID_1,
+  BACKBLAZE_B2_APP_KEY:
+    process.env.BACKBLAZE_B2_APP_KEY ||
+    process.env.B2_ACC1_APPLICATION_KEY ||
+    process.env.BACKBLAZE_B2_ACCOUNT_KEY_1,
   BACKBLAZE_B2_BUCKET_ID: process.env.BACKBLAZE_B2_BUCKET_ID,
+
+  // AI & E-commerce APIs Fallback Mapping
   OPENROUTER_BASE_URL:
     process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
   OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
-  LAZADA_API_KEY: process.env.LAZADA_API_KEY,
-  LAZADA_API_SECRET: process.env.LAZADA_API_SECRET,
+  LAZADA_API_KEY: process.env.LAZADA_API_KEY || process.env.LAZADA_APP_KEY,
+  LAZADA_API_SECRET:
+    process.env.LAZADA_API_SECRET || process.env.LAZADA_APP_SECRET,
   SHOPEE_API_KEY: process.env.SHOPEE_API_KEY,
   SHOPEE_API_SECRET: process.env.SHOPEE_API_SECRET,
   QSTASH_URL: process.env.QSTASH_URL,
