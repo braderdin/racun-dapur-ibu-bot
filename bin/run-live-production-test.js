@@ -32,18 +32,24 @@ const createEnv = () => ({
   TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID,
 
   // 3. Pemetaan Dual-Name X (Twitter) API
-  TWITTER_BEARER_TOKEN: process.env.TWITTER_BEARER_TOKEN || process.env.X_BEARER_TOKEN,
+  TWITTER_BEARER_TOKEN:
+    process.env.TWITTER_BEARER_TOKEN || process.env.X_BEARER_TOKEN,
   TWITTER_API_KEY: process.env.TWITTER_API_KEY || process.env.X_API_KEY,
-  TWITTER_API_SECRET: process.env.TWITTER_API_SECRET || process.env.X_API_KEY_SECRET,
-  TWITTER_ACCESS_TOKEN: process.env.TWITTER_ACCESS_TOKEN || process.env.X_ACCESS_TOKEN,
+  TWITTER_API_SECRET:
+    process.env.TWITTER_API_SECRET || process.env.X_API_KEY_SECRET,
+  TWITTER_ACCESS_TOKEN:
+    process.env.TWITTER_ACCESS_TOKEN || process.env.X_ACCESS_TOKEN,
   TWITTER_ACCESS_TOKEN_SECRET:
     process.env.TWITTER_ACCESS_TOKEN_SECRET ||
     process.env.TWITTER_ACCESS_SECRET ||
     process.env.X_ACCESS_TOKEN_SECRET,
-  X_BEARER_TOKEN: process.env.X_BEARER_TOKEN || process.env.TWITTER_BEARER_TOKEN,
+  X_BEARER_TOKEN:
+    process.env.X_BEARER_TOKEN || process.env.TWITTER_BEARER_TOKEN,
   X_API_KEY: process.env.X_API_KEY || process.env.TWITTER_API_KEY,
-  X_API_KEY_SECRET: process.env.X_API_KEY_SECRET || process.env.TWITTER_API_SECRET,
-  X_ACCESS_TOKEN: process.env.X_ACCESS_TOKEN || process.env.TWITTER_ACCESS_TOKEN,
+  X_API_KEY_SECRET:
+    process.env.X_API_KEY_SECRET || process.env.TWITTER_API_SECRET,
+  X_ACCESS_TOKEN:
+    process.env.X_ACCESS_TOKEN || process.env.TWITTER_ACCESS_TOKEN,
   X_ACCESS_TOKEN_SECRET:
     process.env.X_ACCESS_TOKEN_SECRET ||
     process.env.TWITTER_ACCESS_TOKEN_SECRET ||
