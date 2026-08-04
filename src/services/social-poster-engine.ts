@@ -264,7 +264,13 @@ export class SocialPosterEngine {
       );
 
       if (!postResult.success || !postResult.postId) {
-        throw new Error(`Facebook post failed: ${postResult.error}`);
+        throw new Error(
+          `Facebook post failed: ${
+            postResult.error instanceof Error
+              ? postResult.error.message
+              : JSON.stringify(postResult.error, null, 2)
+          }`,
+        );
       }
 
       // Anti-spam jitter delay (3-8 seconds)

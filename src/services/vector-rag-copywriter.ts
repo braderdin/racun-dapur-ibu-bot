@@ -298,7 +298,7 @@ ${relevantHooks && relevantHooks.length > 0 ? `- Proven Hooks: ${relevantHooks.m
     relevantHooks: MarketingHook[],
   ): string {
     const hookContext =
-      relevantHooks.length > 0
+      relevantHooks && relevantHooks.length > 0
         ? `Use these proven hooks as inspiration: ${relevantHooks.map((h) => h.hook).join(", ")}`
         : "Generate fresh hooks based on product category and platform.";
 
