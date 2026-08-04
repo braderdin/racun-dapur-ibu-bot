@@ -811,6 +811,10 @@ Share our Malaysian parenting journey and kitchen adventures! 💕`;
     for (let i = 0; i < Math.min(count, products.length); i++) {
       const product = products[i];
 
+      // Ensure direct affiliate URL is used (no fake shortlink domains)
+      const directAffiliateLink =
+        product.affiliateLink || product.directAffiliateLink || "";
+
       const content = {
         text:
           product.description ||
@@ -823,8 +827,8 @@ Share our Malaysian parenting journey and kitchen adventures! 💕`;
                 alt: product.name,
               }
             : undefined,
-        affiliateLink: product.affiliateLink,
-        cta: product.cta || `Get yours now! ${product.affiliateLink}`,
+        affiliateLink: directAffiliateLink,
+        cta: product.cta || `Get yours now! ${directAffiliateLink}`,
         metadata: product.metadata,
       };
 

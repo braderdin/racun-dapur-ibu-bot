@@ -237,7 +237,7 @@ export class TelegramQAInspector {
 
   /**
    * Build audit report caption
-   * Includes AI copywriting from "openrouter/free" model and B2 WebP image preview
+   * Shows ACTUAL generated AI copy (X/Twitter Hook & Facebook Storytelling text)
    * @param data - Audit data
    * @returns Formatted caption
    */
@@ -254,21 +254,23 @@ export class TelegramQAInspector {
     caption += `<b>💰 Price:</b> ${data.price} <s>${data.originalPrice}</s> (${data.discountRate} OFF)\n`;
     caption += `<b>🖼️ Image:</b> B2 WebP HD Photo\n\n`;
 
-    caption += `<b>🐦 X (TWITTER) COPY (openrouter/free):</b>\n`;
-    caption += `<i>Hook:</i> ${data.xCopy.hook}\n`;
+    // Show ACTUAL generated AI copy for X/Twitter Hook
+    caption += `<b>🐦 X (TWITTER) HOOK COPY:</b>\n`;
+    caption += `<code>${data.xCopy.hook}</code>\n`;
     caption += `<i>CTA:</i> ${data.xCopy.cta}\n`;
-    caption += `<i>Cultural:</i> ${data.xCopy.culturalAdaptation}\n`;
     caption += `<i>Confidence:</i> ${(data.xCopy.confidence * 100).toFixed(1)}%\n\n`;
 
-    caption += `<b>📘 FACEBOOK COPY (openrouter/free):</b>\n`;
-    caption += `<i>Hook:</i> ${data.facebookCopy.hook}\n`;
+    // Show ACTUAL generated AI copy for Facebook Storytelling
+    caption += `<b>📘 FACEBOOK STORYTELLING COPY:</b>\n`;
+    caption += `<code>${data.facebookCopy.hook}</code>\n`;
+    if (data.facebookCopy.body && data.facebookCopy.body.length > 0) {
+      caption += `<code>${data.facebookCopy.body.join(" ")}</code>\n`;
+    }
     caption += `<i>CTA:</i> ${data.facebookCopy.cta}\n`;
-    caption += `<i>Cultural:</i> ${data.facebookCopy.culturalAdaptation}\n`;
     caption += `<i>Confidence:</i> ${(data.facebookCopy.confidence * 100).toFixed(1)}%\n\n`;
 
-    caption += `<b>🔗 SHORTLINK:</b>\n`;
-    caption += `• <a href="${data.shortUrl}">${data.shortUrl}</a>\n`;
-    caption += `• Affiliate: <code>${data.affiliateUrl}</code>\n\n`;
+    caption += `<b>🔗 AFFILIATE LINK:</b>\n`;
+    caption += `<code>${data.affiliateUrl}</code>\n\n`;
 
     caption += `\n<b>⏰ Audit Time:</b> ${timestamp}\n`;
     caption += `\n🧪 <b>[30-MIN AI TRIAL MODE] Product Deal Audited & Delivered</b>`;

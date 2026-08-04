@@ -270,13 +270,14 @@ export class AIPersonaEngine {
       return hooks[0].hook;
     }
 
-    // Fallback heuristic hook
+    // Fallback heuristic hook - natural Malaysian household pain points
     const title = product.title;
     const fallbackHooks = [
-      `Pernah tak rasa macam ni? ${title} ni memang game changer!`,
-      `Cerita dulu ni — ${title} ni solusi dapur aku sehari-hari.`,
-      `Jangan lepaskan ini! ${title} ni buat hidup lebih senang.`,
-      `Aku terkejut dengan ${title} ni — kena cuba!`,
+      `Adoi tumpulnya pisau bila nak potong sayur, ${title} ni solusi yang memang berbaloi!`,
+      `Pening kepala bila nak masak, tapi kat sini diajarkan cara yang senang - ${title} ni game changer dapur!`,
+      `Alamak, hari ni dapur berantakan, nak cari peralatan yang betul... ${title} ni jawapannya!`,
+      `Baru-bar ni aku terpaksa beli baru sebab lama nak ganti - ${title} ni yang aku nak kawan selamanya!`,
+      `Kita semua tahu, dapur ibu memang pusingan... ${title} ni bantu selesaikan masalah ni!`,
     ];
     return fallbackHooks[Math.floor(Math.random() * fallbackHooks.length)];
   }
@@ -287,34 +288,34 @@ export class AIPersonaEngine {
   ): string[] {
     const lines: string[] = [];
 
-    // Line 1: Personal story opener
+    // Line 1: Personal story opener with natural Malaysian pain point
     lines.push(
-      `Kalau nak cerita, aku memang tak sangka ${product.title} ni boleh ubah cara aku masak sehari-hari.`,
+      `Baru-bar ni, aku dah lama nak ganti peralatan dapur ni... ${product.title} memang jawapan yang kami cari!`,
     );
 
-    // Line 2: Product benefit
+    // Line 2: Product benefit with natural price mention
     const price = this.extractPrice(product.price);
     if (price > 0) {
       lines.push(
-        `Harga RM${price.toFixed(2)} ni memang sepadan dengan kualiti yang diberi — nilai terbaik untuk dapur keluarga.`,
+        `Harga RM${price.toFixed(2)} ni sangat-sangat kompetitif, memang berbaloi untuk keluarga kita yang ramai orang.`,
       );
     }
 
-    // Line 3: Emotional connection
+    // Line 3: Emotional connection with household context
     lines.push(
-      `Setiap kali guna ni, rasa macam ada tenaga tambahan untuk masak untuk keluarga tercinta.`,
+      `Setiap kali pakai ni, aku rasa lebih tenang bila masak - tak perlu repit-repit lagi!`,
     );
 
-    // Line 4: Recommendation
+    // Line 4: Natural recommendation
     lines.push(
-      `Kalau kau nak kemas dapur dengan satu barang yang paling bermanfaat, ini satu yang patut kau ambil perhatian.`,
+      `Kalau kau juga banyak repit dapur, kat link ni boleh grab ${product.title} dengan promo istimewa!`,
     );
 
     return lines.slice(0, this.config.maxBodyLines);
   }
 
   private buildFacebookCTA(product: ProductItem): string {
-    return `Klik pautan di bawah untuk dapatkan ${product.title} dengan harga terbaik hari ini! Jangan tunda — stok terhad! 🛒`;
+    return `Boleh grab promo kat link Lazada/Shopee ni tau! 👇`;
   }
 
   private buildTwitterHookTweet(
@@ -344,9 +345,9 @@ export class AIPersonaEngine {
   ): PersonaCopyOutput {
     return {
       platform: "twitter",
-      hook: `Ini dia pautan untuk ${product.title} — harga istimewa hari ini sahaja!`,
-      body: ["Dapatkan sekarang sebelum kehabisan!"],
-      cta: "Pautan affiliate di bio 👇",
+      hook: `Boleh grab ${product.title} kat link ni tau! 👇`,
+      body: ["Dapatkan promo hari ni - sangat-sangat best!"],
+      cta: "Kat link Lazada/Shopee ni! 👇",
       hashtags: this.generateHashtags(product, "twitter"),
       tone: "remberdawar-cta",
       confidence: 0.85,

@@ -73,6 +73,7 @@ export class TelegramInteractiveAudit {
 
   /**
    * Format comprehensive visual audit message
+   * Includes generated AI copywriting draft and direct affiliate link for review
    * @param postData - Post data
    * @param commentData - Comment data
    * @param imageUrl - Image URL
@@ -104,6 +105,33 @@ export class TelegramInteractiveAudit {
     message += `• Discount: ${postData.discountRate || "0%"}\n`;
     message += `• Rating: ${postData.rating || "0.0"}/5\n`;
     message += `• Stock: ${postData.stockStatus || "Unknown"}\n\n`;
+
+    // AI Copywriting Draft Section - X/Twitter Hook
+    message += `🐦 **X/TWITTER HOOK COPY (AI DRAFT):**\n`;
+    if (postData.twitterCopy) {
+      message += `<code>${postData.twitterCopy.hook || postData.twitterCopy}</code>\n`;
+    } else {
+      message += `<code>${postData.twitterCopy || "Not available"}</code>\n`;
+    }
+    message += `\n`;
+
+    // AI Copywriting Draft Section - Facebook Storytelling
+    message += `📘 **FACEBOOK STORYTELLING COPY (AI DRAFT):**\n`;
+    if (postData.facebookCopy) {
+      message += `<code>${postData.facebookCopy.hook || postData.facebookCopy}</code>\n`;
+      if (postData.facebookCopy.body && postData.facebookCopy.body.length > 0) {
+        message += `<code>${postData.facebookCopy.body.join(" ")}</code>\n`;
+      }
+    } else {
+      message += `<code>${postData.facebookCopy || "Not available"}</code>\n`;
+    }
+    message += `\n`;
+
+    // Direct Affiliate Link Section
+    message += `🔗 **DIRECT AFFILIATE LINK:**\n`;
+    const directAffiliateLink =
+      commentData.affiliateLink || postData.directAffiliateLink || "N/A";
+    message += `<code>${directAffiliateLink}</code>\n\n`;
 
     // Comment Information Section
     message += `💬 **COMMENT INFORMATION**\n`;
