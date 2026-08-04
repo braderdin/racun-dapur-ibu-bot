@@ -233,7 +233,11 @@ export class VectorRAGCopywriter {
         },
       };
 
-      await this.updateHookPerformance(relevantHooks[0]?.id, generatedCopy);
+      // Safe optional chaining with fallback - prevent TypeError when relevantHooks is empty
+      const firstHookId = relevantHooks?.[0]?.id;
+      if (firstHookId) {
+        await this.updateHookPerformance(firstHookId, generatedCopy);
+      }
 
       return generatedCopy;
     } catch (error) {

@@ -289,6 +289,97 @@ export class TelegramInteractiveAudit {
   }
 
   /**
+   * Send visual audit notification with PHOTO via Telegram API
+   * Uses sendPhoto with product.imageUrl, falls back to default kitchen placeholder if image fails
+   * @param product - Product data with imageUrl
+   * @param postData - Post data from social media platforms
+   * @param commentData - Comment data from social media platforms
+   * @returns Telegram message response
+   */
+  async sendVisualAuditNotification(
+    product: {
+      imageUrl?: string;
+      productTitle?: string;
+      price?: string;
+      discountRate?: string;
+      platform?: string;
+    },
+    postData: any,
+    commentData: any,
+  ): Promise<any> {
+    try {
+      // Default kitchen placeholder image (working standard image)
+      const DEFAULT_KITCHEN_PLACEHOLDER =
+        "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&h=600&fit=crop";
+
+      // Determine image URL with fallback
+      let imageUrl = product.imageUrl || DEFAULT_KITCHEN_PLACEHOLDER;
+
+      // Validate image URL format
+      if (!imageUrl || !imageUrl.startsWith("http")) {
+        imageUrl = DEFAULT_KITCHEN_PLACEHOLDER;
+      }
+
+      // Send PHOTO via Telegram API using the notifier service
+      const success = await this.telegram.sendAuditReport({
+        productTitle:
+          product.productTitle || postData.productTitle || "Unknown Product",
+        price: product.price || postData.price || "N/A",
+        discount: product.discountRate || postData.discountRate || "0%",
+        platform: product.platform || postData.platform || "Lazada",
+        imageUrl: imageUrl,
+        shortlinkUrl:
+          commentData.affiliateLink || postData.directAffiliateLink || "N/A",
+        twitterCopy: postData.twitterCopy || "N/A",
+        facebookCopy: postData.facebookCopy || "N/A",
+        twitterPostUrl: postData.twitterPostUrl,
+        facebookPostUrl: postData.facebookPostUrl,
+      });
+
+      if (!success) {
+        // If sendPhoto fails, try with default placeholder as last resort
+        console.warn(
+          "⚠️ Telegram sendPhoto failed, retrying with default placeholder...",
+        );
+        const fallbackSuccess = await this.telegram.sendAuditReport({
+          productTitle:
+            product.productTitle || postData.productTitle || "Unknown Product",
+          price: product.price || postData.price || "N/A",
+          discount: product.discountRate || postData.discountRate || "0%",
+          platform: product.platform || postData.platform || "Lazada",
+          imageUrl: DEFAULT_KITCHEN_PLACEHOLDER,
+          shortlinkUrl:
+            commentData.affiliateLink || postData.directAffiliateLink || "N/A",
+          twitterCopy: postData.twitterCopy || "N/A",
+          facebookCopy: postData.facebookCopy || "N/A",
+          twitterPostUrl: postData.twitterPostUrl,
+          facebookPostUrl: postData.facebookPostUrl,
+        });
+
+        if (!fallbackSuccess) {
+          throw new Error(
+            "Failed to send Telegram visual audit notification even with fallback",
+          );
+        }
+      }
+
+      console.log(
+        "✅ Telegram visual audit notification with PHOTO sent successfully",
+      );
+      return {
+        success: true,
+        hasImage: true,
+        imageUrl: imageUrl,
+        postData,
+        commentData,
+      };
+    } catch (error) {
+      console.error("Error sending Telegram visual audit notification:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Get Telegram audit statistics
    * @returns Telegram audit statistics
    */
