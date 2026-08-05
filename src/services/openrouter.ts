@@ -153,6 +153,7 @@ export class OpenRouterService {
           Authorization: `Bearer ${apiKey}`,
           "HTTP-Referer": "https://racun.ibu.my",
           "X-Title": "RacunDapurIbu Bot",
+          Accept: "application/json",
         },
         body: JSON.stringify({
           model: this.config.model,
@@ -172,6 +173,7 @@ export class OpenRouterService {
           top_k: this.config.topK,
           presence_penalty: this.config.presencePenalty,
           frequency_penalty: this.config.frequencyPenalty,
+          stream: false, // Ensure non-streaming response
         }),
         signal: controller.signal,
       });
@@ -185,7 +187,23 @@ export class OpenRouterService {
         );
       }
 
-      const result: OpenRouterResponse = await response.json();
+      const responseText = await response.text();
+
+      // Handle potential SSE or malformed responses
+      let result: OpenRouterResponse;
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        // Try to extract JSON from SSE format (data: {...})
+        const jsonMatch = responseText.match(/data:\s*(\{[\s\S]*\})/);
+        if (jsonMatch) {
+          result = JSON.parse(jsonMatch[1]);
+        } else {
+          throw new Error(
+            `Failed to parse OpenRouter response: ${responseText.substring(0, 200)}`,
+          );
+        }
+      }
 
       // Update rate limit stats
       this.requestCount++;

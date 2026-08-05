@@ -117,6 +117,28 @@ const createEnv = () => ({
     process.env.B2_ACC1_APPLICATION_KEY ||
     process.env.BACKBLAZE_B2_APP_KEY ||
     process.env.BACKBLAZE_B2_ACCOUNT_KEY_1,
+  B2_ACC1_BUCKET_NAME:
+    process.env.B2_ACC1_BUCKET_NAME || process.env.BACKBLAZE_B2_BUCKET_ID,
+  B2_ACC2_KEY_ID:
+    process.env.B2_ACC2_KEY_ID ||
+    process.env.BACKBLAZE_B2_KEY_ID ||
+    process.env.BACKBLAZE_B2_ACCOUNT_ID_2,
+  B2_ACC2_APPLICATION_KEY:
+    process.env.B2_ACC2_APPLICATION_KEY ||
+    process.env.BACKBLAZE_B2_APP_KEY ||
+    process.env.BACKBLAZE_B2_ACCOUNT_KEY_2,
+  B2_ACC2_BUCKET_NAME:
+    process.env.B2_ACC2_BUCKET_NAME || process.env.BACKBLAZE_B2_BUCKET_ID,
+  B2_ACC3_KEY_ID:
+    process.env.B2_ACC3_KEY_ID ||
+    process.env.BACKBLAZE_B2_KEY_ID ||
+    process.env.BACKBLAZE_B2_ACCOUNT_ID_3,
+  B2_ACC3_APPLICATION_KEY:
+    process.env.B2_ACC3_APPLICATION_KEY ||
+    process.env.BACKBLAZE_B2_APP_KEY ||
+    process.env.BACKBLAZE_B2_ACCOUNT_KEY_3,
+  B2_ACC3_BUCKET_NAME:
+    process.env.B2_ACC3_BUCKET_NAME || process.env.BACKBLAZE_B2_BUCKET_ID,
 
   // 7. Pemetaan OpenRouter AI & E-commerce APIs
   OPENROUTER_BASE_URL:
