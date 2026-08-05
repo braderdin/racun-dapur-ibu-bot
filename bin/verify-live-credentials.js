@@ -42,7 +42,9 @@ function addResult(service, status, details = "") {
 
 function printTable() {
   console.log("\n" + "=".repeat(85));
-  console.log("  EXHAUSTIVE 18-POINT LIVE CREDENTIALS & API SERVICES VERIFICATION REPORT");
+  console.log(
+    "  EXHAUSTIVE 18-POINT LIVE CREDENTIALS & API SERVICES VERIFICATION REPORT",
+  );
   console.log("=".repeat(85) + "\n");
 
   const statusIcon = (s) => (s === "PASS" ? "✅" : s === "WARN" ? "⚠️ " : "❌");
@@ -74,7 +76,11 @@ async function testGitHub() {
     process.env.GH_PERSONAL_ACCESS_TOKEN_CLASIC;
 
   if (!token) {
-    addResult("1. GitHub REST API", "FAIL", "Missing GH_PAT / Personal Access Token");
+    addResult(
+      "1. GitHub REST API",
+      "FAIL",
+      "Missing GH_PAT / Personal Access Token",
+    );
     return;
   }
 
@@ -92,12 +98,20 @@ async function testGitHub() {
 
     if (response.ok) {
       const data = await response.json();
-      addResult("1. GitHub REST API", "PASS", `Authenticated User: ${data.login}`);
+      addResult(
+        "1. GitHub REST API",
+        "PASS",
+        `Authenticated User: ${data.login}`,
+      );
     } else {
       addResult("1. GitHub REST API", "FAIL", `HTTP ${response.status}`);
     }
   } catch (err) {
-    addResult("1. GitHub REST API", "FAIL", err.name === "AbortError" ? "Timeout" : err.message);
+    addResult(
+      "1. GitHub REST API",
+      "FAIL",
+      err.name === "AbortError" ? "Timeout" : err.message,
+    );
   }
 }
 
@@ -107,22 +121,39 @@ function testGitHubRepo() {
   const repo = process.env.GITHUB_REPO || "racun-dapur-ibu-bot";
 
   if (owner && repo) {
-    addResult("2. GitHub Repository Config", "PASS", `Repository: ${owner}/${repo}`);
+    addResult(
+      "2. GitHub Repository Config",
+      "PASS",
+      `Repository: ${owner}/${repo}`,
+    );
   } else {
-    addResult("2. GitHub Repository Config", "WARN", "Missing GITHUB_OWNER or GITHUB_REPO");
+    addResult(
+      "2. GitHub Repository Config",
+      "WARN",
+      "Missing GITHUB_OWNER or GITHUB_REPO",
+    );
   }
 }
 
 // 3. Lazada Open API Integration
 function testLazada() {
   const appKey = process.env.LAZADA_APP_KEY || process.env.LAZADA_LiteApp_Key;
-  const appSecret = process.env.LAZADA_APP_SECRET || process.env.LAZADA_LiteApp_Secret;
+  const appSecret =
+    process.env.LAZADA_APP_SECRET || process.env.LAZADA_LiteApp_Secret;
 
   if (!appKey || !appSecret) {
-    addResult("3. Lazada Open API", "FAIL", "Missing LAZADA_APP_KEY or LAZADA_APP_SECRET");
+    addResult(
+      "3. Lazada Open API",
+      "FAIL",
+      "Missing LAZADA_APP_KEY or LAZADA_APP_SECRET",
+    );
     return;
   }
-  addResult("3. Lazada Open API", "PASS", `App Key: ${appKey.substring(0, 8)}...`);
+  addResult(
+    "3. Lazada Open API",
+    "PASS",
+    `App Key: ${appKey.substring(0, 8)}...`,
+  );
 }
 
 // 4. Shopee Affiliate API Integration
@@ -131,55 +162,110 @@ function testShopee() {
   const secret = process.env.SHOPEE_AFFILIATE_SECRET;
 
   if (!appId || !secret) {
-    addResult("4. Shopee Affiliate API", "WARN", "Missing SHOPEE_AFFILIATE_APP_ID or SECRET");
+    addResult(
+      "4. Shopee Affiliate API",
+      "WARN",
+      "Missing SHOPEE_AFFILIATE_APP_ID or SECRET",
+    );
     return;
   }
-  addResult("4. Shopee Affiliate API", "PASS", `App ID: ${appId.substring(0, 8)}...`);
+  addResult(
+    "4. Shopee Affiliate API",
+    "PASS",
+    `App ID: ${appId.substring(0, 8)}...`,
+  );
 }
 
 // 5 & 6. X (Twitter) API v1.1 (Media Upload) & v2 (Tweet Posting)
 async function testTwitter() {
   const appKey = process.env.X_API_KEY || process.env.X_Consumer_Key;
-  const appSecret = process.env.X_API_KEY_SECRET || process.env.X_Consumer_Key_Secret;
+  const appSecret =
+    process.env.X_API_KEY_SECRET || process.env.X_Consumer_Key_Secret;
   const accessToken = process.env.X_ACCESS_TOKEN;
-  const accessSecret = process.env.X_ACCESS_TOKEN_SECRET || process.env.X_Consumer_Key_Secret;
+  const accessSecret =
+    process.env.X_ACCESS_TOKEN_SECRET || process.env.X_Consumer_Key_Secret;
 
   if (!appKey || !appSecret || !accessToken || !accessSecret) {
-    addResult("5. X API v1.1 (Media Upload)", "FAIL", "Missing OAuth 1.0a credentials");
-    addResult("6. X API v2 (Tweet Posting)", "FAIL", "Missing OAuth 1.0a credentials");
+    addResult(
+      "5. X API v1.1 (Media Upload)",
+      "FAIL",
+      "Missing OAuth 1.0a credentials",
+    );
+    addResult(
+      "6. X API v2 (Tweet Posting)",
+      "FAIL",
+      "Missing OAuth 1.0a credentials",
+    );
     return;
   }
 
   if (!TwitterApi) {
-    addResult("5. X API v1.1 (Media Upload)", "FAIL", "twitter-api-v2 library not installed");
-    addResult("6. X API v2 (Tweet Posting)", "FAIL", "twitter-api-v2 library not installed");
+    addResult(
+      "5. X API v1.1 (Media Upload)",
+      "FAIL",
+      "twitter-api-v2 library not installed",
+    );
+    addResult(
+      "6. X API v2 (Tweet Posting)",
+      "FAIL",
+      "twitter-api-v2 library not installed",
+    );
     return;
   }
 
-  const client = new TwitterApi({ appKey, appSecret, accessToken, accessSecret });
+  const client = new TwitterApi({
+    appKey,
+    appSecret,
+    accessToken,
+    accessSecret,
+  });
 
   // Test v1.1 Media Upload Context
   try {
     const v1User = await client.v1.verifyCredentials();
     if (v1User && v1User.screen_name) {
-      addResult("5. X API v1.1 (Media Upload)", "PASS", `Verified Account: @${v1User.screen_name}`);
+      addResult(
+        "5. X API v1.1 (Media Upload)",
+        "PASS",
+        `Verified Account: @${v1User.screen_name}`,
+      );
     } else {
-      addResult("5. X API v1.1 (Media Upload)", "FAIL", "Empty profile payload returned");
+      addResult(
+        "5. X API v1.1 (Media Upload)",
+        "FAIL",
+        "Empty profile payload returned",
+      );
     }
   } catch (err) {
-    addResult("5. X API v1.1 (Media Upload)", "FAIL", err.message || String(err));
+    addResult(
+      "5. X API v1.1 (Media Upload)",
+      "FAIL",
+      err.message || String(err),
+    );
   }
 
   // Test v2 Tweet Posting Context
   try {
     const v2User = await client.v2.me();
     if (v2User && v2User.data) {
-      addResult("6. X API v2 (Tweet Posting)", "PASS", `Authenticated User: @${v2User.data.username}`);
+      addResult(
+        "6. X API v2 (Tweet Posting)",
+        "PASS",
+        `Authenticated User: @${v2User.data.username}`,
+      );
     } else {
-      addResult("6. X API v2 (Tweet Posting)", "FAIL", "Empty user payload returned");
+      addResult(
+        "6. X API v2 (Tweet Posting)",
+        "FAIL",
+        "Empty user payload returned",
+      );
     }
   } catch (err) {
-    addResult("6. X API v2 (Tweet Posting)", "FAIL", err.message || String(err));
+    addResult(
+      "6. X API v2 (Tweet Posting)",
+      "FAIL",
+      err.message || String(err),
+    );
   }
 }
 
@@ -207,28 +293,53 @@ async function testFacebookPage() {
     if (response.ok) {
       const resData = await response.json();
       if (resData.id && resData.name) {
-        addResult("7. Meta Facebook Page API", "PASS", `Connected Page: ${resData.name}`);
+        addResult(
+          "7. Meta Facebook Page API",
+          "PASS",
+          `Connected Page: ${resData.name}`,
+        );
       } else {
-        addResult("7. Meta Facebook Page API", "FAIL", "Invalid page response structure");
+        addResult(
+          "7. Meta Facebook Page API",
+          "FAIL",
+          "Invalid page response structure",
+        );
       }
     } else {
       const errJson = await response.json().catch(() => ({}));
-      addResult("7. Meta Facebook Page API", "FAIL", `HTTP ${response.status}: ${errJson.error?.message || "Error"}`);
+      addResult(
+        "7. Meta Facebook Page API",
+        "FAIL",
+        `HTTP ${response.status}: ${errJson.error?.message || "Error"}`,
+      );
     }
   } catch (err) {
-    addResult("7. Meta Facebook Page API", "FAIL", err.name === "AbortError" ? "Timeout" : err.message);
+    addResult(
+      "7. Meta Facebook Page API",
+      "FAIL",
+      err.name === "AbortError" ? "Timeout" : err.message,
+    );
   }
 }
 
 // 8. Meta Facebook App Configuration Check
 function testFacebookApp() {
   const appId = process.env.FACEBOOK_APP_ID || process.env.META_APP_ID;
-  const appSecret = process.env.FACEBOOK_APP_SECRET || process.env.META_APP_SECRET;
+  const appSecret =
+    process.env.FACEBOOK_APP_SECRET || process.env.META_APP_SECRET;
 
   if (appId && appSecret) {
-    addResult("8. Meta Facebook App Credentials", "PASS", `App ID Configured: ${appId}`);
+    addResult(
+      "8. Meta Facebook App Credentials",
+      "PASS",
+      `App ID Configured: ${appId}`,
+    );
   } else {
-    addResult("8. Meta Facebook App Credentials", "WARN", "Missing FACEBOOK_APP_ID or SECRET");
+    addResult(
+      "8. Meta Facebook App Credentials",
+      "WARN",
+      "Missing FACEBOOK_APP_ID or SECRET",
+    );
   }
 }
 
@@ -251,15 +362,27 @@ async function testTelegramBot() {
     if (response.ok) {
       const data = await response.json();
       if (data.ok && data.result) {
-        addResult("9. Telegram Bot API", "PASS", `Active Bot: @${data.result.username}`);
+        addResult(
+          "9. Telegram Bot API",
+          "PASS",
+          `Active Bot: @${data.result.username}`,
+        );
       } else {
-        addResult("9. Telegram Bot API", "FAIL", "Invalid bot response payload");
+        addResult(
+          "9. Telegram Bot API",
+          "FAIL",
+          "Invalid bot response payload",
+        );
       }
     } else {
       addResult("9. Telegram Bot API", "FAIL", `HTTP ${response.status}`);
     }
   } catch (err) {
-    addResult("9. Telegram Bot API", "FAIL", err.name === "AbortError" ? "Timeout" : err.message);
+    addResult(
+      "9. Telegram Bot API",
+      "FAIL",
+      err.name === "AbortError" ? "Timeout" : err.message,
+    );
   }
 }
 
@@ -267,9 +390,17 @@ async function testTelegramBot() {
 function testTelegramChat() {
   const chatId = process.env.TELEGRAM_CHAT_ID;
   if (chatId) {
-    addResult("10. Telegram Target Chat ID", "PASS", `Target Chat ID: ${chatId}`);
+    addResult(
+      "10. Telegram Target Chat ID",
+      "PASS",
+      `Target Chat ID: ${chatId}`,
+    );
   } else {
-    addResult("10. Telegram Target Chat ID", "FAIL", "Missing TELEGRAM_CHAT_ID");
+    addResult(
+      "10. Telegram Target Chat ID",
+      "FAIL",
+      "Missing TELEGRAM_CHAT_ID",
+    );
   }
 }
 
@@ -285,15 +416,27 @@ async function testUpstash() {
         headers: { Authorization: `Bearer ${redisToken}` },
       });
       if (response.ok) {
-        addResult("11. Upstash Redis & Vector", "PASS", "Redis REST Ping & Vector Configured");
+        addResult(
+          "11. Upstash Redis & Vector",
+          "PASS",
+          "Redis REST Ping & Vector Configured",
+        );
       } else {
-        addResult("11. Upstash Redis & Vector", "FAIL", `HTTP ${response.status}`);
+        addResult(
+          "11. Upstash Redis & Vector",
+          "FAIL",
+          `HTTP ${response.status}`,
+        );
       }
     } catch (e) {
       addResult("11. Upstash Redis & Vector", "FAIL", e.message);
     }
   } else {
-    addResult("11. Upstash Redis & Vector", "FAIL", "Missing UPSTASH_REDIS_REST_URL or TOKEN");
+    addResult(
+      "11. Upstash Redis & Vector",
+      "FAIL",
+      "Missing UPSTASH_REDIS_REST_URL or TOKEN",
+    );
   }
 }
 
@@ -302,9 +445,17 @@ function testQStash() {
   const token = process.env.QSTASH_TOKEN;
   const url = process.env.QSTASH_URL;
   if (token && url) {
-    addResult("12. QStash Messaging Scheduler", "PASS", "QStash Endpoint & Token Configured");
+    addResult(
+      "12. QStash Messaging Scheduler",
+      "PASS",
+      "QStash Endpoint & Token Configured",
+    );
   } else if (token) {
-    addResult("12. QStash Messaging Scheduler", "PASS", "QStash Token Configured");
+    addResult(
+      "12. QStash Messaging Scheduler",
+      "PASS",
+      "QStash Token Configured",
+    );
   } else {
     addResult("12. QStash Messaging Scheduler", "WARN", "Missing QSTASH_TOKEN");
   }
@@ -313,10 +464,15 @@ function testQStash() {
 // 13. Supabase REST API Connection
 async function testSupabaseRest() {
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+  const key =
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 
   if (!url || !key) {
-    addResult("13. Supabase REST API", "FAIL", "Missing SUPABASE_URL or API Key");
+    addResult(
+      "13. Supabase REST API",
+      "FAIL",
+      "Missing SUPABASE_URL or API Key",
+    );
     return;
   }
 
@@ -325,7 +481,11 @@ async function testSupabaseRest() {
       headers: { apikey: key, Authorization: `Bearer ${key}` },
     });
     if (response.ok || response.status === 401) {
-      addResult("13. Supabase REST API", "PASS", `Supabase Endpoint Active: ${url}`);
+      addResult(
+        "13. Supabase REST API",
+        "PASS",
+        `Supabase Endpoint Active: ${url}`,
+      );
     } else {
       addResult("13. Supabase REST API", "FAIL", `HTTP ${response.status}`);
     }
@@ -340,11 +500,23 @@ function testSupabaseDatabaseUrls() {
   const directUrl = process.env.DIRECT_URL || process.env.DIRECT_URL_UNPOOLED;
 
   if (dbUrl && directUrl) {
-    addResult("14. Supabase DB Connection URLs", "PASS", "Pooled & Direct Connection URLs Present");
+    addResult(
+      "14. Supabase DB Connection URLs",
+      "PASS",
+      "Pooled & Direct Connection URLs Present",
+    );
   } else if (dbUrl) {
-    addResult("14. Supabase DB Connection URLs", "PASS", "Primary Database URL Present");
+    addResult(
+      "14. Supabase DB Connection URLs",
+      "PASS",
+      "Primary Database URL Present",
+    );
   } else {
-    addResult("14. Supabase DB Connection URLs", "WARN", "Missing DATABASE_URL / DIRECT_URL");
+    addResult(
+      "14. Supabase DB Connection URLs",
+      "WARN",
+      "Missing DATABASE_URL / DIRECT_URL",
+    );
   }
 }
 
@@ -354,9 +526,17 @@ function testCloudflare() {
   const workerUrl = process.env.WORKER_URL || process.env.CLOUDFLARE_WORKER_URL;
 
   if (accId || workerUrl) {
-    addResult("15. Cloudflare Workers & S3", "PASS", "Cloudflare Account / Worker Configured");
+    addResult(
+      "15. Cloudflare Workers & S3",
+      "PASS",
+      "Cloudflare Account / Worker Configured",
+    );
   } else {
-    addResult("15. Cloudflare Workers & S3", "WARN", "Missing CLOUDFLARE_ACCOUNT_ID or WORKER_URL");
+    addResult(
+      "15. Cloudflare Workers & S3",
+      "WARN",
+      "Missing CLOUDFLARE_ACCOUNT_ID or WORKER_URL",
+    );
   }
 }
 
@@ -368,7 +548,11 @@ async function testBackblazeB2Multi() {
   const acc3Key = process.env.B2_ACC3_KEY_ID;
 
   if (!acc1Key || !acc1AppKey) {
-    addResult("16. Backblaze B2 Multi-Storage", "FAIL", "Missing Backblaze Account 1 Keys");
+    addResult(
+      "16. Backblaze B2 Multi-Storage",
+      "FAIL",
+      "Missing Backblaze Account 1 Keys",
+    );
     return;
   }
 
@@ -377,13 +561,28 @@ async function testBackblazeB2Multi() {
   if (acc3Key) accountCount++;
 
   try {
-    const response = await fetch("https://api.backblazeb2.com/b2api/v2/b2_authorize_account", {
-      headers: { Authorization: "Basic " + Buffer.from(`${acc1Key}:${acc1AppKey}`).toString("base64") },
-    });
+    const response = await fetch(
+      "https://api.backblazeb2.com/b2api/v2/b2_authorize_account",
+      {
+        headers: {
+          Authorization:
+            "Basic " +
+            Buffer.from(`${acc1Key}:${acc1AppKey}`).toString("base64"),
+        },
+      },
+    );
     if (response.ok) {
-      addResult("16. Backblaze B2 Multi-Storage", "PASS", `Acc 1 Verified (${accountCount} Total Accounts Active)`);
+      addResult(
+        "16. Backblaze B2 Multi-Storage",
+        "PASS",
+        `Acc 1 Verified (${accountCount} Total Accounts Active)`,
+      );
     } else {
-      addResult("16. Backblaze B2 Multi-Storage", "FAIL", `HTTP ${response.status}`);
+      addResult(
+        "16. Backblaze B2 Multi-Storage",
+        "FAIL",
+        `HTTP ${response.status}`,
+      );
     }
   } catch (e) {
     addResult("16. Backblaze B2 Multi-Storage", "FAIL", e.message);
@@ -396,15 +595,24 @@ function testVercel() {
   const projId = process.env.VERCEL_PROJECT_ID;
 
   if (token && projId) {
-    addResult("17. Vercel Deployment Keys", "PASS", "Vercel Token & Project ID Configured");
+    addResult(
+      "17. Vercel Deployment Keys",
+      "PASS",
+      "Vercel Token & Project ID Configured",
+    );
   } else {
-    addResult("17. Vercel Deployment Keys", "WARN", "Missing VERCEL_TOKEN or VERCEL_PROJECT_ID");
+    addResult(
+      "17. Vercel Deployment Keys",
+      "WARN",
+      "Missing VERCEL_TOKEN or VERCEL_PROJECT_ID",
+    );
   }
 }
 
 // 18. OpenRouter AI via Cloudflare Worker Proxy
 async function testOpenRouterProxy() {
-  const baseUrl = process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1";
+  const baseUrl =
+    process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1";
   const model = process.env.OPENROUTER_MODEL || "openrouter/free";
   const apiKey = process.env.OPENROUTER_API_KEY || "sk-dummy-key";
 
@@ -426,18 +634,37 @@ async function testOpenRouterProxy() {
     });
     clearTimeout(timeoutId);
 
-    if (response.ok || response.status === 200 || response.status === 400 || response.status === 422) {
-      addResult("18. OpenRouter AI Cloudflare Proxy", "PASS", `Proxy Gateway Active (${model})`);
+    if (
+      response.ok ||
+      response.status === 200 ||
+      response.status === 400 ||
+      response.status === 422
+    ) {
+      addResult(
+        "18. OpenRouter AI Cloudflare Proxy",
+        "PASS",
+        `Proxy Gateway Active (${model})`,
+      );
     } else {
-      addResult("18. OpenRouter AI Cloudflare Proxy", "FAIL", `HTTP ${response.status}`);
+      addResult(
+        "18. OpenRouter AI Cloudflare Proxy",
+        "FAIL",
+        `HTTP ${response.status}`,
+      );
     }
   } catch (e) {
-    addResult("18. OpenRouter AI Cloudflare Proxy", "FAIL", e.name === "AbortError" ? "Timeout" : e.message);
+    addResult(
+      "18. OpenRouter AI Cloudflare Proxy",
+      "FAIL",
+      e.name === "AbortError" ? "Timeout" : e.message,
+    );
   }
 }
 
 async function main() {
-  console.log("\n🔍 Running Exhaustive 18-Point Live Credentials Diagnostic...\n");
+  console.log(
+    "\n🔍 Running Exhaustive 18-Point Live Credentials Diagnostic...\n",
+  );
 
   // Synchronous environment checks
   testGitHubRepo();
