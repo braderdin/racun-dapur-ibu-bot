@@ -136,14 +136,21 @@ export class OpenRouterService {
     // Prepare prompt
     const prompt = this.buildPrompt(product);
 
-    // Make API request
-    const response = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
+    // Use Cloudflare Worker Proxy Base URL from environment
+    const baseUrl =
+      process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1";
+    const apiKey = process.env.OPENROUTER_API_KEY || "sk-dummy-key";
+
+    // Make API request with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s timeout
+
+    try {
+      const response = await fetch(`${baseUrl}/chat/completions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          Authorization: `Bearer ${apiKey}`,
           "HTTP-Referer": "https://racun.ibu.my",
           "X-Title": "RacunDapurIbu Bot",
         },
@@ -166,22 +173,28 @@ export class OpenRouterService {
           presence_penalty: this.config.presencePenalty,
           frequency_penalty: this.config.frequencyPenalty,
         }),
-      },
-    );
+        signal: controller.signal,
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `OpenRouter API error: ${response.status} ${response.statusText} - ${errorText}`,
-      );
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `OpenRouter API error: ${response.status} ${response.statusText} - ${errorText}`,
+        );
+      }
+
+      const result: OpenRouterResponse = await response.json();
+
+      // Update rate limit stats
+      this.requestCount++;
+
+      return result;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      throw error;
     }
-
-    const result: OpenRouterResponse = await response.json();
-
-    // Update rate limit stats
-    this.requestCount++;
-
-    return result;
   }
 
   // Build product-specific prompt

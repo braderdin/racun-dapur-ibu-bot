@@ -162,7 +162,13 @@ export class TwitterService {
     let fetchSuccess = false;
 
     try {
-      const imageResponse = await fetch(imageUrl);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const imageResponse = await fetch(imageUrl, {
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
       if (imageResponse.ok) {
         imageBuffer = await imageResponse.arrayBuffer();
         fetchSuccess = true;
@@ -180,7 +186,13 @@ export class TwitterService {
     // If original image failed, try fallback image
     if (!fetchSuccess) {
       try {
-        const fallbackResponse = await fetch(FALLBACK_IMAGE_URL);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        const fallbackResponse = await fetch(FALLBACK_IMAGE_URL, {
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
         if (fallbackResponse.ok) {
           imageBuffer = await fallbackResponse.arrayBuffer();
           fetchSuccess = true;
@@ -221,36 +233,48 @@ export class TwitterService {
       this.accessTokenSecret,
     );
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: authHeader,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: body.toString(),
-    });
-
-    const responseText = await response.text();
-    let data: any;
     try {
-      data = JSON.parse(responseText);
-    } catch {
-      console.warn(
-        `[X Bot] Non-JSON response from Twitter media upload (${response.status}): ${responseText.substring(0, 100)}`,
-      );
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: authHeader,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: body.toString(),
+      });
+
+      const responseText = await response.text();
+      let data: any;
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        console.warn(
+          `[X Bot] Non-JSON response from Twitter media upload (${response.status}): ${responseText.substring(0, 100)}`,
+        );
+        return null;
+      }
+
+      if (!response.ok || "errors" in data) {
+        const errorMsg =
+          "errors" in data
+            ? data.errors.map((e: { message: string }) => e.message).join(", ")
+            : `HTTP ${response.status}: ${response.statusText}`;
+        console.warn(`[X Bot] Twitter media upload failed: ${errorMsg}`);
+
+        // Handle specific auth errors
+        if (response.status === 401 || response.status === 403) {
+          console.warn(
+            "[X Bot] OAuth authentication failed for media upload - check credentials",
+          );
+        }
+        return null;
+      }
+
+      return data.media_id_string;
+    } catch (error) {
+      console.error("[X Bot] Twitter media upload exception:", error);
       return null;
     }
-
-    if (!response.ok || "errors" in data) {
-      const errorMsg =
-        "errors" in data
-          ? data.errors.map((e: { message: string }) => e.message).join(", ")
-          : `HTTP ${response.status}: ${response.statusText}`;
-      console.warn(`[X Bot] Twitter media upload failed: ${errorMsg}`);
-      return null;
-    }
-
-    return data.media_id_string;
   }
 
   /**
@@ -310,8 +334,21 @@ export class TwitterService {
 
       // Handle HTTP 402 (Payment Required) - free tier limitation
       if (response.status === 402) {
+        console.warn(
+          "[X Bot] Twitter API free tier limitation (HTTP 402) - cannot post tweets",
+        );
         throw new Error(
           "Twitter API free tier does not allow posting tweets (HTTP 402). Skipping Twitter posting.",
+        );
+      }
+
+      // Handle HTTP 401/403 - authentication issues
+      if (response.status === 401 || response.status === 403) {
+        console.warn(
+          "[X Bot] Twitter API authentication failed - check OAuth credentials",
+        );
+        throw new Error(
+          `Twitter API authentication failed (HTTP ${response.status}): ${errorMsg}`,
         );
       }
 

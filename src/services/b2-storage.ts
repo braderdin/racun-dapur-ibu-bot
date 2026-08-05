@@ -97,7 +97,7 @@ export class B2StorageService {
         options.originalFileName,
       );
 
-      // Upload to B2 storage (simulated for now)
+      // Upload to B2 storage (simulated for local testing - generates correct CDN URL)
       const uploadResult = await this.uploadToB2(
         processedImage.buffer,
         storageKey,
@@ -156,17 +156,19 @@ export class B2StorageService {
     config: B2StorageConfig,
     imageInfo: any,
   ): Promise<UploadResult> {
-    // Simulate B2 upload (in real implementation, use b2-sdk)
-    console.log("☁️  Uploading to B2 storage...");
+    // Simulate B2 upload for local testing - generates correct CDN URL
+    // In production (GitHub Actions), the real B2 API is used via the worker
+    console.log("☁️  Uploading to B2 storage (simulated for local)...");
 
     // Simulate network delay
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    const imageUrl = `https://${config.bucket}.s3.amazonaws.com/${storageKey}`;
+    // Generate CDN URL via Cloudflare S3 Auth Proxy (correct format)
+    const cdnUrl = `https://racun.ibu.my/images/${storageKey}`;
 
     return {
       success: true,
-      imageUrl,
+      imageUrl: cdnUrl,
       storageKey,
       account: config.account,
       bucket: config.bucket,
@@ -252,30 +254,3 @@ export class B2StorageService {
     };
   }
 }
-
-// Create a singleton instance
-const b2StorageService = new B2StorageService([
-  {
-    account: 1,
-    bucket: "racun-dapur-ibu-assets",
-    keyId: "0052efa5668da500000000001",
-    applicationKey: "K005yneif9owcpAltV67bqji3DjxZ5s",
-    endpoint: "https://s3.amazonaws.com",
-  },
-  {
-    account: 2,
-    bucket: "racun-dapur-ibu-assets-02",
-    keyId: "005450036af81220000000001",
-    applicationKey: "K005lY71WOFB4uNyIS8O62oKN+QFZw0",
-    endpoint: "https://s3.amazonaws.com",
-  },
-  {
-    account: 3,
-    bucket: "racun-dapur-ibu-assets-03",
-    keyId: "005b1741c48e4c10000000001",
-    applicationKey: "K005+I2FEu00DBkrMZgSx+8dNqjDPn0",
-    endpoint: "https://s3.amazonaws.com",
-  },
-]);
-
-export { b2StorageService };

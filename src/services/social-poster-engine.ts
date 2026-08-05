@@ -189,6 +189,17 @@ export class SocialPosterEngine {
         postData.imageUrl,
       );
 
+      // Handle HTTP 402 (free tier limitation) gracefully
+      if (!tweet1Result.success && tweet1Result.error?.includes("402")) {
+        console.warn(
+          "Twitter API free tier limitation (HTTP 402) - skipping Twitter posting",
+        );
+        return {
+          status: "pending",
+          error: "Twitter API free tier limitation (HTTP 402) - skipped",
+        };
+      }
+
       if (!tweet1Result.success || !tweet1Result.tweetId) {
         throw new Error(`Tweet 1 failed: ${tweet1Result.error}`);
       }
@@ -202,6 +213,22 @@ export class SocialPosterEngine {
         tweet2Text,
         tweet1Result.tweetId,
       );
+
+      // Handle HTTP 402 for reply
+      if (!tweet2Result.success && tweet2Result.error?.includes("402")) {
+        console.warn(
+          "Twitter API free tier limitation (HTTP 402) for reply - Tweet 1 published but reply skipped",
+        );
+        return {
+          tweet1Id: tweet1Result.tweetId,
+          tweet2Id: undefined,
+          status: "published",
+          error:
+            "Reply skipped due to Twitter API free tier limitation (HTTP 402)",
+          retryCount: 0,
+          postedAt: Date.now(),
+        };
+      }
 
       if (!tweet2Result.success) {
         // Tweet 1 succeeded but reply failed - still partial success
@@ -225,9 +252,20 @@ export class SocialPosterEngine {
     } catch (error) {
       console.error("Error posting to Twitter:", error);
       // Soft-fail: Return skipped status instead of throwing fatal error
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
+
+      // Handle HTTP 402 in catch block
+      if (errorMsg.includes("402") || errorMsg.includes("Payment Required")) {
+        return {
+          status: "pending",
+          error: "Twitter API free tier limitation (HTTP 402) - skipped",
+          retryCount: 0,
+        };
+      }
+
       return {
         status: "pending",
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: errorMsg,
         retryCount: 0,
       };
     }

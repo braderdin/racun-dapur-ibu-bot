@@ -3,6 +3,7 @@
 // Enforces max 2MB cap and proper MIME type handling for B2 storage
 
 import { CONSTANTS } from "../config/constants";
+import sharp from "sharp";
 
 export interface ImageProcessingOptions {
   maxSizeMB?: number;
@@ -49,15 +50,6 @@ export class ImageProcessor {
     // Get image metadata first
     let metadata: any;
     try {
-      // We'll add sharp later after type checking is resolved
-      let sharp: any;
-      try {
-        sharp = await import("sharp");
-      } catch {
-        throw new Error(
-          "Sharp image processing is not available in this environment",
-        );
-      }
       metadata = await sharp(inputBuffer).metadata();
     } catch (error) {
       throw new Error(
@@ -82,22 +74,7 @@ export class ImageProcessor {
     let isWebP = false;
 
     // Process with Sharp
-    let sharpImage: any;
-    try {
-      let sharp: any;
-      try {
-        sharp = await import("sharp");
-      } catch {
-        throw new Error(
-          "Sharp image processing is not available in this environment",
-        );
-      }
-      sharpImage = sharp(inputBuffer);
-    } catch (error) {
-      throw new Error(
-        `Failed to initialize Sharp: ${(error as Error).message}`,
-      );
-    }
+    let sharpImage = sharp(inputBuffer);
 
     // Simulate dimension validation and resizing for now
     if (width > opts.maxWidth || height > opts.maxHeight) {
@@ -108,16 +85,10 @@ export class ImageProcessor {
     // If convertToWebP is true, convert to WebP
     if (opts.convertToWebP) {
       try {
-        let sharp: any;
-        try {
-          sharp = await import("sharp");
-        } catch {
-          throw new Error(
-            "Sharp image processing is not available in this environment",
-          );
-        }
+        // Sharp expects quality as integer 1-100, convert from 0-1 scale
+        const sharpQuality = Math.round(opts.quality * 100);
         const webpBuffer = await sharpImage
-          .webp({ quality: opts.quality, effort: 6 })
+          .webp({ quality: sharpQuality, effort: 6 })
           .toBuffer();
 
         processedBuffer = webpBuffer;

@@ -42,46 +42,49 @@ export class B2WebPUploader {
   constructor(env: Env, config?: Partial<ImageProcessingConfig>) {
     this.env = env;
 
-    // Create B2 account configs from env
+    // Create B2 account configs from env - support both naming conventions
     const accounts: B2AccountConfig[] = [
       {
         account: 1,
-        bucket: env.B2_ACC1_BUCKET || "",
+        bucket: env.B2_ACC1_BUCKET_NAME || env.B2_ACC1_BUCKET || "",
         keyId: env.B2_ACC1_KEY_ID || "",
         applicationKey: env.B2_ACC1_APPLICATION_KEY || "",
-        endpoint: env.B2_ACC1_ENDPOINT || "",
+        endpoint:
+          env.B2_ACC1_ENDPOINT || "https://s3.us-west-004.backblazeb2.com",
         maxCapacityGB: 9,
         usedGB: 0,
         enabled: !!(
-          env.B2_ACC1_BUCKET &&
+          (env.B2_ACC1_BUCKET_NAME || env.B2_ACC1_BUCKET) &&
           env.B2_ACC1_KEY_ID &&
           env.B2_ACC1_APPLICATION_KEY
         ),
       },
       {
         account: 2,
-        bucket: env.B2_ACC2_BUCKET || "",
+        bucket: env.B2_ACC2_BUCKET_NAME || env.B2_ACC2_BUCKET || "",
         keyId: env.B2_ACC2_KEY_ID || "",
         applicationKey: env.B2_ACC2_APPLICATION_KEY || "",
-        endpoint: env.B2_ACC2_ENDPOINT || "",
+        endpoint:
+          env.B2_ACC2_ENDPOINT || "https://s3.us-west-004.backblazeb2.com",
         maxCapacityGB: 9,
         usedGB: 0,
         enabled: !!(
-          env.B2_ACC2_BUCKET &&
+          (env.B2_ACC2_BUCKET_NAME || env.B2_ACC2_BUCKET) &&
           env.B2_ACC2_KEY_ID &&
           env.B2_ACC2_APPLICATION_KEY
         ),
       },
       {
         account: 3,
-        bucket: env.B2_ACC3_BUCKET || "",
+        bucket: env.B2_ACC3_BUCKET_NAME || env.B2_ACC3_BUCKET || "",
         keyId: env.B2_ACC3_KEY_ID || "",
         applicationKey: env.B2_ACC3_APPLICATION_KEY || "",
-        endpoint: env.B2_ACC3_ENDPOINT || "",
+        endpoint:
+          env.B2_ACC3_ENDPOINT || "https://s3.us-west-004.backblazeb2.com",
         maxCapacityGB: 9,
         usedGB: 0,
         enabled: !!(
-          env.B2_ACC3_BUCKET &&
+          (env.B2_ACC3_BUCKET_NAME || env.B2_ACC3_BUCKET) &&
           env.B2_ACC3_KEY_ID &&
           env.B2_ACC3_APPLICATION_KEY
         ),
@@ -158,11 +161,16 @@ export class B2WebPUploader {
   }
 
   /**
-   * Download image from URL with timeout
+   * Download image from URL with timeout and fallback
    * @param url - Image URL
    * @returns Image buffer or null
    */
   private async downloadImage(url: string): Promise<Buffer | null> {
+    // Fallback image URL (public domain kitchen image from Unsplash)
+    const FALLBACK_IMAGE_URL =
+      "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&h=600&fit=crop&auto=format";
+
+    // Try to fetch the original image first
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -176,17 +184,43 @@ export class B2WebPUploader {
 
       clearTimeout(timeoutId);
 
-      if (!response.ok) {
-        console.error(`Failed to download image: ${response.status}`);
-        return null;
+      if (response.ok) {
+        const arrayBuffer = await response.arrayBuffer();
+        return Buffer.from(arrayBuffer);
       }
 
-      const arrayBuffer = await response.arrayBuffer();
-      return Buffer.from(arrayBuffer);
+      console.warn(
+        `Failed to download image (${response.status}), trying fallback...`,
+      );
     } catch (error) {
-      console.error("Error downloading image:", error);
-      return null;
+      console.warn(
+        `Error downloading image: ${error instanceof Error ? error.message : "Unknown error"}, trying fallback...`,
+      );
     }
+
+    // Try fallback image
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const fallbackResponse = await fetch(FALLBACK_IMAGE_URL, {
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (fallbackResponse.ok) {
+        const arrayBuffer = await fallbackResponse.arrayBuffer();
+        console.log("Using fallback image from Unsplash");
+        return Buffer.from(arrayBuffer);
+      }
+      console.warn(`Fallback image also failed (${fallbackResponse.status})`);
+    } catch (fallbackError) {
+      console.warn(
+        `Error fetching fallback image: ${fallbackError instanceof Error ? fallbackError.message : "Unknown error"}`,
+      );
+    }
+
+    console.error("All image sources failed");
+    return null;
   }
 
   /**

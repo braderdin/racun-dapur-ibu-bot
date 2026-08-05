@@ -64,6 +64,7 @@ export class VectorRAGCopywriter {
   private redis: Redis;
   private openai: OpenAI;
   private env: Env;
+  private openRouterService: any; // OpenRouterService instance
 
   constructor(env: Env) {
     this.env = env;
@@ -80,6 +81,18 @@ export class VectorRAGCopywriter {
       // Disable automatic retries to handle errors explicitly
       maxRetries: 0,
     });
+
+    // Initialize OpenRouterService for better error handling
+    try {
+      const { OpenRouterService } = require("./openrouter");
+      this.openRouterService = new OpenRouterService({
+        model: process.env.OPENROUTER_MODEL || "openrouter/free",
+      });
+    } catch (e) {
+      console.warn(
+        "[VectorRAG] OpenRouterService not available, using direct OpenAI client",
+      );
+    }
   }
 
   async storeMarketingHook(hook: MarketingHook): Promise<void> {
@@ -219,11 +232,52 @@ export class VectorRAGCopywriter {
         relevantHooks,
       );
 
-      // Create a timeout promise
+      // Use OpenRouterService if available for better error handling and fallback
+      if (this.openRouterService) {
+        try {
+          const productForOpenRouter = {
+            name: productInfo.productType || `${productInfo.category} product`,
+            description: userPrompt,
+            price: productInfo.priceRange || "affordable",
+            category: productInfo.category,
+            rating: 4.5,
+            platform: platform === "x" ? "lazada" : "shopee",
+          };
+
+          const result =
+            await this.openRouterService.generateCopy(productForOpenRouter);
+
+          // Convert OpenRouter GeneratedCopy to VectorRAG GeneratedCopy
+          return {
+            hook: result.hook,
+            body: result.body,
+            cta: result.cta,
+            hashtags: result.hashtags,
+            threadTarget: result.threadTarget,
+            platform: platform === "x" ? "lazada" : "shopee",
+            confidence: result.confidence,
+            fallbackChainUsed: result.fallbackChainUsed,
+            culturalAdaptation: result.facebookCopy || "",
+            metadata: {
+              category: productInfo.category,
+              season: productInfo.season ?? "all",
+              priceRange: productInfo.priceRange ?? "all",
+              culturalScore: userProfile?.language === "bm" ? 0.9 : 0.7,
+            },
+          };
+        } catch (openRouterError) {
+          console.warn(
+            "[VectorRAG] OpenRouterService failed, falling back to direct OpenAI:",
+            openRouterError,
+          );
+        }
+      }
+
+      // Fallback to direct OpenAI client with timeout
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(
-          () => reject(new Error("OpenRouter API timeout after 30s")),
-          30000,
+          () => reject(new Error("OpenRouter API timeout after 25s")),
+          25000,
         );
       });
 
