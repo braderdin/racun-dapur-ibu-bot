@@ -28,15 +28,12 @@ if (fs.existsSync(envPath)) {
 }
 
 async function testOpenRouterModel() {
-  const rawBaseUrl =
-    process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1";
+  const rawBaseUrl = process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1";
   const baseUrl = rawBaseUrl.replace(/\/+$/, ""); // Clean trailing slashes
   const apiKey = process.env.OPENROUTER_API_KEY || "sk-dummy-key";
   const requestedModel = process.env.OPENROUTER_MODEL || "openrouter/free";
 
-  console.log(
-    "\n🚀 Memulakan Ujian Sambungan Cloudflare Worker Proxy OpenRouter...",
-  );
+  console.log("\n🚀 Memulakan Ujian Sambungan Cloudflare Worker Proxy OpenRouter...");
   console.log(`📌 Base URL        : ${baseUrl}`);
   console.log(`📌 Requested Model : ${requestedModel}`);
   console.log(`📌 API Key         : ${apiKey.substring(0, 12)}...\n`);
@@ -58,8 +55,7 @@ async function testOpenRouterModel() {
         messages: [
           {
             role: "user",
-            content:
-              "Sapa secara ringkas dalam 1 ayat dan sebutkan nama model AI anda.",
+            content: "Sapa secara ringkas dalam 1 ayat dan sebutkan nama model AI anda.",
           },
         ],
         temperature: 0.7,
@@ -77,17 +73,11 @@ async function testOpenRouterModel() {
 
     const data = await response.json();
 
-    console.log(
-      "==========================================================================",
-    );
+    console.log("==========================================================================");
     console.log("  LAPORAN RESPONS OPENROUTER AI PROXY & MODEL ID SEBENAR");
-    console.log(
-      "==========================================================================",
-    );
+    console.log("==========================================================================");
     console.log(`✅ Status Sambungan    : HTTP 200 OK (${elapsed}ms)`);
-    console.log(
-      `🎯 Actual Model ID     : \x1b[33m\x1b[1m${data.model || "Tidak Ditentukan"}\x1b[0m`,
-    );
+    console.log(`🎯 Actual Model ID     : \x1b[33m\x1b[1m${data.model || "Tidak Ditentukan"}\x1b[0m`);
 
     if (data.choices && data.choices[0] && data.choices[0].message) {
       console.log(
@@ -102,9 +92,7 @@ async function testOpenRouterModel() {
         `📊 Penggunaan Token    : Prompt: ${data.usage.prompt_tokens || 0} | Completion: ${data.usage.completion_tokens || 0} | Total: ${data.usage.total_tokens || 0}`,
       );
     }
-    console.log(
-      "==========================================================================\n",
-    );
+    console.log("==========================================================================\n");
   } catch (err) {
     console.error(`❌ Ralat Rangkaian / Pelaksanaan:`, err.message);
   }
